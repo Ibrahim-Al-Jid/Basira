@@ -1,0 +1,52 @@
+"""Exercise real password signup/login, project isolation, and background report access."""
+from secrets import token_urlsafe
+from urllib.parse import parse_qs, urlsplit
+from uuid import uuid4
+
+from playwright.sync_api import expect, sync_playwright
+
+from browser_phase6 import ORIGIN, project_scan
+
+
+def main():
+    email = "acceptance-" + uuid4().hex[:12] + "@example.test"
+    password = token_urlsafe(24)
+    with sync_playwright() as testing:
+        browser = testing.chromium.launch()
+        context = browser.new_context(viewport={"width": 390, "height": 844})
+        page = context.new_page()
+        page.goto(ORIGIN + "/projects")
+        page.get_by_role("button", name="إنشاء حساب", exact=True).click()
+        page.get_by_label("البريد الإلكتروني", exact=True).fill(email)
+        page.get_by_label("كلمة المرور", exact=True).fill(password)
+        page.get_by_role("button", name="إنشاء الحساب", exact=True).click()
+        expect(page.get_by_role("button", name="تسجيل الخروج")).to_be_visible()
+
+        page.get_by_label("اسم المؤسسة", exact=True).fill("Local account acceptance")
+        page.get_by_role("button", name="إنشاء مؤسسة", exact=True).click()
+        page.get_by_label("اسم المشروع", exact=True).fill("Password project acceptance")
+        page.get_by_role("button", name="إنشاء مشروع", exact=True).click()
+        expect(page.locator('input[type="file"][name="file"]')).to_be_visible()
+        project = parse_qs(urlsplit(page.url).query)["project"][0]
+        report = project_scan(page, project, '<form action="/session"><input name="password" type="password"></form>')
+        report_link = f"{ORIGIN}/reports/{report}?project={project}"
+        expect(page.locator(".reports-coverage li")).to_have_count(100)
+        page.goto(ORIGIN + "/projects")
+        page.get_by_role("button", name="تسجيل الخروج").click()
+        page.get_by_label("البريد الإلكتروني", exact=True).fill(email)
+        forbidden = context.request.get(f"{ORIGIN}/api/platform/projects/{project}/reports/{report}")
+        assert forbidden.status == 401
+        page.get_by_label("كلمة المرور", exact=True).fill(password)
+        page.get_by_role("button", name="تسجيل الدخول", exact=True).click()
+        expect(page.get_by_role("button", name="تسجيل الخروج")).to_be_visible()
+        page.goto(report_link)
+        expect(page.get_by_role("heading", name="تغطية الفحص")).to_be_visible()
+        page.reload()
+        expect(page.locator(".reports-coverage li")).to_have_count(100)
+        assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
+        browser.close()
+    print("Password browser flow passed: signup, scoped project, upload, background scan, logout, login and report reload.")
+
+
+if __name__ == "__main__":
+    main()

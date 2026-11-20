@@ -1,0 +1,129 @@
+name: marsad
+
+x-app: &app
+  build: .
+  image: marsad-platform:local
+  restart: unless-stopped
+
+x-platform: &platform
+  MARSAD_PLATFORM_DATABASE_URL: postgresql+psycopg://marsad_app:${MARSAD_DB_PASSWORD:?Set MARSAD_DB_PASSWORD}@db/marsad
+  MARSAD_REDIS_URL: redis://broker:6379/0
+
+services:
+  db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: marsad
+      POSTGRES_PASSWORD: ${MARSAD_MIGRATION_PASSWORD:?Set MARSAD_MIGRATION_PASSWORD}
+      MARSAD_DB_PASSWORD: ${MARSAD_DB_PASSWORD:?Set MARSAD_DB_PASSWORD}
+      MARSAD_DISPATCH_PASSWORD: ${MARSAD_DISPATCH_PASSWORD:?Set MARSAD_DISPATCH_PASSWORD}
+    volumes:
+      - database:/var/lib/postgresql/data
+      - ./ops/postgres-init.sh:/docker-entrypoint-initdb.d/10-marsad.sh:ro
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d marsad -h 127.0.0.1"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+
+  broker:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    networks: [internal]
+    volumes: [redis:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 2s
+      retries: 12
+    restart: unless-stopped
+
+  migrate:
+    <<: *app
+    restart: "no"
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      MARSAD_PLATFORM_MIGRATION_URL: postgresql+psycopg://postgres:${MARSAD_MIGRATION_PASSWORD:?Set MARSAD_MIGRATION_PASSWORD}@db/marsad
+    depends_on:
+      db: {condition: service_healthy}
+    networks: [internal]
+
+  app:
+    <<: *app
+    environment:
+      <<: *platform
+      MARSAD_OIDC_ISSUER: ${MARSAD_OIDC_ISSUER:-}
+      MARSAD_OIDC_CLIENT_ID: ${MARSAD_OIDC_CLIENT_ID:-}
+      MARSAD_OIDC_CLIENT_SECRET: ${MARSAD_OIDC_CLIENT_SECRET:-}
+      MARSAD_OIDC_REDIRECT_URI: ${MARSAD_OIDC_REDIRECT_URI:-}
+      MARSAD_OIDC_STATE_SECRET: ${MARSAD_OIDC_STATE_SECRET:-}
+      MARSAD_PASSWORD_AUTH_ENABLED: ${MARSAD_PASSWORD_AUTH_ENABLED:-0}
+      MARSAD_PASSWORD_SELF_SIGNUP: ${MARSAD_PASSWORD_SELF_SIGNUP:-0}
+    ports: ["127.0.0.1:${MARSAD_PORT:-8765}:8000"]
+    volumes: [anonymous:/srv/marsad/data]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    networks: [internal, egress]
+
+  dispatcher:
+    <<: *app
+    command: ["python", "-m", "backend.platform_jobs"]
+    environment:
+      <<: *platform
+      MARSAD_PLATFORM_DATABASE_URL: postgresql+psycopg://marsad_dispatch:${MARSAD_DISPATCH_PASSWORD:?Set MARSAD_DISPATCH_PASSWORD}@db/marsad
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      broker: {condition: service_healthy}
+    networks: [internal]
+
+  worker:
+    <<: *app
+    command: ["celery", "-A", "backend.platform_jobs:celery_app", "worker", "--concurrency", "2", "--loglevel", "WARNING"]
+    environment:
+      <<: *platform
+      MARSAD_ANALYSIS_SPOOL: /srv/marsad/spool
+      MARSAD_GATEWAY_URL: ${MARSAD_GATEWAY_URL:-}
+      MARSAD_GATEWAY_TOKEN: ${MARSAD_GATEWAY_TOKEN:-}
+    volumes: [spool:/srv/marsad/spool]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      broker: {condition: service_healthy}
+      scanner: {condition: service_started}
+    networks: [internal]
+
+  scanner:
+    <<: *app
+    command: ["python", "-m", "backend.offline_worker"]
+    environment:
+      MARSAD_ANALYSIS_SPOOL: /srv/marsad/spool
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes: [spool:/srv/marsad/spool]
+    network_mode: none
+    read_only: true
+    tmpfs: ["/tmp:size=32m,noexec,nosuid"]
+    mem_limit: 400m
+    cpus: 1
+    pids_limit: 64
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+  model-gateway:
+    <<: *app
+    profiles: [model]
+    command: ["python", "-m", "uvicorn", "backend.model_gateway:app", "--host", "0.0.0.0", "--port", "8001"]
+    environment:
+      MARSAD_OPENROUTER_KEY: ${MARSAD_OPENROUTER_KEY:-}
+      MARSAD_OPENROUTER_MODEL: ${MARSAD_OPENROUTER_MODEL:-}
+      MARSAD_GATEWAY_TOKEN: ${MARSAD_GATEWAY_TOKEN:-}
+    networks: [internal, egress]
+
+networks:
+  internal: {internal: true}
+  egress: {}
+volumes:
+  database: {}
+  anonymous: {}
+  redis: {}
+  spool: {}

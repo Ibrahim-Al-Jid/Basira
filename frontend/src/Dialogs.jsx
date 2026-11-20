@@ -1,22 +1,17 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   Check,
-  Download,
   KeyRound,
   LoaderCircle,
   Search,
-  Upload,
   X,
 } from "lucide-react";
 import {
   agents,
-  dateText,
   fetchJson,
   labelOf,
-  num,
   post,
   roleOf,
-  sample,
 } from "./data";
 import { AgentIcon } from "./Network";
 
@@ -213,74 +208,7 @@ export function Settings({ config, save, close }) {
     </Modal>
   );
 }
-export function Source({ source, setSource, close }) {
-  const [draft, setDraft] = useState(source),
-    [error, setError] = useState("");
-  const file = useRef();
-  const loadFile = async (e) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    try {
-      if (f.size > 1000000) throw Error("اختار ملف أصغر من ١ ميجابايت.");
-      setDraft(await f.text());
-      setError("");
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-  return (
-    <Modal title="مصدر الفحص" wide close={close}>
-      <p className="hint">
-        الصق كود HTML أو حمّل ملف من جهازك. يراجع المحرك تصريحات السكربتات
-        والنماذج في المصدر.
-      </p>
-      <label htmlFor="html">كود HTML</label>
-      <textarea
-        id="html"
-        dir="ltr"
-        value={draft}
-        spellCheck={false}
-        onChange={(e) => setDraft(e.target.value)}
-      />
-      <div className="source-tools">
-        <button className="btn" onClick={() => file.current.click()}>
-          <Upload size={15} />
-          استيراد ملف
-        </button>
-        <input
-          ref={file}
-          type="file"
-          hidden
-          accept=".html,.htm,text/html"
-          onChange={loadFile}
-        />
-        <button
-          className="subtle"
-          onClick={() => {
-            setDraft(sample);
-            setError("");
-          }}
-        >
-          استرجاع العينة
-        </button>
-      </div>
-      {error && <p className="error">{error}</p>}
-      <div className="modal-actions">
-        <button
-          className="btn primary"
-          disabled={!draft.trim()}
-          onClick={() => {
-            setSource(draft);
-            close();
-          }}
-        >
-          تطبيق المصدر <Check size={15} />
-        </button>
-      </div>
-    </Modal>
-  );
-}
-export function Agent({ node, event, model, close }) {
+export function Agent({ node, event, model, tasks = [], close }) {
   const role = roleOf(node),
     data = agents[role];
   if (!data) return null;
@@ -299,7 +227,8 @@ export function Agent({ node, event, model, close }) {
           ["المخرج", data[4]],
           ["الأداة", data[5]],
           ["الذاكرة", "حالة الفحص المشتركة داخل LangGraph"],
-          ["الموديل", model || "يُحدّد قبل بدء الفحص"],
+          ["الموديل", model || "تشغيل محلي"],
+          ...(event?.source ? [["مصدر القرار", event.source === "model" ? "الموديل" : "النظام"]] : []),
           ...(event?.detail ? [["آخر حدث", event.detail]] : []),
         ].map(([k, v]) => (
           <React.Fragment key={k}>
@@ -308,83 +237,13 @@ export function Agent({ node, event, model, close }) {
           </React.Fragment>
         ))}
       </dl>
-    </Modal>
-  );
-}
-export function Report({ report, close }) {
-  const [language, setLanguage] = useState("ar"),
-    ar = language === "ar",
-    findings = report.findings || [],
-    metrics = report.metrics || {},
-    b = metrics.benchmark;
-  return (
-    <Modal title="تقرير الفحص" wide close={close}>
-      <div className="report-meta">
-        <span>{dateText(report.created_at)}</span>
-        <span dir="ltr">{report.model}</span>
-      </div>
-      <div className="switch">
-        <button
-          className={ar ? "selected" : ""}
-          onClick={() => setLanguage("ar")}
-        >
-          العربية
-        </button>
-        <button
-          className={!ar ? "selected" : ""}
-          onClick={() => setLanguage("en")}
-        >
-          English
-        </button>
-      </div>
-      <div dir={ar ? "rtl" : "ltr"} lang={language}>
-        <p className="summary">{ar ? report.summary_ar : report.summary_en}</p>
-        <div className="measure">
-          <span>
-            {ar ? "الملاحظات" : "Findings"} <b>{findings.length}</b>
-          </span>
-          <span>
-            {ar ? "استدعاءات الموديل" : "Model calls"}{" "}
-            <b>{metrics.modelCalls ?? "—"}</b>
-          </span>
-        </div>
-        {b && (
-          <p className="benchmark">
-            {ar ? "العينة المرجعية" : "Reference fixture"} · {b.matched}/
-            {b.expected} · {ar ? "إضافية" : "Unexpected"} {b.unexpected}
-          </p>
-        )}
-        {findings.map((f, i) => (
-          <article className="finding" key={i}>
-            <div>
-              <strong>{ar ? f.title_ar || f.title : f.title}</strong>
-              <small>
-                {ar ? "سطر" : "Line"} {f.line}
-              </small>
-            </div>
-            <code dir="ltr">{f.evidence}</code>
-            <p>{ar ? f.remediation_ar || f.remediation : f.remediation}</p>
-          </article>
-        ))}
-      </div>
-      <div className="modal-actions">
-        {["ar", "en"].map((l) => (
-          <a
-            key={l}
-            className={"btn " + (l === language ? "primary" : "")}
-            href={
-              "/api/reports/" +
-              encodeURIComponent(report.id) +
-              "/download?lang=" +
-              l
-            }
-            download
-          >
-            <Download size={15} />
-            {l === "ar" ? "تحميل التقرير العربي" : "Download English report"}
-          </a>
-        ))}
-      </div>
+      {!!tasks.length && <section className="trace" aria-label="المهام المنفذة">
+        <h3>المهام اللي نفّذها الدور</h3>
+        <ul>{tasks.map((task) => <li key={task.id}>
+          <bdi>{task.tool}</bdi>
+          <p>{task.checks} قاعدة منطبقة · {task.matched} قاعدة مطابقة · {task.duration_ms} مللي ثانية</p>
+        </li>)}</ul>
+      </section>}
     </Modal>
   );
 }

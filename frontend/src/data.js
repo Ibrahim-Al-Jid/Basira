@@ -33,15 +33,15 @@ export const agents = {
     "المحلّل",
     "Analyst",
     "الخطة ونتائج فحص التصريحات",
-    "يراجع نتائج القواعد حسب الفرع المكلّف به.",
-    "ملاحظات مرشحة",
+    "يراجع نتائج الفحص المحلي حسب الفرع المكلّف به.",
+    "معرّفات القواعد المطابقة للفرع",
     "فاحص HTML المحلي",
   ],
   validation: [
     "المدقّق",
     "Validator",
-    "نتائج فروع التحليل",
-    "يراجع تطابق الملاحظات مع الأدلة ويرصد التكرار.",
+    "أدلة محلّل HTML ونتائج الفروع",
+    "يثبت كل موضع مطابق بقاعدة ودليل محلي.",
     "ملاحظات موثّقة",
     "مطابقة الأدلة",
   ],
@@ -105,9 +105,14 @@ export async function readRun(params, receive, signal) {
   function parse(line) {
     if (!line.trim()) return;
     const event = JSON.parse(line);
+    if (!event || typeof event !== "object") throw Error("رد الفحص غير صالح.");
     if (event.type === "error")
       throw Error(event.message || "تعذّر إكمال الفحص.");
-    if (event.type === "complete") complete = true;
+    if (event.type === "complete" && typeof event.report?.id === "string") {
+      complete = true;
+    } else if (event.type !== "step" || typeof event.node !== "string" || !Array.isArray(event.parents)) {
+      throw Error("رد الفحص غير صالح.");
+    }
     receive(event);
   }
   try {

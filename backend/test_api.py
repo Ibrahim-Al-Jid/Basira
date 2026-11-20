@@ -5,6 +5,7 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 import httpx
 
@@ -99,3 +100,92 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(json.loads(response.text)["type"], "error")
         self.assertNotIn(self.key, response.text)
         self.assertEqual(self.client.get("/api/history").json(), {"reports":[]})
+
+    def test_local_source_contract_coverage_exports_and_isolation(self):
+        source = '<script src="http://one.example/a.js"></script>\r\n' \
+                 '<script src="http://two.example/b.js"></script>\r'
+        filename = '<b>مصدر</b>.html'.replace("/", "")
+        payload = {"source": source, "source_info": {"kind": "file", "name": filename, "lines": 1}}
+        with patch.object(main, "catalog") as catalog:
+            response = self.client.post("/api/run", json=payload)
+        catalog.assert_not_called()
+        events = [json.loads(line) for line in response.text.splitlines()]
+        self.assertEqual(response.status_code, 200)
+        report = events[-1]["report"]
+        self.assertEqual(report["schema_version"], 2)
+        self.assertEqual(report["enrichment"], "disabled")
+        self.assertEqual(report["summary_source"], "system")
+        self.assertEqual(report["model"], None)
+        self.assertEqual(report["source"], {
+            "kind": "file", "name": filename, "bytes": len(source.encode()), "lines": 3, "encoding": "utf-8",
+        })
+        self.assertEqual([f["line"] for f in report["findings"]], [1, 2])
+        self.assertTrue(all(f["domain"] == "html" for f in report["findings"]))
+        self.assertTrue(all(step["scan_id"] == report["id"] and step["occurred_at"] for step in events[:-1]))
+        self.assertIn("not_applicable", [row["status"] for row in report["coverage"]])
+        summary = self.client.get("/api/history").json()["reports"][0]
+        self.assertEqual((summary["finding_count"], summary["unique_count"]), (2, 1))
+        url = "/api/reports/" + report["id"]
+        self.assertEqual(self.client.get(url).json(), report)
+        exported = self.client.get(url + "/download?format=json")
+        self.assertEqual(exported.json(), report)
+        self.assertIn(".json", exported.headers["content-disposition"])
+        for lang, direction in (("ar", "rtl"), ("en", "ltr")):
+            page = self.client.get(url + f"/download?lang={lang}")
+            self.assertIn(f'lang="{lang}" dir="{direction}"', page.text)
+            self.assertIn("&lt;b&gt;مصدر", page.text)
+            self.assertNotIn("one.example", page.text)
+        with TestClient(main.app) as other:
+            self.assertEqual(other.get(url + "/download?format=json").status_code, 404)
+        self.assertNotIn("one.example".encode(), self.db.read_bytes())
+
+    def test_invalid_source_inputs_and_provider_fallback(self):
+        for payload in [
+            {"source": "<p>\x00</p>"},
+            {"source": "<p>" + "x" * 250_000 + "</p>"},
+            {"source": "<p>hello</p>", "source_info": {"kind": "file", "name": "../file.html"}},
+            {"source": "<p>hello</p>", "source_info": {"kind": "file", "name": "file.exe"}},
+            {"source": "<p>hello</p>", "model": "provider/example"},
+        ]:
+            with self.subTest(fields=list(payload)):
+                response = self.client.post("/api/run", json=payload)
+                self.assertEqual(response.status_code, 422)
+        with patch.object(main, "catalog", side_effect=HTTPException(502, "Unavailable")):
+            response = self.client.post("/api/run", json=self.run)
+        events = [json.loads(line) for line in response.text.splitlines()]
+        self.assertEqual(events[-1]["report"]["enrichment"], "fallback")
+        self.assertEqual(events[-1]["report"]["metrics"]["modelCalls"], 0)
+        self.assertEqual(events[-1]["report"]["findings"], [])
+
+    def test_legacy_report_keeps_id_and_marks_unavailable_metadata(self):
+        self.client.get("/api/history")
+        owner = main.owner_key(self.client.cookies.get(main.COOKIE))
+        report_id = "a" * 32
+        legacy = {"id": report_id, "created_at": "2026-11-18T12:00:00+00:00", "model": "test/legacy",
+                  "findings": [], "summary_ar": "قديم", "summary_en": "Legacy", "metrics": {}}
+        with main.database() as db:
+            db.execute("INSERT INTO reports VALUES (?,?,?,?,?,?)",
+                       (report_id, owner, legacy["created_at"], legacy["model"], 0, json.dumps(legacy)))
+        url = "/api/reports/" + report_id
+        result = self.client.get(url).json()
+        self.assertEqual(result["schema_version"], 1)
+        self.assertEqual(result["summary_en"], "Legacy")
+        self.assertIsNone(result["source"])
+        self.assertIsNone(result["coverage"])
+        self.assertIsNone(result["enrichment"])
+        self.assertIn("Unavailable", self.client.get(url + "/download").text)
+        self.assertEqual(self.client.get("/api/history").json()["reports"][0]["id"], report_id)
+        with main.database() as db:
+            self.assertEqual(db.execute("SELECT id FROM report_index").fetchone()["id"], report_id)
+
+    def test_openapi_describes_versioned_report_and_stream_events(self):
+        schema = self.client.get("/openapi.json").json()
+        content = schema["paths"]["/api/run"]["post"]["responses"]["200"]["content"]
+        media = content["application/x-ndjson"]
+        self.assertEqual(media["schema"], {"type": "string"})
+        events = media["x-itemSchema"]
+        self.assertNotIn("type", events)
+        self.assertEqual(events["discriminator"]["propertyName"], "type")
+        self.assertEqual(set(events["discriminator"]["mapping"]), {"step", "complete", "error"})
+        detail = schema["paths"]["/api/reports/{report_id}"]["get"]["responses"]["200"]
+        self.assertEqual(detail["content"]["application/json"]["schema"]["$ref"], "#/components/schemas/Report")

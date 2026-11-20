@@ -9,9 +9,6 @@ import {
   ClipboardList,
   Cpu,
   Database,
-  FileCode2,
-  FileText,
-  FolderClock,
   History,
   LayoutDashboard,
   LoaderCircle,
@@ -29,46 +26,65 @@ import "@fontsource/inter/latin-500.css";
 import "@fontsource/inter/latin-600.css";
 import {
   agents,
-  dateText,
-  fetchJson,
   labelOf,
   num,
   readRun,
   roleOf,
-  sample,
 } from "./data";
 import { Network, AgentIcon } from "./Network";
-import { Agent, Modal, Report, Settings, Source } from "./Dialogs";
+import { Agent, Modal, Settings } from "./Dialogs";
+import { initialSource, SourcePicker, sourceError } from "./Source";
+import { Reports } from "./Reports";
+import { Platform } from "./Platform";
+import { CheckCatalog } from "./CheckCatalog";
 import "./style.css";
 
+function currentLocation() {
+  return { pathname: window.location.pathname, search: window.location.search };
+}
+
 function App() {
-  const [page, go] = useState("lab"),
-    [dialog, show] = useState(""),
-    [source, setSource] = useState(sample),
-    [config, setConfig] = useState(null);
+  const [location, setLocation] = useState(currentLocation);
+  const reportsPage = /^\/reports(?:\/|$)/.test(location.pathname);
+  const projectsPage = /^\/projects(?:\/|$)/.test(location.pathname);
+  const catalogPage = location.pathname === "/checks";
+  const [dialog, show] = useState(""),
+    [source, setSource] = useState(initialSource),
+    [sourceBusy, setSourceBusy] = useState(false),
+    [config, setConfig] = useState(null),
+    [profile, setProfile] = useState("extended");
   const [events, setEvents] = useState([]),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
-    [history, setHistory] = useState([]),
-    [historyError, setHistoryError] = useState("");
+    [runState, setRunState] = useState("idle");
   const [latest, setLatest] = useState(null),
-    [report, setReport] = useState(null),
     [agent, setAgent] = useState(null),
     [expanded, setExpanded] = useState(false),
     [runModel, setRunModel] = useState("");
   const lock = useRef(false),
     controller = useRef(null);
-  async function refreshHistory() {
-    try {
-      setHistory((await fetchJson("/api/history")).reports || []);
-      setHistoryError("");
-    } catch (err) {
-      setHistoryError(err.message);
-    }
+
+  function navigate(path, { replace = false } = {}) {
+    const previousPath = window.location.pathname;
+    const update = replace ? "replaceState" : "pushState";
+    if (path !== previousPath + window.location.search) window.history[update](null, "", path);
+    setLocation(currentLocation());
+    if (window.location.pathname !== previousPath) window.scrollTo(0, 0);
   }
+
+  function follow(event, path) {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    navigate(path);
+  }
+
   useEffect(() => {
-    refreshHistory();
-    return () => controller.current?.abort();
+    const onPopState = () => setLocation(currentLocation());
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      controller.current?.abort();
+    };
   }, []);
   useEffect(() => {
     function esc(e) {
@@ -78,103 +94,61 @@ function App() {
     return () => document.removeEventListener("keydown", esc);
   }, []);
   async function start() {
-    if (lock.current) return;
-    if (!config) {
-      show("settings");
+    if (lock.current || sourceBusy) return;
+    const invalidSource = sourceError(source.text);
+    if (invalidSource) {
+      setError(invalidSource);
       return;
     }
     lock.current = true;
     controller.current = new AbortController();
-    setRunModel(config.model);
+    setRunModel(config?.model || "");
     setBusy(true);
+    setRunState("running");
     setError("");
     setEvents([]);
     setLatest(null);
     try {
       await readRun(
         {
-          source,
-          key: config.key,
-          model: config.model,
-          allow_paid: config.paid,
+          source: source.text,
+          profile,
+          source_info: { kind: source.kind, name: source.name },
+          ...(config && { key: config.key, model: config.model, allow_paid: config.paid }),
         },
         (e) => {
           if (e.type === "step") setEvents((prev) => [...prev, e]);
           if (e.type === "complete") {
             setLatest(e.report);
-            refreshHistory();
+            setRunState("completed");
           }
         },
         controller.current.signal,
       );
     } catch (err) {
-      if (err.name !== "AbortError") setError(err.message);
+      if (err.name === "AbortError") {
+        setRunState("cancelled");
+      } else {
+        setError(err.message);
+        setRunState("failed");
+      }
     } finally {
       lock.current = false;
+      controller.current = null;
       setBusy(false);
-    }
-  }
-  async function openReport(id) {
-    try {
-      setReport(await fetchJson("/api/reports/" + encodeURIComponent(id)));
-      setHistoryError("");
-    } catch (err) {
-      setHistoryError(err.message);
     }
   }
   const roleCount = new Set(
       events.filter((e) => e.status === "done").map((e) => roleOf(e.node)),
     ).size,
     metrics = latest?.metrics;
-  const historyList = (
-    <>
-      {historyError && (
-        <p className="error" role="alert">
-          {historyError}{" "}
-          <button className="subtle" onClick={refreshHistory}>
-            إعادة المحاولة
-          </button>
-        </p>
-      )}
-      {history.map((h) => (
-        <button
-          key={h.id}
-          className="history-row"
-          onClick={() => openReport(h.id)}
-        >
-          <span className="tile pale">
-            <FileText size={19} />
-          </span>
-          <span>
-            <strong>تقرير فحص HTML</strong>
-            <small>
-              {dateText(h.created_at)} · {num(h.finding_count || 0)} ملاحظات
-            </small>
-          </span>
-          <small className="history-model" dir="ltr">
-            {h.model}
-          </small>
-          <ChevronLeft size={16} />
-        </button>
-      ))}
-      {!history.length && !historyError && (
-        <div className="no-history">
-          <FolderClock size={31} />
-          <strong>لسه مفيش تقارير محفوظة</strong>
-          <p>
-            بعد اكتمال الفحص، هتلاقي التقرير هنا بنسختيه العربية والإنجليزية.
-          </p>
-        </div>
-      )}
-    </>
-  );
   return (
     <>
       <header className="header">
         <div className="navwrap">
           <button
             className="brand"
-            onClick={() => go("lab")}
+            onClick={() => navigate("/")}
             aria-label="مرصد، صفحة المختبر"
           >
             <img src="/mark.svg" alt="" />
@@ -185,22 +159,23 @@ function App() {
           <div className="nav-divider" />
           <nav>
             <button
-              className={page === "lab" ? "selected" : ""}
-              onClick={() => go("lab")}
+              className={!reportsPage && !projectsPage && !catalogPage ? "selected" : ""}
+              aria-current={!reportsPage && !projectsPage && !catalogPage ? "page" : undefined}
+              onClick={() => navigate("/")}
             >
               <LayoutDashboard />
               المختبر
             </button>
             <button
-              className={page === "history" ? "selected" : ""}
-              onClick={() => {
-                go("history");
-                refreshHistory();
-              }}
+              className={reportsPage ? "selected" : ""}
+              aria-current={reportsPage ? "page" : undefined}
+              onClick={() => navigate("/reports")}
             >
               <History />
               سجل التقارير
             </button>
+            <button className={projectsPage ? "selected" : ""} aria-current={projectsPage ? "page" : undefined}
+              onClick={() => navigate("/projects")}>المشاريع</button>
           </nav>
           <button
             className="nav-settings"
@@ -213,31 +188,26 @@ function App() {
         </div>
       </header>
       <main>
-        <div className="heading">
-          <div>
-            <div className="section-tag">
-              <i />
-              {page === "lab" ? "AGENT WORKSPACE" : "REPORT ARCHIVE"}
-            </div>
-            <h1>{page === "lab" ? "مختبر الوكلاء" : "سجل التقارير"}</h1>
-            <p>
-              {page === "lab"
-                ? "شغّل مراجعة أمنية لكود HTML وتابع قرارات الوكلاء لحظة بلحظة."
-                : "ارجع لنتائج الفحوصات السابقة ونزّل التقرير باللغة المناسبة."}
-            </p>
-          </div>
-          <button
-            className={"connection " + (config ? "connected" : "")}
-            disabled={busy}
-            onClick={() => show("settings")}
-          >
-            <i />
-            {config ? "الموديل متصل" : "الموديل غير متصل"}
-            <ChevronLeft size={14} />
-          </button>
-        </div>
-        {page === "lab" ? (
+        {reportsPage ? (
+          <Reports location={location} navigate={navigate} revision={latest?.id} />
+        ) : projectsPage ? <Platform location={location} navigate={navigate} /> : catalogPage ? <CheckCatalog /> : (
           <>
+            <div className="heading">
+              <div>
+                <div className="section-tag"><i /> AGENT WORKSPACE</div>
+                <h1>مختبر الوكلاء</h1>
+                <p>شغّل مراجعة أمنية لكود HTML وتابع تنفيذ الوكلاء لحظة بلحظة.</p>
+              </div>
+              <button
+                className={"connection " + (config ? "connected" : "")}
+                disabled={busy}
+                onClick={() => show("settings")}
+              >
+                <i />
+                {config ? "الموديل متصل" : "فحص محلي"}
+                <ChevronLeft size={14} />
+              </button>
+            </div>
             <div className="desk">
               <section className="setup card">
                 <div className="card-head">
@@ -246,27 +216,18 @@ function App() {
                   </div>
                   <h2>إعداد الفحص</h2>
                 </div>
-                <p className="card-intro">حدّد المصدر والموديل لبدء التشغيل.</p>
-                <div className="field-title">مصدر المراجعة</div>
-                <button
-                  className="option"
-                  disabled={busy}
-                  onClick={() => show("source")}
-                >
-                  <span className="tile pale">
-                    <FileCode2 size={21} />
-                  </span>
-                  <span>
-                    <strong>
-                      {source === sample
-                        ? "عينة المتجر التجريبية"
-                        : "كود HTML مخصّص"}
-                    </strong>
-                    <small>{num(source.split("\n").length)} سطر · HTML</small>
-                  </span>
-                  <ChevronLeft size={16} />
-                </button>
-                <div className="field-title">نموذج اللغة</div>
+                <p className="card-intro">اختار مصدر HTML للفحص. نموذج اللغة اختياري.</p>
+                <SourcePicker source={source} setSource={setSource} disabled={busy} onBusyChange={setSourceBusy} />
+                <div className="profile-setting">
+                  <label htmlFor="scan-profile">نطاق الفحص</label>
+                  <select id="scan-profile" value={profile} disabled={busy} onChange={(event) => setProfile(event.target.value)}>
+                    <option value="extended">موسّع · ١٠٠ قاعدة في الكتالوج</option>
+                    <option value="baseline">أساسي · ٣ قواعد HTML</option>
+                  </select>
+                  <a href="/checks" onClick={(event) => follow(event, "/checks")}>شوف القواعد والأدوات</a>
+                  <small className="hint">التغطية الفعلية بتتحدد حسب نوع الملف ومحتواه.</small>
+                </div>
+                <div className="field-title">إثراء التقرير بالموديل</div>
                 <button
                   className="option"
                   disabled={busy}
@@ -276,12 +237,12 @@ function App() {
                     <Cpu size={21} />
                   </span>
                   <span>
-                    <strong dir="auto">{config?.model || "اختار موديل"}</strong>
+                    <strong dir="auto">{config?.model || "إضافة موديل اختياري"}</strong>
                     <small dir="ltr">OpenRouter</small>
                   </span>
                   <ChevronLeft size={16} />
                 </button>
-                <button className="launch" disabled={busy} onClick={start}>
+                <button className="launch" disabled={busy || sourceBusy || !source.text.trim()} onClick={start}>
                   {busy ? (
                     <LoaderCircle size={17} className="spin" />
                   ) : (
@@ -289,6 +250,9 @@ function App() {
                   )}
                   {busy ? "الفحص قيد التشغيل" : "تشغيل الفحص"}
                 </button>
+                {busy && (
+                  <button className="subtle" onClick={() => controller.current?.abort()}>إلغاء الفحص</button>
+                )}
               </section>
               <Network
                 {...{ events, busy, error, expanded, setExpanded }}
@@ -301,12 +265,13 @@ function App() {
                 {error}
               </div>
             )}
+            {runState === "cancelled" && <p className="card-intro" role="status">تم إلغاء متابعة الفحص.</p>}
             <div className="results-heading">
               <h2>نتائج التشغيل</h2>
               {latest && (
-                <button className="subtle" onClick={() => setReport(latest)}>
+                <a className="subtle" href={`/reports/${latest.id}`} onClick={(event) => follow(event, `/reports/${latest.id}`)}>
                   فتح التقرير <ArrowLeft size={15} />
-                </button>
+                </a>
               )}
             </div>
             <div className="stats">
@@ -325,6 +290,11 @@ function App() {
                   Activity,
                   "استدعاءات الموديل",
                   metrics ? num(metrics.modelCalls ?? 0) : "—",
+                ],
+                [
+                  Workflow,
+                  "القواعد المنطبقة",
+                  latest?.coverage ? num(metrics.checksRun || 0) + " / " + num(latest.coverage.length) : "—",
                 ],
               ].map(([Icon, title, value], i) => (
                 <div key={title} className="stat card">
@@ -362,15 +332,10 @@ function App() {
               )}
             </div>
           </>
-        ) : (
-          <section className="card archive">{historyList}</section>
         )}
       </main>
       {dialog === "settings" && (
         <Settings config={config} save={setConfig} close={() => show("")} />
-      )}
-      {dialog === "source" && (
-        <Source source={source} setSource={setSource} close={() => show("")} />
       )}
       {dialog === "agents" && (
         <Modal title="دليل الوكلاء" close={() => show("")}>
@@ -418,8 +383,7 @@ function App() {
             className="btn"
             onClick={() => {
               show("");
-              go("history");
-              refreshHistory();
+              navigate("/reports");
             }}
           >
             عرض التقارير المحفوظة <ArrowLeft size={16} />
@@ -432,7 +396,10 @@ function App() {
             {events.map((e, i) => (
               <li key={i}>
                 <b>{labelOf(e.node)}</b>
-                <small>{e.status === "done" ? "اكتمل" : "بدأ"}</small>
+                <small>
+                  {e.status === "done" ? "اكتمل" : "بدأ"}
+                  {e.source && (e.source === "model" ? " · موديل" : " · محلي")}
+                </small>
                 <p dir="auto">{e.detail}</p>
               </li>
             ))}
@@ -443,11 +410,11 @@ function App() {
         <Agent
           node={agent}
           event={events.filter((e) => e.node === agent).at(-1)}
-          model={runModel || config?.model}
+          model={events.length ? runModel : config?.model}
+          tasks={latest?.task_runs?.filter((task) => task.agent === roleOf(agent))}
           close={() => setAgent(null)}
         />
       )}
-      {report && <Report report={report} close={() => setReport(null)} />}
     </>
   );
 }

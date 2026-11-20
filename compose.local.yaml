@@ -1,0 +1,8 @@
+# Workstation profile: keep the existing anonymous report database on the host.
+services:
+  app:
+    environment:
+      MARSAD_PASSWORD_AUTH_ENABLED: "1"
+      MARSAD_PASSWORD_SELF_SIGNUP: "1"
+    volumes:
+      - ./data:/srv/marsad/data

@@ -1,5 +1,7 @@
 """Marsad's same-origin HTTP API and React frontend."""
 import asyncio
+from collections import Counter
+import base64
 from contextlib import closing, contextmanager
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
@@ -10,44 +12,70 @@ import os
 from pathlib import Path
 import secrets
 import sqlite3
+import time
 from typing import Literal
 from uuid import uuid4
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field, SecretStr
 
+from .contracts import (
+    CompleteEvent, Connect, ErrorEvent, History, HistoryItem, Report, Run,
+    RunEvent, SourceInfo, StepEvent, history_item,
+)
 from .graph import GraphError, run_graph
+from .artifact_review import RULESET_VERSION, catalog as rule_catalog, redact_label
+from .model_gateway import apply_order, provider_order
+from .offline_worker import scan_payload
 
 ROOT = Path(__file__).resolve().parents[1]
 COOKIE = "marsad_session"
-app = FastAPI(title="Marsad Agent Lab", version="2.0")
+SESSION_SECONDS = 30 * 86400
+LEGACY_GRACE_SECONDS = 7 * 86400
+app = FastAPI(title="Marsad Agent Lab", version="2.3")
 
 
-class Connect(BaseModel):
-    key: SecretStr = Field(min_length=8, max_length=512)
+class RunStream(StreamingResponse):
+    media_type = "application/x-ndjson"
 
 
-class Run(Connect):
-    source: str = Field(min_length=1, max_length=250_000)
-    model: str = Field(min_length=1, max_length=200)
-    allow_paid: bool = False
+fastapi_openapi = app.openapi
+
+
+def describe_ndjson():
+    schema = fastapi_openapi()
+    media = schema["paths"]["/api/run"]["post"]["responses"]["200"]["content"]["application/x-ndjson"]
+    if "x-itemSchema" not in media:
+        item = media["schema"]
+        item.pop("type", None)
+        media["x-itemSchema"] = item
+        media["schema"] = {"type": "string"}
+    return schema
+
+
+app.openapi = describe_ndjson
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_error(_request, _error):
+async def validation_error(request, _error):
     # Pydantic's default body may echo a submitted credential or HTML source.
-    return JSONResponse({"detail": "راجع المفتاح والموديل وحجم كود HTML."}, status_code=422)
+    if request.url.path in {"/api/platform/auth/password/register", "/api/platform/auth/password/login"}:
+        detail = "راجع صيغة الإيميل وكلمة المرور. الحد الأقصى لكلمة المرور ١٢٨ حرف."
+    elif request.url.path.startswith("/api/platform/"):
+        detail = "راجع الحقول المطلوبة ونوع البيانات."
+    else:
+        detail = "راجع نوع وحجم مصدر HTML. لو اخترت الإثراء، راجع الموديل والمفتاح."
+    return JSONResponse({"detail": detail}, status_code=422)
 
 
 @app.middleware("http")
 async def protect_requests(request, call_next):
     if request.url.path.startswith("/api/"):
         origin = request.headers.get("origin")
-        if request.method == "POST" and origin and origin.rstrip("/") != str(request.base_url).rstrip("/"):
+        if request.method in {"POST", "PUT", "PATCH", "DELETE"} and origin and origin.rstrip("/") != str(request.base_url).rstrip("/"):
             return JSONResponse({"detail": "مصدر الطلب غير مسموح."}, status_code=403)
         response = await call_next(request)
         response.headers["Cache-Control"] = "no-store"
@@ -62,14 +90,25 @@ def database():
     path.parent.mkdir(parents=True, exist_ok=True)
     with closing(sqlite3.connect(path, timeout=5)) as db, db:
         db.row_factory = sqlite3.Row
+        db.execute("PRAGMA foreign_keys = ON")
         db.executescript("""
-            CREATE TABLE IF NOT EXISTS sessions(owner TEXT PRIMARY KEY);
+            CREATE TABLE IF NOT EXISTS sessions(owner TEXT PRIMARY KEY, expires_at INTEGER);
+            CREATE TABLE IF NOT EXISTS legacy_session_window(id INTEGER PRIMARY KEY CHECK(id = 1), ends_at INTEGER);
             CREATE TABLE IF NOT EXISTS reports(
                 id TEXT PRIMARY KEY, owner TEXT NOT NULL, created_at TEXT NOT NULL,
                 model TEXT NOT NULL, finding_count INTEGER NOT NULL, report_json TEXT NOT NULL
             );
             CREATE INDEX IF NOT EXISTS owner_reports ON reports(owner,created_at DESC);
+            CREATE TABLE IF NOT EXISTS report_index(
+                id TEXT PRIMARY KEY REFERENCES reports(id) ON DELETE CASCADE, summary_json TEXT NOT NULL
+            );
         """)
+        if "expires_at" not in {row["name"] for row in db.execute("PRAGMA table_info(sessions)")}:
+            db.execute("BEGIN IMMEDIATE")
+            if "expires_at" not in {row["name"] for row in db.execute("PRAGMA table_info(sessions)")}:
+                db.execute("ALTER TABLE sessions ADD COLUMN expires_at INTEGER")
+                db.execute("INSERT INTO legacy_session_window VALUES (1,?)", (int(time.time()) + LEGACY_GRACE_SECONDS,))
+            db.commit()
         yield db
 
 
@@ -77,23 +116,36 @@ def owner_key(token):
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+def active_owner(db, token, *, allow_legacy=True):
+    if len(token) != 43:
+        return None
+    owner = owner_key(token)
+    row = db.execute("SELECT expires_at FROM sessions WHERE owner=?", (owner,)).fetchone()
+    if not row:
+        return None
+    deadline = row["expires_at"]
+    if deadline is None and allow_legacy:
+        window = db.execute("SELECT ends_at FROM legacy_session_window WHERE id=1").fetchone()
+        deadline = window["ends_at"] if window else None
+    return owner if deadline is not None and deadline > int(time.time()) else None
+
+
 def session(request):
     token = request.cookies.get(COOKIE, "")
     with database() as db:
-        if token and len(token) == 43 and db.execute(
-            "SELECT 1 FROM sessions WHERE owner=?", (owner_key(token),)
-        ).fetchone():
-            return owner_key(token), None
+        owner = active_owner(db, token)
+        if owner:
+            return owner, None
         token = secrets.token_urlsafe(32)
         owner = owner_key(token)
-        db.execute("INSERT INTO sessions(owner) VALUES(?)", (owner,))
+        db.execute("INSERT INTO sessions(owner, expires_at) VALUES(?,?)", (owner, int(time.time()) + SESSION_SECONDS))
     return owner, token
 
 
 def set_session(response, token, request):
     if token:
         response.set_cookie(COOKIE, token, httponly=True, samesite="strict",
-                            secure=request.url.scheme == "https", max_age=30 * 86400)
+                            secure=request.url.scheme == "https", max_age=SESSION_SECONDS)
     return response
 
 
@@ -142,104 +194,182 @@ async def models(body: Connect):
     return {"models": await catalog(body.key.get_secret_value())}
 
 
+@app.get("/api/catalog")
+def security_catalog():
+    return rule_catalog()
+
+
+def previous_finding_count(owner):
+    with database() as db:
+        row = db.execute("SELECT finding_count FROM reports WHERE owner=? "
+                         "ORDER BY created_at DESC, id DESC LIMIT 1", (owner,)).fetchone()
+    return {"findingsCount": row[0]} if row else None
+
+
 def summaries(owner):
     with database() as db:
-        rows = db.execute("SELECT id, created_at, model, finding_count FROM reports "
-                          "WHERE owner=? ORDER BY created_at DESC LIMIT 100", (owner,))
-        return [dict(row) for row in rows]
+        rows = db.execute("""
+            SELECT i.summary_json, CASE WHEN i.id IS NULL THEN r.report_json END AS legacy_json
+            FROM reports AS r LEFT JOIN report_index AS i ON i.id = r.id
+            WHERE r.owner = ? ORDER BY r.created_at DESC, r.id DESC LIMIT 100
+        """, (owner,)).fetchall()
+        reports = []
+        for row in rows:
+            if row["summary_json"] is not None:
+                reports.append(HistoryItem.model_validate_json(row["summary_json"]))
+                continue
+            item = history_item(Report.model_validate_json(row["legacy_json"]))
+            reports.append(item)
+            db.execute("INSERT OR IGNORE INTO report_index (id, summary_json) SELECT id, ? FROM reports WHERE id = ?",
+                       (item.model_dump_json(), item.id))
+    return History(reports=reports)
 
 
-@app.get("/api/history")
+@app.get("/api/history", response_model=History)
 def history(request: Request):
     owner, token = session(request)
-    return set_session(JSONResponse({"reports": summaries(owner)}), token, request)
+    return set_session(JSONResponse(summaries(owner).model_dump(mode="json")), token, request)
 
 
 def save_report(owner, report):
+    item = history_item(Report.model_validate(report))
     with database() as db:
         db.execute("INSERT INTO reports VALUES(?,?,?,?,?,?)", (
-            report["id"], owner, report["created_at"], report["model"], len(report["findings"]),
+            report["id"], owner, report["created_at"], report["model"] or "", len(report["findings"]),
             json.dumps(report, ensure_ascii=False),
         ))
+        db.execute("INSERT INTO report_index (id, summary_json) VALUES (?, ?)", (item.id, item.model_dump_json()))
         db.execute("DELETE FROM reports WHERE owner=? AND id NOT IN "
-                   "(SELECT id FROM reports WHERE owner=? ORDER BY created_at DESC LIMIT 100)", (owner, owner))
+                   "(SELECT id FROM reports WHERE owner=? ORDER BY created_at DESC, id DESC LIMIT 100)", (owner, owner))
 
 
-@app.post("/api/run")
+@app.post("/api/run", response_class=RunStream, responses={
+    200: {"model": RunEvent, "description": "One step, complete, or error JSON object per NDJSON line.",
+          "content": {"application/x-ndjson": {}}},
+})
 async def run(body: Run, request: Request):
-    key = body.key.get_secret_value()
-    if "<" not in body.source or ">" not in body.source:
-        raise HTTPException(422, "أدخل كود HTML يحتوي على عناصر الصفحة.")
-    selected = next((item for item in await catalog(key) if item["id"] == body.model), None)
-    if not selected:
-        raise HTTPException(422, "الموديل غير متاح حاليًا. حدّث القائمة.")
-    if not selected["free"] and not body.allow_paid:
-        raise HTTPException(409, "سعر الموديل غير مجاني. حدّث الاختيار قبل التشغيل.")
+    key = body.key.get_secret_value() if body.key else None
+    catalog_unavailable = False
+    if key:
+        try:
+            options = await catalog(key)
+        except HTTPException as exc:
+            if exc.status_code not in (429, 502):
+                raise
+            catalog_unavailable = True
+        else:
+            selected = next((item for item in options if item["id"] == body.model), None)
+            if not selected:
+                raise HTTPException(422, "الموديل غير متاح حاليًا. حدّث القائمة.")
+            if not selected["free"] and not body.allow_paid:
+                raise HTTPException(409, "سعر الموديل غير مجاني. حدّث الاختيار قبل التشغيل.")
     owner, token = session(request)
-    past = summaries(owner)
-    previous = {"findingsCount": past[0]["finding_count"]} if past else None
+    previous = previous_finding_count(owner) if key and not catalog_unavailable else None
+    scan_id = uuid4().hex
+    source_info = body.source_info
+    name = source_info.name if source_info else None
+    if name and key and key in name:
+        name = "[redacted].html"
+    normalized = body.source.replace("\r\n", "\n").replace("\r", "\n")
+    source = SourceInfo(kind=source_info.kind if source_info else "paste", name=name,
+                        bytes=len(body.source.encode("utf-8")), lines=normalized.count("\n") + 1)
 
     async def events():
         queue = asyncio.Queue()
         steps = []
 
         async def emit(event):
-            step = {name: event[name] for name in ("node", "status", "parents", "detail")}
-            if key in json.dumps(step, ensure_ascii=False):
+            step = StepEvent.model_validate({
+                **event, "role": event["node"].split(":")[0], "scan_id": scan_id,
+                "occurred_at": datetime.now(timezone.utc).isoformat(),
+            })
+            if key and key in step.model_dump_json():
                 raise RuntimeError("Credential in event")
-            steps.append(step)
-            await queue.put({"type": "step", **step})
+            steps.append(step.model_dump(exclude={"type"}))
+            await queue.put(step)
+
+        async def fail(message):
+            await queue.put(ErrorEvent(scan_id=scan_id, message=message))
 
         async def execute():
             try:
+                provider_key = None if catalog_unavailable else key
                 async with asyncio.timeout(300):
-                    result = await run_graph(body.source, body.model, key, emit, previous=previous)
-                report = {field: result[field] for field in ("findings", "metrics", "summary_ar", "summary_en")}
-                report.update(id=uuid4().hex, created_at=datetime.now(timezone.utc).isoformat(),
-                              model=body.model, steps=steps)
-                if key in json.dumps(report, ensure_ascii=False):
+                    if body.profile == "extended":
+                        filename = redact_label(source.name) or ("marsad-sample.html" if source.kind == "sample" else "source.html")
+                        payload = {"kind": "html", "name": filename, "policy": {},
+                                   "content": base64.b64encode(body.source.encode("utf-8")).decode("ascii")}
+                        answer = await asyncio.to_thread(scan_payload, payload)
+                        if "error" in answer:
+                            raise GraphError(answer["error"])
+                        result = answer["result"]
+                        for item in result.pop("steps"):
+                            await emit(item)
+                        counts = Counter(item["rule"] for item in result["findings"])
+                        if provider_key and counts:
+                            result["metrics"]["modelCalls"] = 1
+                            result["enrichment"] = "fallback"
+                            try:
+                                prioritize = await asyncio.to_thread(provider_order, provider_key, body.model, counts)
+                                apply_order(result, prioritize, counts)
+                            except HTTPException:
+                                pass
+                        result["ruleset_version"] = RULESET_VERSION
+                        result["status"] = "partial" if any(row["status"] == "error" for row in result["coverage"]) else "completed"
+                    else:
+                        result = await run_graph(body.source, body.model if provider_key else None, provider_key,
+                                                 emit, previous=previous)
+                report = Report.model_validate({
+                    **result, "id": scan_id, "schema_version": 2,
+                    "created_at": datetime.now(timezone.utc).isoformat(), "model": body.model,
+                    "steps": steps, "source": source,
+                    "enrichment": "fallback" if catalog_unavailable else result.get("enrichment"),
+                })
+                if key and key in report.model_dump_json():
                     raise RuntimeError("Credential in report")
-                save_report(owner, report)
-                await queue.put({"type": "complete", "report": report})
+                save_report(owner, report.model_dump(mode="json"))
+                await queue.put(CompleteEvent(report=report))
             except TimeoutError:
-                await queue.put({"type": "error", "message": "انتهت مهلة التشغيل. جرّب موديل تاني."})
+                await fail("انتهت مهلة التشغيل. حاول تاني أو شغّل الفحص المحلي.")
             except GraphError as exc:
                 message = str(exc)
-                await queue.put({"type": "error", "message": message if key not in message else "تعذّر إكمال التشغيل."})
+                await fail("تعذّر إكمال التشغيل." if key and key in message else message)
             except Exception as exc:
                 status = getattr(exc, "status_code", None)
                 reason = {401: "OpenRouter رفض المفتاح.", 402: "رصيد OpenRouter غير كافٍ.",
                           429: "وصل الموديل لحد الاستخدام. اختار موديل تاني أو حاول لاحقًا."}
-                await queue.put({"type": "error", "message": reason.get(
-                    status, "تعذّر استكمال التشغيل. راجع المدخل والموديل وإتاحته ثم أعد المحاولة.")})
+                await fail(reason.get(status, "تعذّر استكمال التشغيل. راجع المدخل وحاول تاني."))
 
         task = asyncio.create_task(execute())
         try:
             while True:
                 event = await queue.get()
-                yield json.dumps(event, ensure_ascii=False) + "\n"
-                if event["type"] != "step":
+                yield event.model_dump_json() + "\n"
+                if event.type != "step":
                     break
         finally:
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
 
-    response = StreamingResponse(events(), media_type="application/x-ndjson",
-                                 headers={"X-Accel-Buffering": "no"})
+    response = RunStream(events(), headers={"X-Accel-Buffering": "no"})
     return set_session(response, token, request)
 
 
-def load_report(request, report_id):
+def load_report(request, report_id, *, allow_legacy=True):
     token = request.cookies.get(COOKIE, "")
     with database() as db:
-        row = db.execute("SELECT report_json FROM reports WHERE id=? AND owner=?",
-                         (report_id, owner_key(token))).fetchone()
+        owner = active_owner(db, token, allow_legacy=allow_legacy)
+        row = db.execute("SELECT report_json FROM reports WHERE id=? AND owner=?", (report_id, owner)).fetchone()
     if not row:
         raise HTTPException(404, "التقرير غير موجود في الجلسة دي.")
-    return json.loads(row[0])
+    return Report.model_validate_json(row[0])
 
 
-@app.get("/api/reports/{report_id}")
+def claimable_legacy_report(request, report_id):
+    return load_report(request, report_id, allow_legacy=False)
+
+
+@app.get("/api/reports/{report_id}", response_model=Report)
 def report_detail(report_id: str, request: Request):
     return load_report(request, report_id)
 
@@ -250,8 +380,21 @@ def report_html(report, lang):
         return arabic if ar else english
     def esc(value):
         return html.escape(str(value), quote=True)
-    title = t("تقرير مراجعة أمان HTML", "HTML security review")
+    artifact = report.get("input_artifact")
+    title = (t("تقرير فحص المشروع", "Project security review") if artifact
+             else t("تقرير مراجعة أمان HTML", "HTML security review"))
     metrics = report["metrics"]
+    source = report["source"]
+    source_labels = {"file": t("ملف HTML", "HTML file"), "sample": t("العينة المرجعية", "Reference sample"),
+                     "paste": t("كود ملصوق", "Pasted HTML")}
+    enrichment_labels = {"model": t("اكتمل بالموديل", "Model-assisted"),
+                         "fallback": t("بديل محلي", "Local fallback"),
+                         "disabled": t("محلي", "Local only")}
+    unavailable = t("غير متاح", "Unavailable")
+    source_label = (source.get("name") or source_labels[source["kind"]]) if source else (
+        artifact["name"] if artifact else unavailable)
+    model_label = report["model"] or (t("فحص محلي", "Local only") if report["schema_version"] == 2 else unavailable)
+    unique_count = len({finding["rule"] for finding in report["findings"]})
     parts = [
         f'<!doctype html><html lang="{lang}" dir="{t("rtl","ltr")}"><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
@@ -261,44 +404,91 @@ def report_html(report, lang):
         'overflow-wrap:anywhere;background:#edf3f4;padding:1rem}article{border-top:1px solid #b4c2c4;break-inside:avoid}'
         '</style><main><small>MARSAD</small>'
         f'<h1>{title}</h1><p>{t("التاريخ","Date")} <bdi>{esc(report["created_at"])}</bdi><br>'
-        f'{t("الموديل","Model")} <bdi>{esc(report["model"])}</bdi></p>',
+        f'{t("المصدر","Source")} <bdi>{esc(source_label)}</bdi><br>'
+        f'{t("الموديل","Model")} <bdi>{esc(model_label)}</bdi><br>'
+        f'{t("الإثراء","Enrichment")} {enrichment_labels.get(report["enrichment"], unavailable)}</p>',
         f'<h2>{t("الملخص","Summary")}</h2><p>{esc(report["summary_"+lang])}</p>',
         f'<h2>{t("مقاييس التشغيل","Run metrics")}</h2><ul>'
+        f'<li>{t("أنواع النتائج","Finding types")} · {unique_count}</li>'
+        f'<li>{t("مواضع الأدلة","Evidence locations")} · {len(report["findings"])}</li>'
     ]
     for key, label in [("checksRun", t("القواعد المفحوصة","Checks run")),
                        ("validatedCount", t("الملاحظات المؤكدة","Validated findings")),
                        ("modelCalls", t("طلبات النموذج","Model calls")),
                        ("durationMs", t("المدة بالمللي ثانية","Duration in milliseconds"))]:
-        if key in metrics:
+        if metrics.get(key) is not None:
             parts.append(f'<li>{label} · {esc(metrics[key])}</li>')
     benchmark = metrics.get("benchmark")
     if benchmark:
         parts.append(f'<li>{t("تطابق العينة المرجعية","Reference fixture matches")} · '
                      f'{esc(benchmark["matched"])} / {esc(benchmark["expected"])} · '
                      f'{t("إضافية","Unexpected")} {esc(benchmark["unexpected"])}</li>')
-    parts.append(f'</ul><h2>{t("النتائج والأدلة","Findings and evidence")}</h2>')
+    parts.append(f'</ul><h2>{t("تغطية القواعد","Rule coverage")}</h2>')
+    if report["coverage"] is None:
+        parts.append(f'<p>{unavailable}</p>')
+    else:
+        labels = {
+            "matched": t("مطابق", "Matched"), "clear": t("سليم", "Clear"),
+            "not_applicable": t("غير منطبق", "Not applicable"), "skipped": t("متخطى", "Skipped"),
+            "error": t("تعذّر", "Error"),
+        }
+        parts.append("<ul>")
+        for item in report["coverage"]:
+            parts.append(f'<li><bdi>{esc(item["rule"])}</bdi> · {labels[item["status"]]} '
+                         f'· {item["match_count"]}</li>')
+        parts.append("</ul>")
+    parts.append(f'<h2>{t("النتائج والأدلة","Findings and evidence")}</h2>')
     severity_labels = {"high":"عالية", "medium":"متوسطة", "low":"منخفضة"}
     for finding in report["findings"]:
         name = finding.get("title_ar" if ar else "title") or finding["rule"]
-        advice = finding.get("remediation_ar" if ar else "remediation", "")
+        advice = finding.get("remediation_ar" if ar else "remediation") or finding["remediation"]
         severity = finding["severity"]
         parts.append(f'<article><h3>{esc(name)}</h3><small>{esc(finding["rule"])} · '
                      f'{esc(severity_labels.get(severity, severity) if ar else severity)} · '
+                     f'{esc(finding["path"]) + " · " if finding.get("path") else ""}'
                      f'{t("السطر","Line")} {esc(finding["line"])}</small>'
                      f'<pre><code>{esc(finding["evidence"])}</code></pre><p>{esc(advice)}</p></article>')
     if not report["findings"]:
-        parts.append(f'<p>{t("لم ترصد القواعد المختارة ملاحظات.","The selected checks found no matching evidence.")}</p>')
-    parts.append(f'<footer><small>{t("النطاق: مراجعة ثابتة لكود HTML المُدخل.","Scope: static review of the supplied HTML.")}</small></footer></main></html>')
+        if report["coverage"] and all(row["status"] == "not_applicable" for row in report["coverage"]):
+            message = t("لم تنطبق أي قاعدة على المصدر.", "No registered rule applied to this source.")
+        else:
+            message = t("لم تُسجل أدلة مطابقة في التقرير.", "The report contains no matching evidence.")
+        parts.append(f'<p>{message}</p>')
+    scope_label = (t("مراجعة دفاعية ثابتة للملفات المقدّمة.", "Offline defensive review of the supplied artifacts.")
+                   if artifact else t("مراجعة ثابتة لكود HTML المُدخل.", "Static review of the supplied HTML."))
+    parts.append(f'<footer><small>{t("النطاق","Scope")} · {scope_label}</small></footer></main></html>')
     return "".join(parts)
 
 
 @app.get("/api/reports/{report_id}/download")
-def download(report_id: str, request: Request, lang: Literal["en", "ar"] = "en"):
+def download(report_id: str, request: Request, lang: Literal["en", "ar"] = "en",
+             format: Literal["html", "json"] = "html"):
     report = load_report(request, report_id)
-    return HTMLResponse(report_html(report, lang), headers={
-        "Content-Disposition": f'attachment; filename="marsad-{report["id"]}-{lang}.html"',
+    if format == "json":
+        return JSONResponse(report.model_dump(mode="json"), headers={
+            "Content-Disposition": f'attachment; filename="marsad-{report_id}.json"',
+        })
+    return HTMLResponse(report_html(report.model_dump(mode="json"), lang), headers={
+        "Content-Disposition": f'attachment; filename="marsad-{report_id}-{lang}.html"',
         "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
     })
 
 
+@app.get("/", include_in_schema=False)
+@app.get("/reports", include_in_schema=False)
+@app.get("/reports/{report_id}", include_in_schema=False)
+@app.get("/projects", include_in_schema=False)
+@app.get("/projects/{project_id}/scans/{scan_id}", include_in_schema=False)
+@app.get("/checks", include_in_schema=False)
+def frontend_page(request: Request):
+    _, token = session(request)
+    page = FileResponse(ROOT / "frontend" / "dist" / "index.html", headers={"Cache-Control": "no-store"})
+    return set_session(page, token, request)
+
+
+from .identity import install_identity
+from .platform_api import router as platform_router
+
+install_identity(app)
+app.include_router(platform_router)
 app.mount("/", StaticFiles(directory=ROOT / "frontend" / "dist", html=True, check_dir=False), name="frontend")

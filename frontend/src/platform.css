@@ -1,0 +1,98 @@
+.project-workspace { display: grid; gap: 1rem; }
+.project-workspace h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); }
+.project-workspace a { color: #5a3f96; }
+.project-header { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.project-header code, .project-list a { overflow-wrap: anywhere; }
+.project-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(24rem, 100%), 1fr)); gap: 1rem; align-items: start; }
+.project-panel { display: grid; gap: .85rem; padding: 1rem; min-width: 0; }
+.project-panel label { display: grid; gap: .25rem; margin: 0; }
+.project-panel fieldset { border: 1px solid var(--line); border-radius: .5rem; }
+.project-panel .btn { justify-self: start; text-decoration: none; }
+.project-form { display: grid; gap: .75rem; }
+.project-panel .project-check { display: flex; align-items: center; gap: .5rem; }
+.project-panel .project-check input { width: auto; }
+.project-list { margin: 0; padding-inline-start: 1.5rem; }
+.project-list li { padding-block: .3rem; }
+
+.project-account {
+  width: min(100%, 33rem);
+  margin-inline: auto;
+  padding: clamp(1rem, 4vw, 1.75rem);
+}
+
+.project-account-heading {
+  display: grid;
+  gap: .3rem;
+}
+
+.project-account-heading h1 {
+  font-size: clamp(1.65rem, 4vw, 2.15rem);
+  line-height: 1.4;
+}
+
+.project-account-heading p,
+.project-account-hint {
+  color: var(--muted);
+}
+
+.project-account-hint {
+  font-size: .875rem;
+}
+
+.project-account-modes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .25rem;
+  padding: .25rem;
+  border: 1px solid var(--line);
+  border-radius: .625rem;
+  background: #f8f7fa;
+}
+
+.project-account-modes button {
+  min-height: 2.625rem;
+  border-radius: .375rem;
+  padding: .375rem;
+  font-weight: 600;
+}
+
+.project-account-modes button[aria-pressed="true"] {
+  background: #eeeaf8;
+  color: #5a3f96;
+}
+
+.project-account-form input {
+  min-width: 0;
+  width: 100%;
+  min-height: 2.625rem;
+  padding: .5rem .625rem;
+  border: 1px solid var(--line);
+  border-radius: .5rem;
+  color: var(--ink);
+  background: #fff;
+}
+
+.project-password-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .5rem;
+  margin-block-start: -.5rem;
+}
+
+.project-account-feedback {
+  display: grid;
+  gap: .5rem;
+}
+
+.project-account-lab {
+  justify-self: start;
+  color: #5a3f96;
+  text-underline-offset: .2em;
+}
+
+@media (max-width: 360px) {
+  .project-password-field {
+    grid-template-columns: 1fr;
+  }
+}
