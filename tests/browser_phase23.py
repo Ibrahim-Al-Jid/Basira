@@ -45,7 +45,7 @@ def main():
         page.on("pageerror", lambda error: errors.append(str(error)))
         page.goto(BASE + "/reports")
         expect(page.get_by_text("لسه مفيش تقارير محفوظة.")).to_be_visible()
-        page.get_by_role("link", name="فحص جديد").click()
+        page.locator("main").get_by_role("link", name="فحص جديد").click()
 
         choose_file(page, "wrong.txt", SOURCE)
         expect(page.get_by_role("alert")).to_contain_text("امتداد")
@@ -60,7 +60,7 @@ def main():
         choose_file(page, "review.htm", SOURCE)
         expect(page.get_by_role("button", name="تشغيل الفحص")).to_be_disabled()
         page.get_by_role("button", name="إلغاء قراءة الملف").click()
-        expect(page.get_by_role("button", name="تشغيل الفحص")).to_be_enabled()
+        expect(page.get_by_role("button", name="تشغيل الفحص")).to_be_disabled()
         page.evaluate("() => { FileReader.prototype.readAsArrayBuffer = window.qaRead; delete window.qaRead; }")
         choose_file(page, "review.htm", SOURCE)
         expect(page.get_by_text("review.htm", exact=True)).to_be_visible()
@@ -80,7 +80,7 @@ def main():
         expect(page.locator(".reports-finding[open] .reports-finding-body li")).to_have_count(2)
         expect(page.locator(".reports-coverage")).to_contain_text("غير منطبق")
 
-        page.get_by_role("button", name="English").click()
+        page.get_by_role("button", name="English", exact=True).click()
         expect(workspace).to_have_attribute("dir", "ltr")
         expect(page.get_by_role("heading", name="Scan coverage")).to_be_visible()
         page.locator('select[name="findingSeverity"]').select_option("medium")
@@ -109,14 +109,14 @@ def main():
         expect(page.get_by_role("heading", name="Scan coverage")).to_be_visible()
         page.set_viewport_size({"width": 390, "height": 844})
         assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
-        page.get_by_role("button", name="العربية").click()
+        page.get_by_role("button", name="العربية", exact=True).click()
         assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
 
         other = browser.new_context().new_page()
         other.goto(BASE + detail_path)
         expect(other.get_by_role("alert")).to_contain_text("غير موجود")
 
-        page.goto(BASE)
+        page.goto(BASE + "/demo")
         page.get_by_role("button", name="لصق HTML").click()
         editor = page.get_by_label("كود HTML", exact=True)
         editor.fill(SOURCE.decode())
@@ -125,12 +125,12 @@ def main():
         assert pasted["findings"] == report["findings"]
         assert pasted["coverage"] == report["coverage"]
 
-        page.goto(BASE)
+        page.goto(BASE + "/demo")
         page.get_by_role("button", name="لصق HTML").click()
         page.get_by_label("كود HTML", exact=True).fill("<main>outside the scope</main>")
         run_review(page)
         expect(page.get_by_text("ولا قاعدة من قواعد الفحص انطبقت على المصدر ده.")).to_be_visible()
-        page.goto(BASE)
+        page.goto(BASE + "/demo")
         page.get_by_role("button", name="لصق HTML").click()
         page.get_by_label("كود HTML", exact=True).fill('<form action="https://example.test/"></form>')
         run_review(page)

@@ -9,11 +9,8 @@ import {
   ClipboardList,
   Cpu,
   Database,
-  History,
-  LayoutDashboard,
   LoaderCircle,
   Play,
-  Settings2,
   SlidersHorizontal,
   Waypoints,
   Workflow,
@@ -22,22 +19,25 @@ import "@fontsource/ibm-plex-sans-arabic/arabic-400.css";
 import "@fontsource/ibm-plex-sans-arabic/arabic-500.css";
 import "@fontsource/ibm-plex-sans-arabic/arabic-600.css";
 import "@fontsource/ibm-plex-sans-arabic/arabic-700.css";
+import "@fontsource-variable/space-grotesk";
 import "@fontsource/inter/latin-500.css";
 import "@fontsource/inter/latin-600.css";
 import {
   agents,
-  labelOf,
   num,
   readRun,
   roleOf,
 } from "./data";
-import { Network, AgentIcon } from "./Network";
+import { Network, AgentIcon, networkLabel } from "./Network";
 import { Agent, Modal, Settings } from "./Dialogs";
-import { initialSource, SourcePicker, sourceError } from "./Source";
+import { emptySource, SourcePicker, sourceError } from "./Source";
 import { Reports } from "./Reports";
 import { Platform } from "./Platform";
 import { CheckCatalog } from "./CheckCatalog";
+import { Landing } from "./Landing";
+import { SiteHeader, readPreference, savePreference } from "./SiteHeader";
 import "./style.css";
+import "./workspace.css";
 
 function currentLocation() {
   return { pathname: window.location.pathname, search: window.location.search };
@@ -45,11 +45,21 @@ function currentLocation() {
 
 function App() {
   const [location, setLocation] = useState(currentLocation);
+  const [lang, setLang] = useState(() => readPreference("language", "ar") === "en" ? "en" : "ar");
+  const [theme, setTheme] = useState(() => readPreference("theme", "dark") === "light" ? "light" : "dark");
+  const landingPage = location.pathname === "/";
+  const demoPage = location.pathname === "/demo";
+  const t = (ar, en) => lang === "en" ? en : ar;
+  const mainContent = useRef(null);
+  const initialPath = useRef(location.pathname);
+  const findingsPage = location.pathname === "/findings";
   const reportsPage = /^\/reports(?:\/|$)/.test(location.pathname);
-  const projectsPage = /^\/projects(?:\/|$)/.test(location.pathname);
+  const projectsPage = /^\/(?:projects(?:\/|$)|dashboard$|scans$|new-scan$|settings$|signin$)/.test(location.pathname);
+  const reportLocale = new URLSearchParams(location.search).get("lang");
+  const pageLanguage = (reportsPage || findingsPage) && ["ar", "en"].includes(reportLocale) ? reportLocale : lang;
   const catalogPage = location.pathname === "/checks";
   const [dialog, show] = useState(""),
-    [source, setSource] = useState(initialSource),
+    [source, setSource] = useState(emptySource),
     [sourceBusy, setSourceBusy] = useState(false),
     [config, setConfig] = useState(null),
     [profile, setProfile] = useState("extended");
@@ -70,6 +80,15 @@ function App() {
     if (path !== previousPath + window.location.search) window.history[update](null, "", path);
     setLocation(currentLocation());
     if (window.location.pathname !== previousPath) window.scrollTo(0, 0);
+  }
+
+  function changeLanguage(next) {
+    setLang(next);
+    if (reportsPage || findingsPage) {
+      const query = new URLSearchParams(location.search);
+      query.set("lang", next);
+      navigate(location.pathname + "?" + query, { replace: true });
+    }
   }
 
   function follow(event, path) {
@@ -93,9 +112,29 @@ function App() {
     document.addEventListener("keydown", esc);
     return () => document.removeEventListener("keydown", esc);
   }, []);
+  useEffect(() => {
+    const root = document.documentElement;
+    root.lang = pageLanguage;
+    root.dir = pageLanguage === "ar" ? "rtl" : "ltr";
+    root.dataset.theme = theme;
+    savePreference("language", lang);
+    savePreference("theme", theme);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#0b0f12" : "#f5f7f4");
+  }, [lang, pageLanguage, theme]);
+  useEffect(() => {
+    document.title = landingPage ? "MARSAD | Web Security Workspace"
+      : demoPage ? "MARSAD | Demo" : "MARSAD | Workspace";
+  }, [landingPage, demoPage]);
+  useEffect(() => {
+    if (initialPath.current !== location.pathname) {
+      initialPath.current = location.pathname;
+      if (!reportsPage && !findingsPage) mainContent.current?.focus({ preventScroll: true });
+    }
+    if (demoPage && new URLSearchParams(location.search).get("settings") === "models") show("settings");
+  }, [demoPage, reportsPage, findingsPage, location.pathname, location.search]);
   async function start() {
     if (lock.current || sourceBusy) return;
-    const invalidSource = sourceError(source.text);
+    const invalidSource = sourceError(source.text, lang);
     if (invalidSource) {
       setError(invalidSource);
       return;
@@ -144,59 +183,19 @@ function App() {
     metrics = latest?.metrics;
   return (
     <>
-      <header className="header">
-        <div className="navwrap">
-          <button
-            className="brand"
-            onClick={() => navigate("/")}
-            aria-label="مرصد، صفحة المختبر"
-          >
-            <img src="/mark.svg" alt="" />
-            <span>
-              مرصد<small>MARSAD</small>
-            </span>
-          </button>
-          <div className="nav-divider" />
-          <nav>
-            <button
-              className={!reportsPage && !projectsPage && !catalogPage ? "selected" : ""}
-              aria-current={!reportsPage && !projectsPage && !catalogPage ? "page" : undefined}
-              onClick={() => navigate("/")}
-            >
-              <LayoutDashboard />
-              المختبر
-            </button>
-            <button
-              className={reportsPage ? "selected" : ""}
-              aria-current={reportsPage ? "page" : undefined}
-              onClick={() => navigate("/reports")}
-            >
-              <History />
-              سجل التقارير
-            </button>
-            <button className={projectsPage ? "selected" : ""} aria-current={projectsPage ? "page" : undefined}
-              onClick={() => navigate("/projects")}>المشاريع</button>
-          </nav>
-          <button
-            className="nav-settings"
-            onClick={() => show("settings")}
-            disabled={busy}
-          >
-            <Settings2 size={17} />
-            <span>الإعدادات</span>
-          </button>
-        </div>
-      </header>
-      <main>
-        {reportsPage ? (
-          <Reports location={location} navigate={navigate} revision={latest?.id} />
-        ) : projectsPage ? <Platform location={location} navigate={navigate} /> : catalogPage ? <CheckCatalog /> : (
+      <SiteHeader pathname={location.pathname} follow={follow} lang={pageLanguage} setLang={changeLanguage}
+        theme={theme} setTheme={setTheme} publicPage={landingPage || demoPage || catalogPage} />
+      <main ref={mainContent} id="main-content" tabIndex={-1} className={landingPage ? "site-landing-main" : "site-workspace-main"}>
+        {landingPage ? <Landing follow={follow} lang={lang} theme={theme} />
+          : reportsPage || findingsPage ? <Reports location={location} navigate={navigate} revision={latest?.id} lang={lang} />
+          : projectsPage ? <Platform location={location} navigate={navigate} lang={lang} />
+          : catalogPage ? <CheckCatalog lang={lang} /> : (
           <>
             <div className="heading">
               <div>
-                <div className="section-tag"><i /> AGENT WORKSPACE</div>
-                <h1>مختبر الوكلاء</h1>
-                <p>شغّل مراجعة أمنية لكود HTML وتابع تنفيذ الوكلاء لحظة بلحظة.</p>
+
+                <h1>{t("مختبر الوكلاء", "Agent demo")}</h1>
+                <p>{t("شغّل مراجعة أمنية لكود HTML وتابع تنفيذ الوكلاء لحظة بلحظة.", "Review a supplied HTML file and follow each step.")}</p>
               </div>
               <button
                 className={"connection " + (config ? "connected" : "")}
@@ -204,7 +203,7 @@ function App() {
                 onClick={() => show("settings")}
               >
                 <i />
-                {config ? "الموديل متصل" : "فحص محلي"}
+                {config ? t("الموديل متصل", "Model connected") : t("فحص محلي", "Local scan")}
                 <ChevronLeft size={14} />
               </button>
             </div>
@@ -214,20 +213,20 @@ function App() {
                   <div className="title-icon">
                     <SlidersHorizontal size={18} />
                   </div>
-                  <h2>إعداد الفحص</h2>
+                  <h2>{t("إعداد الفحص", "Scan setup")}</h2>
                 </div>
-                <p className="card-intro">اختار مصدر HTML للفحص. نموذج اللغة اختياري.</p>
-                <SourcePicker source={source} setSource={setSource} disabled={busy} onBusyChange={setSourceBusy} />
+                <p className="card-intro">{t("اختار مصدر HTML للفحص. نموذج اللغة اختياري.", "Choose an HTML source. Model enrichment is optional.")}</p>
+                <SourcePicker source={source} setSource={setSource} disabled={busy} onBusyChange={setSourceBusy} lang={lang} />
                 <div className="profile-setting">
-                  <label htmlFor="scan-profile">نطاق الفحص</label>
+                  <label htmlFor="scan-profile">{t("نطاق الفحص", "Scan profile")}</label>
                   <select id="scan-profile" value={profile} disabled={busy} onChange={(event) => setProfile(event.target.value)}>
-                    <option value="extended">موسّع · ١٠٠ قاعدة في الكتالوج</option>
-                    <option value="baseline">أساسي · ٣ قواعد HTML</option>
+                    <option value="extended">{t("موسّع · ١٠٠ قاعدة في الكتالوج", "Extended · 100 rules in the catalog")}</option>
+                    <option value="baseline">{t("أساسي · ٣ قواعد HTML", "Baseline · 3 HTML rules")}</option>
                   </select>
-                  <a href="/checks" onClick={(event) => follow(event, "/checks")}>شوف القواعد والأدوات</a>
-                  <small className="hint">التغطية الفعلية بتتحدد حسب نوع الملف ومحتواه.</small>
+                  <a href="/checks" onClick={(event) => follow(event, "/checks")}>{t("شوف القواعد والأدوات", "Explore the rule catalog")}</a>
+                  <small className="hint">{t("التغطية الفعلية بتتحدد حسب نوع الملف ومحتواه.", "Coverage depends on the evidence in your file.")}</small>
                 </div>
-                <div className="field-title">إثراء التقرير بالموديل</div>
+                <div className="field-title">{t("إثراء التقرير بالموديل", "Model enrichment")}</div>
                 <button
                   className="option"
                   disabled={busy}
@@ -237,7 +236,7 @@ function App() {
                     <Cpu size={21} />
                   </span>
                   <span>
-                    <strong dir="auto">{config?.model || "إضافة موديل اختياري"}</strong>
+                    <strong dir="auto">{config?.model || t("إضافة موديل اختياري", "Add an optional model")}</strong>
                     <small dir="ltr">OpenRouter</small>
                   </span>
                   <ChevronLeft size={16} />
@@ -248,15 +247,15 @@ function App() {
                   ) : (
                     <Play size={16} fill="currentColor" />
                   )}
-                  {busy ? "الفحص قيد التشغيل" : "تشغيل الفحص"}
+                  {busy ? t("الفحص قيد التشغيل", "Scan running") : t("تشغيل الفحص", "Run scan")}
                 </button>
                 {busy && (
-                  <button className="subtle" onClick={() => controller.current?.abort()}>إلغاء الفحص</button>
+                  <button className="subtle" onClick={() => controller.current?.abort()}>{t("إلغاء الفحص", "Cancel scan")}</button>
                 )}
               </section>
               <Network
                 {...{ events, busy, error, expanded, setExpanded }}
-                onAgent={setAgent}
+                onAgent={setAgent} lang={lang}
               />
             </div>
             {error && (
@@ -265,12 +264,12 @@ function App() {
                 {error}
               </div>
             )}
-            {runState === "cancelled" && <p className="card-intro" role="status">تم إلغاء متابعة الفحص.</p>}
+            {runState === "cancelled" && <p className="card-intro" role="status">{t("تم إلغاء متابعة الفحص.", "Scan cancelled.")}</p>}
             <div className="results-heading">
-              <h2>نتائج التشغيل</h2>
+              <h2>{t("نتائج التشغيل", "Scan results")}</h2>
               {latest && (
-                <a className="subtle" href={`/reports/${latest.id}`} onClick={(event) => follow(event, `/reports/${latest.id}`)}>
-                  فتح التقرير <ArrowLeft size={15} />
+                <a className="subtle" href={`/reports/${latest.id}?scope=demo`} onClick={(event) => follow(event, `/reports/${latest.id}?scope=demo`)}>
+                  {t("فتح التقرير", "Open report")} <ArrowLeft size={15} />
                 </a>
               )}
             </div>
@@ -278,22 +277,22 @@ function App() {
               {[
                 [
                   Waypoints,
-                  "الأدوار المكتملة",
+                  t("الأدوار المكتملة", "Roles completed"),
                   num(roleCount) + " / " + num(5),
                 ],
                 [
                   ClipboardList,
-                  "الملاحظات المؤكدة",
+                  t("الأدلة المرصودة", "Evidence observed"),
                   metrics ? num(latest.findings?.length || 0) : "—",
                 ],
                 [
                   Activity,
-                  "استدعاءات الموديل",
+                  t("استدعاءات الموديل", "Model calls"),
                   metrics ? num(metrics.modelCalls ?? 0) : "—",
                 ],
                 [
                   Workflow,
-                  "القواعد المنطبقة",
+                  t("القواعد المنطبقة", "Applicable rules"),
                   latest?.coverage ? num(metrics.checksRun || 0) + " / " + num(latest.coverage.length) : "—",
                 ],
               ].map(([Icon, title, value], i) => (
@@ -310,24 +309,22 @@ function App() {
             </div>
             {metrics?.benchmark && (
               <p className="benchmark">
-                العينة المرجعية · {num(metrics.benchmark.matched)} من{" "}
-                {num(metrics.benchmark.expected)} مطابق ·{" "}
-                {num(metrics.benchmark.unexpected)} إضافية
+                {t("العينة المرجعية", "Reference fixture")} · {num(metrics.benchmark.matched)} / {num(metrics.benchmark.expected)} {t("مطابق", "matched")} · {num(metrics.benchmark.unexpected)} {t("إضافية", "unexpected")}
               </p>
             )}
             <div className="utility">
               <button onClick={() => show("agents")}>
                 <Boxes size={15} />
-                دليل الوكلاء
+                {t("دليل الوكلاء", "Agent guide")}
               </button>
               <button onClick={() => show("memory")}>
                 <Database size={15} />
-                الذاكرة
+                {t("الذاكرة", "Memory")}
               </button>
               {events.length > 0 && (
                 <button onClick={() => show("trace")}>
                   <Workflow size={15} />
-                  تفاصيل التنفيذ
+                  {t("تفاصيل التنفيذ", "Execution details")}
                 </button>
               )}
             </div>
@@ -335,10 +332,10 @@ function App() {
         )}
       </main>
       {dialog === "settings" && (
-        <Settings config={config} save={setConfig} close={() => show("")} />
+        <Settings lang={lang} config={config} save={setConfig} close={() => show("")} />
       )}
       {dialog === "agents" && (
-        <Modal title="دليل الوكلاء" close={() => show("")}>
+        <Modal lang={lang} title={t("دليل الوكلاء", "Agent guide")} close={() => show("")}>
           <div className="agent-list">
             {Object.entries(agents).map(([id, a]) => (
               <button
@@ -352,8 +349,8 @@ function App() {
                   <AgentIcon role={id} />
                 </span>
                 <span>
-                  <strong>{a[0]}</strong>
-                  <small>{a[1]}</small>
+                  <strong>{t(a[0], a[1])}</strong>
+                  {lang === "ar" && <small>{a[1]}</small>}
                 </span>
                 <ChevronLeft size={15} />
               </button>
@@ -362,45 +359,43 @@ function App() {
         </Modal>
       )}
       {dialog === "memory" && (
-        <Modal title="ذاكرة الوكلاء" close={() => show("")}>
+        <Modal lang={lang} title={t("ذاكرة الوكلاء", "Agent memory")} close={() => show("")}>
           <dl className="spec">
-            <dt>ذاكرة العمل</dt>
+            <dt>{t("ذاكرة العمل", "Working memory")}</dt>
             <dd>
-              حالة مشتركة داخل LangGraph بتنقل الخطة والملاحظات والقياسات بين
-              الوكلاء أثناء الفحص.
+              {t("حالة مشتركة داخل LangGraph بتنقل الخطة والملاحظات والقياسات بين               الوكلاء أثناء الفحص.", "A shared LangGraph state carries the plan, observations and measurements during a scan.")}
             </dd>
-            <dt>ذاكرة التشغيلات السابقة</dt>
+            <dt>{t("ذاكرة التشغيلات السابقة", "Run history")}</dt>
             <dd>
-              تُحفظ التقارير في قاعدة SQLite. المنسّق يستقبل إحصاءات محدودة من فحص
-              سابق لنفس الجلسة عند توفرها.
+              {t("تُحفظ التقارير في قاعدة SQLite. المنسّق يستقبل إحصاءات محدودة من فحص               سابق لنفس الجلسة عند توفرها.", "SQLite stores reports. The orchestrator can use limited statistics from a prior scan in the same session.")}
             </dd>
-            <dt>ذاكرة القواعد</dt>
+            <dt>{t("ذاكرة القواعد", "Rule catalog")}</dt>
             <dd>
-              كتالوج الفحص بيحدّد قواعد السكربتات والنماذج المؤهلة للتحليل.
+              {t("كتالوج الفحص بيحدّد قواعد السكربتات والنماذج المؤهلة للتحليل.", "The catalog identifies checks that may apply to the file.")}
             </dd>
           </dl>
           <button
             className="btn"
             onClick={() => {
               show("");
-              navigate("/reports");
+              navigate("/reports?scope=demo");
             }}
           >
-            عرض التقارير المحفوظة <ArrowLeft size={16} />
+            {t("عرض التقارير المحفوظة", "Open saved reports")} <ArrowLeft size={16} />
           </button>
         </Modal>
       )}
       {dialog === "trace" && (
-        <Modal title="تفاصيل التنفيذ" close={() => show("")}>
+        <Modal lang={lang} title={t("تفاصيل التنفيذ", "Execution details")} close={() => show("")}>
           <ol className="trace">
             {events.map((e, i) => (
               <li key={i}>
-                <b>{labelOf(e.node)}</b>
+                <b>{networkLabel(e.node, lang)}</b>
                 <small>
-                  {e.status === "done" ? "اكتمل" : "بدأ"}
-                  {e.source && (e.source === "model" ? " · موديل" : " · محلي")}
+                  {e.status === "done" ? t("اكتمل", "Finished") : t("بدأ", "Started")}
+                  {e.source && (e.source === "model" ? t(" · موديل", " · Model") : t(" · محلي", " · Local"))}
                 </small>
-                <p dir="auto">{e.detail}</p>
+                <p dir="auto">{lang === "en" ? e.detail_en || e.detail : e.detail}</p>
               </li>
             ))}
           </ol>
@@ -408,6 +403,7 @@ function App() {
       )}
       {agent && (
         <Agent
+          lang={lang}
           node={agent}
           event={events.filter((e) => e.node === agent).at(-1)}
           model={events.length ? runModel : config?.model}

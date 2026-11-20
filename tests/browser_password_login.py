@@ -1,4 +1,5 @@
 """Exercise real password signup/login, project isolation, and background report access."""
+import re
 from secrets import token_urlsafe
 from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
@@ -26,7 +27,7 @@ def main():
         page.get_by_role("button", name="إنشاء مؤسسة", exact=True).click()
         page.get_by_label("اسم المشروع", exact=True).fill("Password project acceptance")
         page.get_by_role("button", name="إنشاء مشروع", exact=True).click()
-        expect(page.locator('input[type="file"][name="file"]')).to_be_visible()
+        page.wait_for_url(re.compile(r"[?&]project=[a-f0-9]{32}"))
         project = parse_qs(urlsplit(page.url).query)["project"][0]
         report = project_scan(page, project, '<form action="/session"><input name="password" type="password"></form>')
         report_link = f"{ORIGIN}/reports/{report}?project={project}"

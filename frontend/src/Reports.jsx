@@ -298,7 +298,7 @@ function Archive({ reports, t, lang, params, navigate }) {
       <div className="reports-panel reports-state">
         <FileText size={26} aria-hidden="true" />
         <p>{t.noReports}</p>
-        <Link className="reports-button reports-primary" navigate={navigate} href="/">{t.newScan}</Link>
+        <Link className="reports-button reports-primary" navigate={navigate} href={params.has("project") ? reportPath("/new-scan", new URLSearchParams(), { project: params.get("project") }) : "/demo"}>{t.newScan}</Link>
       </div>
     );
   }
@@ -459,9 +459,19 @@ function ReportDetails({ report, t, lang, params, pathname, navigate, reportApi,
     [t.modelCalls, metrics.modelCalls == null ? t.unavailable : count(metrics.modelCalls)],
     [t.duration, metrics.durationMs == null ? t.unavailable : count(metrics.durationMs / 1000) + " " + t.seconds],
   ];
+  const jumps = [["report-summary", t.executive], ["report-findings", t.results], ["report-coverage", t.coverage], ["report-export", lang === "ar" ? "التصدير" : "Export"]];
   return (
     <>
-      <div className="reports-downloads">
+      <nav className="report-section-links" aria-label={lang === "ar" ? "أقسام التقرير" : "Report sections"}>
+        {jumps.map(([target, label]) => <a key={target} className="reports-button" href={"#" + target}
+          onClick={(event) => {
+            event.preventDefault();
+            const section = document.getElementById(target);
+            section?.focus({ preventScroll: true });
+            section?.scrollIntoView({ block: "start" });
+          }}>{label}</a>)}
+      </nav>
+      <div className="reports-downloads report-jump" id="report-export" tabIndex={-1}>
         {downloads.map(([query, title]) => (
           <a className="reports-button" key={query} href={`${reportApi}/download?${query}`} download>
             <ArrowDownToLine size={16} aria-hidden="true" />{title}
@@ -483,7 +493,7 @@ function ReportDetails({ report, t, lang, params, pathname, navigate, reportApi,
           ))}
         </dl>
       </section>
-      <section className="reports-panel reports-section">
+      <section className="reports-panel reports-section report-jump" id="report-summary" tabIndex={-1}>
         <h2>{t.executive}</h2>
         <p className="reports-copy" dir="auto">{summary || t.unavailable}</p>
         <p className="reports-annotation">{t.summarySource} · {label(t, report.summary_source ? report.summary_source + "Summary" : null)}</p>
@@ -498,7 +508,9 @@ function ReportDetails({ report, t, lang, params, pathname, navigate, reportApi,
           </p>
         )}
       </section>
-      <FindingList findings={findings} coverage={report.coverage} t={t} lang={lang} params={params} pathname={pathname} navigate={navigate} />
+      <div className="report-jump" id="report-findings" tabIndex={-1}>
+        <FindingList findings={findings} coverage={report.coverage} t={t} lang={lang} params={params} pathname={pathname} navigate={navigate} />
+      </div>
       {projectApi && (
         <>
           <ReportComparison report={report} reportApi={reportApi} archiveApi={projectApi}
@@ -507,7 +519,7 @@ function ReportDetails({ report, t, lang, params, pathname, navigate, reportApi,
           <FindingReview reportApi={reportApi} findings={findings} lang={lang} t={t} dateText={dateText} />
         </>
       )}
-      <section className="reports-panel reports-section">
+      <section className="reports-panel reports-section report-jump" id="report-coverage" tabIndex={-1}>
         <h2>{t.coverage}</h2>
         {report.coverage?.length ? (
           <ul className="reports-coverage">
@@ -550,15 +562,88 @@ function ReportDetails({ report, t, lang, params, pathname, navigate, reportApi,
   );
 }
 
-export function Reports({ location, navigate, revision }) {
+function useReportProjects(enabled) {
+  const [state, setState] = useState(null);
+  const [retry, setRetry] = useState(0);
+  useEffect(() => {
+    if (!enabled) return;
+    const controller = new AbortController();
+    async function load() {
+      const result = await fetch("/api/platform/projects", { signal: controller.signal });
+      if (result.status === 401 || result.status === 503) return { projects: [], guest: true };
+      if (!result.ok) throw new Error("Failed to load projects");
+      return result.json();
+    }
+    load().then((data) => {
+      if (!controller.signal.aborted) setState(data);
+    }, () => {
+      if (!controller.signal.aborted) setState({ error: true });
+    });
+    return () => controller.abort();
+  }, [enabled, retry]);
+  return [state, () => { setState(null); setRetry((value) => value + 1); }];
+}
+
+function ReportContext({ location, navigate, lang, active, projectApi, archive, findings, state, retry }) {
+  const params = new URLSearchParams(location.search);
+  const project = params.get("project") || "";
+  const report = params.get("report") || "";
+  const ar = lang === "ar";
+  const t = copy[lang];
+  const select = (changes) => navigate(reportPath(location.pathname, new URLSearchParams(), {
+    lang: params.get("lang") || "", ...changes,
+  }));
+  if (!state) return <p role="status" className="reports-panel reports-state">{ar ? "جاري تحميل المشاريع…" : "Loading projects…"}</p>;
+  if (state.error) return <div className="reports-panel reports-state">
+    <p role="alert">{ar ? "تعذّر تحميل المشاريع." : "Could not load projects."}</p>
+    <button className="reports-button" onClick={retry}>{t.retry}</button>
+  </div>;
+  if (state.guest) return findings || active ? <div className="reports-panel reports-state">
+    <p>{ar ? "سجّل الدخول لعرض تقارير المشاريع ونتائجها." : "Sign in to see project reports and findings."}</p>
+    <Link className="reports-button reports-primary" href="/signin" navigate={navigate}>{ar ? "تسجيل الدخول" : "Sign in"}</Link>
+  </div> : null;
+  return <section className="reports-panel reports-section report-context" aria-label={ar ? "مصدر التقارير" : "Report source"}>
+    <label>{ar ? "المشروع" : "Project"}
+      <select value={project} onChange={(event) => select({ project: event.target.value })}>
+        <option value="">{ar ? "اختار مشروعًا" : "Choose a project"}</option>
+        {!state.projects.some((item) => item.id === project) && project && <option value={project} disabled>{ar ? "مشروع غير متاح" : "Unavailable project"}</option>}
+        {state.projects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+      </select>
+    </label>
+    {findings && projectApi && Array.isArray(archive?.reports) && <label>{ar ? "الفحص" : "Scan report"}
+      <select value={report} onChange={(event) => select({ project, report: event.target.value })}>
+        <option value="">{ar ? "اختار تقريرًا" : "Choose a report"}</option>
+        {archive.reports.map((item) => <option key={item.id} value={item.id}>
+          {sourceLabel(t, item.source || item.input_artifact)} · {dateText(lang, item.created_at)}
+        </option>)}
+      </select>
+    </label>}
+    {!findings && <Link className="reports-button" href={reportPath("/reports", new URLSearchParams(), { scope: "demo", lang: params.get("lang") })} navigate={navigate}>
+      {ar ? "تقارير المختبر" : "Demo reports"}
+    </Link>}
+    {state.projects.length === 0 && <Link className="reports-button" href="/projects" navigate={navigate}>{ar ? "إنشاء مشروع" : "Create a project"}</Link>}
+  </section>;
+}
+
+export function Reports({ location, navigate, revision, lang: preferredLanguage = "ar" }) {
   const { pathname, search } = location;
   const params = new URLSearchParams(search);
-  const lang = params.get("lang") === "en" ? "en" : "ar";
+  const locale = params.get("lang");
+  const lang = locale === "ar" || locale === "en" ? locale : preferredLanguage;
   const t = copy[lang];
-  const id = /^\/reports\/([^/]+)\/?$/.exec(pathname)?.[1];
+  const findings = pathname === "/findings";
+  const id = findings ? (/^[a-f0-9]{32}$/.test(params.get("report") || "") ? params.get("report") : null)
+    : /^\/reports\/([^/]+)\/?$/.exec(pathname)?.[1];
   const project = params.get("project");
   const projectApi = /^[a-f0-9]{32}$/.test(project ?? "") ? `/api/platform/projects/${project}/reports` : null;
-  const url = id ? (projectApi || "/api/reports") + "/" + id : (projectApi || "/api/history");
+  const explicitDemo = params.get("scope") === "demo";
+  const [projects, retryProjects] = useReportProjects(findings || !id);
+  const demoArchive = explicitDemo || projects?.guest;
+  const badProject = Boolean(project && !projectApi);
+  const defaultArchive = projectApi || (demoArchive && !badProject && !findings ? "/api/history" : null);
+  const url = id ? ((findings && !projectApi) || badProject ? null : (projectApi || "/api/reports") + "/" + encodeURIComponent(id))
+    : defaultArchive;
+  const [archive, setArchive] = useState(null);
   const archiveRevision = id ? null : revision;
   const [state, setState] = useState(null);
   const [retry, reload] = useState(0);
@@ -566,6 +651,7 @@ export function Reports({ location, navigate, revision }) {
   const current = state?.url === url && state.retry === retry && state.archiveRevision === archiveRevision ? state : null;
 
   useEffect(() => {
+    if (!url) return;
     const controller = new AbortController();
     fetchJson(url, { signal: controller.signal }).then(
       (data) => { if (!controller.signal.aborted) setState({ url, retry, archiveRevision, data }); },
@@ -573,35 +659,63 @@ export function Reports({ location, navigate, revision }) {
     );
     return () => controller.abort();
   }, [url, retry, archiveRevision]);
+  useEffect(() => {
+    if (!findings || !projectApi || !id) return;
+    const controller = new AbortController();
+    fetchJson(projectApi, { signal: controller.signal }).then((data) => {
+      if (!controller.signal.aborted) setArchive({ projectApi, data });
+    }, (error) => {
+      if (!controller.signal.aborted) setArchive({ projectApi, error: error.message });
+    });
+    return () => controller.abort();
+  }, [findings, projectApi, retry, id]);
   useEffect(() => { heading.current?.focus(); }, [pathname]);
 
   const back = reportPath("/reports", params, { finding: "", findingSeverity: "", findingDomain: "", baseline: "" });
   return (
     <section className="reports-workspace" lang={lang} dir={lang === "ar" ? "rtl" : "ltr"}>
-      {id && <Link className="reports-back" href={back} navigate={navigate}>{lang === "ar" ? <ArrowRight size={17} aria-hidden="true" /> : <ArrowLeft size={17} aria-hidden="true" />}{t.back}</Link>}
+      {id && !findings && <Link className="reports-back" href={back} navigate={navigate}>{lang === "ar" ? <ArrowRight size={17} aria-hidden="true" /> : <ArrowLeft size={17} aria-hidden="true" />}{t.back}</Link>}
       <div className="reports-heading">
         <div>
-          <h1 tabIndex={-1} ref={heading}>{id ? (projectApi ? t.projectReport : t.report) : t.reports}</h1>
-          {!id && <p>{t.archiveIntro}</p>}
+          <h1 tabIndex={-1} ref={heading}>{findings ? t.results : id ? (projectApi ? t.projectReport : t.report) : t.reports}</h1>
+          {!id && <p>{findings ? (lang === "ar" ? "اختار المشروع والفحص لمراجعة الأدلة." : "Choose a project and scan to review its evidence.") : demoArchive && !projectApi ? t.archiveIntro : lang === "ar" ? "اختار مشروعًا لعرض تقاريره." : "Choose a project to see its reports."}</p>}
         </div>
         <div className="reports-switch" aria-label={lang === "ar" ? "لغة التقرير" : "Report language"} role="group">
           {["ar", "en"].map((locale) => (
-            <button key={locale} lang={locale} aria-pressed={lang === locale} onClick={() => navigate(reportPath(pathname, params, { lang: locale === "ar" ? "" : locale }))}>
+            <button key={locale} lang={locale} aria-pressed={lang === locale} onClick={() => navigate(reportPath(pathname, params, { lang: locale }))}>
               {locale === "ar" ? "العربية" : "English"}
             </button>
           ))}
         </div>
       </div>
-      {!current && <div className="reports-panel reports-state" role="status">{t.loading}</div>}
+      {(findings || !id) && !explicitDemo && <ReportContext location={location} navigate={navigate} lang={lang} active={Boolean(project)}
+        projectApi={projectApi} archive={id ? (archive?.projectApi === projectApi ? archive.data : null) : current?.data}
+        findings={findings} state={projects} retry={retryProjects} />}
+      {explicitDemo && !id && <Link className="reports-button" href="/reports" navigate={navigate}>
+        {lang === "ar" ? "تقارير المشاريع" : "Project reports"}
+      </Link>}
+      {findings && id && archive?.projectApi === projectApi && archive.error && <div className="reports-panel reports-state">
+        <p role="alert">{lang === "ar" ? "تعذّر تحميل قائمة الفحوصات." : "Could not load the scan list."}</p>
+        <button className="reports-button" onClick={() => reload((value) => value + 1)}>{t.retry}</button>
+      </div>}
+      {badProject && <p role="alert">{lang === "ar" ? "المشروع المطلوب غير متاح." : "The requested project is unavailable."}</p>}
+      {url && !current && <div className="reports-panel reports-state" role="status">{t.loading}</div>}
       {current?.error && (
         <div className="reports-panel reports-state">
           <p role="alert" dir="auto">{lang === "ar" ? current.error : t.loadError}</p>
           <button className="reports-button" onClick={() => reload((value) => value + 1)}>{t.retry}</button>
         </div>
       )}
-      {current?.data && (id ? (
-        <ReportDetails report={current.data} t={t} lang={lang} params={params} pathname={pathname} navigate={navigate} reportApi={url} projectApi={projectApi} />
-      ) : <Archive reports={current.data.reports || []} t={t} lang={lang} params={params} navigate={navigate} />)}
+      {current?.data && (id ? (findings ? <>
+        <Link className="reports-button" href={reportPath("/reports/" + id, new URLSearchParams(), { project, lang })} navigate={navigate}>
+          {lang === "ar" ? "فتح التقرير الكامل" : "Open full report"}
+        </Link>
+        <FindingList findings={current.data.findings || []} coverage={current.data.coverage} t={t}
+          lang={lang} params={params} pathname={pathname} navigate={navigate} />
+        <FindingReview reportApi={url} findings={current.data.findings || []} lang={lang} t={t} dateText={dateText} />
+      </> : <ReportDetails report={current.data} t={t} lang={lang} params={params} pathname={pathname} navigate={navigate} reportApi={url} projectApi={projectApi} />)
+        : findings ? (current.data.reports?.length ? null : <p className="reports-panel reports-state">{t.noReports}</p>)
+          : <Archive reports={current.data.reports || []} t={t} lang={lang} params={params} navigate={navigate} />)}
     </section>
   );
 }

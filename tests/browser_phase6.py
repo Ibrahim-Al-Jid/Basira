@@ -20,10 +20,12 @@ def download(page, link):
 
 
 def project_scan(page, project, text):
-    page.goto(f"{ORIGIN}/projects?project={project}")
+    page.goto(f"{ORIGIN}/new-scan?project={project}")
+    page.get_by_role("button", name="متابعة إلى الملف").click()
     page.locator('input[type="file"][name="file"]').set_input_files({
         "name": "portal.html", "mimeType": "text/html", "buffer": text.encode(),
     })
+    page.get_by_role("button", name="مراجعة الفحص").click()
     page.get_by_role("button", name="إرسال الفحص").click()
     link = page.get_by_role("link", name="فتح التقرير")
     expect(link).to_be_visible(timeout=30_000)
@@ -36,7 +38,7 @@ def project_scan(page, project, text):
 
 def lab_check(browser):
     tab = browser.new_context(viewport={"width": 390, "height": 844}).new_page()
-    tab.goto(ORIGIN)
+    tab.goto(ORIGIN + "/demo")
     expect(tab.get_by_label("نطاق الفحص")).to_have_value("extended")
     tab.locator('input[type="file"]').set_input_files({
         "name": "extended.html", "mimeType": "text/html",
@@ -106,7 +108,7 @@ def main():
         review.get_by_role("button", name="تحديث الحالة").click()
         expect(review.get_by_text("Assigned during acceptance")).to_be_visible()
 
-        page.get_by_role("button", name="English").click()
+        page.get_by_role("button", name="English", exact=True).click()
         expect(page.locator(".reports-workspace")).to_have_attribute("dir", "ltr")
         expect(page.get_by_role("heading", name="Tool execution")).to_be_visible()
         expect(page.get_by_text("These scans are comparable.")).to_be_visible()
@@ -123,7 +125,7 @@ def main():
         other.goto(page.url)
         expect(other.get_by_role("alert")).to_be_visible()
 
-        page.get_by_role("button", name="العربية").click()
+        page.get_by_role("button", name="العربية", exact=True).click()
         changed = user.put(f"{ORIGIN}/api/platform/projects/{project}/policy", data={"allowed_kinds": ["html"]})
         assert changed.ok
         project_scan(page, project, current_source)

@@ -479,6 +479,13 @@ def download(report_id: str, request: Request, lang: Literal["en", "ar"] = "en",
 @app.get("/reports/{report_id}", include_in_schema=False)
 @app.get("/projects", include_in_schema=False)
 @app.get("/projects/{project_id}/scans/{scan_id}", include_in_schema=False)
+@app.get("/demo", include_in_schema=False)
+@app.get("/signin", include_in_schema=False)
+@app.get("/dashboard", include_in_schema=False)
+@app.get("/scans", include_in_schema=False)
+@app.get("/findings", include_in_schema=False)
+@app.get("/settings", include_in_schema=False)
+@app.get("/new-scan", include_in_schema=False)
 @app.get("/checks", include_in_schema=False)
 def frontend_page(request: Request):
     _, token = session(request)

@@ -11,7 +11,7 @@ import {
   Waypoints,
   FileText,
 } from "lucide-react";
-import { agents, labelOf, roleOf, num } from "./data";
+import { agents, labelOf, roleOf } from "./data";
 
 const icons = {
   orchestrator: Waypoints,
@@ -20,6 +20,27 @@ const icons = {
   validation: ShieldCheck,
   reporting: FileText,
 };
+const englishBranches = { scripts: "Scripts", forms: "Forms", document: "Document" };
+const graphCopy = {
+  ar: {
+    title: "شبكة التنفيذ", reduce: "تصغير الشبكة", expand: "تكبير الشبكة",
+    connecting: "جارٍ الاتصال بالمحرك", waiting: "بانتظار بدء الفحص",
+    stopped: "توقف التشغيل", running: "قيد التنفيذ", building: "جارٍ بناء الشبكة",
+    done: "انتهى التشغيل", empty: "تظهر الوصلات مع انتقال المهام بين الوكلاء",
+  },
+  en: {
+    title: "Execution graph", reduce: "Collapse graph", expand: "Expand graph",
+    connecting: "Connecting to the engine", waiting: "Waiting for a scan",
+    stopped: "Scan stopped", running: "Running", building: "Building the execution graph",
+    done: "Scan finished", empty: "Connections appear as tasks move between agents",
+  },
+};
+
+export function networkLabel(node, lang = "ar") {
+  if (lang !== "en") return labelOf(node);
+  return englishBranches[node.split(":")[1]] || agents[roleOf(node)]?.[1] || node;
+}
+
 export function AgentIcon({ role, size = 20 }) {
   const Icon = icons[role] || CircleDot;
   return <Icon size={size} strokeWidth={1.65} />;
@@ -91,7 +112,9 @@ export function Network({
   expanded,
   setExpanded,
   onAgent,
+  lang = "ar",
 }) {
+  const t = graphCopy[lang];
   const nodes = new Map();
   events.forEach((e) => nodes.set(e.node, { ...nodes.get(e.node), ...e }));
   const items = [...nodes.values()];
@@ -110,7 +133,7 @@ export function Network({
   return (
     <section
       className={"net-card" + (expanded ? " expanded" : "")}
-      aria-label="شبكة التنفيذ"
+      aria-label={t.title}
     >
       <div className="net-head">
         <div className="net-title">
@@ -118,13 +141,14 @@ export function Network({
             <GitBranch size={18} />
           </span>
           <div>
-            <h2>شبكة التنفيذ</h2>
-            <small dir="ltr">EXECUTION GRAPH</small>
+            <h2>{t.title}</h2>
+            {lang === "ar" && <small dir="ltr">EXECUTION GRAPH</small>}
           </div>
         </div>
         <button
           className="square dark"
-          aria-label={expanded ? "تصغير الشبكة" : "تكبير الشبكة"}
+          aria-label={expanded ? t.reduce : t.expand}
+          aria-expanded={expanded}
           onClick={() => setExpanded(!expanded)}
         >
           {expanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
@@ -137,7 +161,7 @@ export function Network({
           <div className="orbital">
             <Orbit />
             <div className="standby">
-              <i /> {busy ? "جارٍ الاتصال بالمحرك" : "بانتظار بدء الفحص"}
+              <i /> {busy ? t.connecting : t.waiting}
             </div>
           </div>
         ) : (
@@ -175,10 +199,10 @@ export function Network({
                   className={"node " + n.status}
                   style={{ left: pos.x + "%", top: pos.y + "%" }}
                   onClick={() => onAgent(n.node)}
-                  aria-label={labelOf(n.node)}
+                  aria-label={networkLabel(n.node, lang)}
                 >
                   <AgentIcon role={roleOf(n.node)} />
-                  <small>{labelOf(n.node)}</small>
+                  <small>{networkLabel(n.node, lang)}</small>
                 </button>
               );
             })}
@@ -189,14 +213,14 @@ export function Network({
         <span className={"event-light " + (busy ? "live" : "")} />
         <span>
           {error
-            ? "توقف التشغيل"
+            ? t.stopped
             : last && busy
-              ? "قيد التنفيذ · " + labelOf(last.node)
+              ? t.running + " · " + networkLabel(last.node, lang)
               : busy
-                ? "جارٍ بناء الشبكة"
+                ? t.building
                 : items.length
-                  ? "انتهى التشغيل"
-                  : "تظهر الوصلات مع انتقال المهام بين الوكلاء"}
+                  ? t.done
+                  : t.empty}
         </span>
         <span className="langgraph" dir="ltr">
           <Layers3 size={13} /> LangGraph
