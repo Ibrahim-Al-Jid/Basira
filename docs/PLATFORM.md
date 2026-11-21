@@ -6,13 +6,23 @@
 
 **للاستخدام على جهاز واحد** افتح `/projects` واختار «إنشاء حساب» ثم سجّل بإيميلك وكلمة مرور خاصة بمرصد من ١٢ حرف أو أكتر. ملف `compose.local.yaml` يفعّل الحسابات المحلية ويربط قاعدة التقارير المجهولة بمجلد `data/` الموجود. بيانات حسابات المشاريع محفوظة في PostgreSQL، وكلمات المرور محفوظة ببصمة Argon2id، والجلسة بتنتهي بعد ٨ ساعات وحد محاولات الدخول محفوظ في القاعدة. الإيميل هنا اسم دخول. استخدم OIDC لبيئة فريق تحتاج تحقق بريد أو استعادة حساب.
 
-لتشغيل نفس البيئة المحلية بعد إيقافها، استخدم من مجلد المشروع:
+على Windows، شغّل Docker Desktop ونفّذ من جذر الريبو:
 
 ```powershell
-docker compose -p marsad-local -f compose.yaml -f compose.local.yaml --env-file .env.local --profile model up -d
+powershell -NoProfile -ExecutionPolicy Bypass -File .\ops\start-local.ps1
 ```
 
-جهّز `.env.local` من `ops/platform.env.example` على جذر المشروع، واستخدم كلمات مرور مختلفة لأدوار قاعدة البيانات. Git وDocker build بيستبعدوا الملف. [مرجع تخزين كلمات المرور من OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)
+أول مرة السكربت بيولّد كلمات مرور عشوائية لقاعدة البيانات في `.env.local`، وبيشغّل PostgreSQL وRedis والترحيلات ونسخة التطبيق اللي فيها الحسابات. في التشغيل التالي بيستخدم نفس الملف. لو المنفذ 8765 مستخدم، اختار منفذًا مختلفًا في أول تشغيل بإضافة `-Port 8775`. لو ملف `.env.local` موجود، عدّل `MARSAD_PORT` فيه.
+
+للتشغيل اليدوي، جهّز `.env.local` من `ops/platform.env.example` في جذر المشروع. حط كلمات مرور عشوائية مختلفة من حروف وأرقام في `MARSAD_DB_PASSWORD` و`MARSAD_DISPATCH_PASSWORD` و`MARSAD_MIGRATION_PASSWORD`. Git وDocker build بيستبعدوا الملف.
+
+```powershell
+docker compose -p marsad-local -f compose.yaml -f compose.local.yaml --env-file .env.local up -d --build
+```
+
+لو صفحة الدخول بتقول «تسجيل الدخول للمشاريع غير متاح حاليًا»، تأكد إنك فتحت عنوان `127.0.0.1` اللي بيطبعه السكربت. أمر `npm start` لو اتشغّل لوحده بيفتح المختبر. لو المختبر شغال، وقّفه بـ`Ctrl+C` في نافذته قبل تشغيل نسخة المشاريع على نفس المنفذ. نسخة Compose الأساسية من غير `compose.local.yaml` بتسيب حسابات الإيميل مقفولة بالإعداد الافتراضي. للتأكد إن نسخة المشاريع فعّلت التسجيل، افتح `/api/platform/auth/options` على نفس العنوان. الحسابات المحلية بتظهر مع `"password":true` وإنشاء الحساب مع `"registration":true`.
+
+لو صفحة الدخول ظهرت لكن حساب الجهاز القديم اترفض، فكل تثبيت جديد له قاعدة PostgreSQL مستقلة. اعمل حسابًا على الجهاز الجديد. لو محتاج نفس الحسابات والمشاريع والتقارير، هتحتاج تنقل بيانات PostgreSQL من الجهاز القديم. [مرجع تخزين كلمات المرور من OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)
 
 ### تسجيل الدخول بحساب المؤسسة
 
