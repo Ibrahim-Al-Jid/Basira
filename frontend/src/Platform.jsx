@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { ArrowUpRight, ClipboardCheck, FileText, FolderOpen, Plus, ScanLine, UploadCloud } from "lucide-react";
+import { ArrowLeft, ArrowRight, Building2, ClipboardCheck, Eye, EyeOff, FileText, FolderOpen, Mail, Plus, ScanLine, ShieldCheck, UploadCloud } from "lucide-react";
 import { post } from "./data";
 import "./platform.css";
 
@@ -83,9 +83,12 @@ function AccountAccess({ onAuthenticated, lang }) {
   const [error, setError] = useState("");
   const activeRequest = useRef(null);
   const titleId = useId();
+  const title = useRef(null);
+  const focusTitle = useRef(false);
   const passwordId = useId();
   const hintId = useId();
   const register = mode === "register";
+  const DirectionArrow = lang === "ar" ? ArrowLeft : ArrowRight;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -96,9 +99,13 @@ function AccountAccess({ onAuthenticated, lang }) {
     return () => controller.abort();
   }, [attempt]);
   useEffect(() => () => activeRequest.current?.abort(), []);
+  useEffect(() => {
+    if (focusTitle.current) title.current?.focus();
+  }, [mode]);
 
   function changeMode(next) {
     if (next === mode) return;
+    focusTitle.current = true;
     setMode(next);
     setError("");
     setShowPassword(false);
@@ -138,56 +145,72 @@ function AccountAccess({ onAuthenticated, lang }) {
   }
 
   return (
-    <section className="card project-panel project-account" aria-labelledby={titleId}>
-      <header className="project-account-heading">
-        <h1 id={titleId}>{t("حساب المشاريع", "Sign in to Marsad")}</h1>
-        <p>{t("سجّل الدخول عشان تستخدم مشاريع الفرق وتتابع الفحوصات والتقارير.", "Sign in to manage projects, run scans and access reports.")}</p>
-      </header>
-      {!options && !optionsError && <p role="status">{t("جاري تحميل طرق تسجيل الدخول…", "Loading sign-in options…")}</p>}
-      {optionsError && (
-        <div className="project-account-feedback">
+    <section className="account-layout" aria-labelledby={titleId}>
+      <aside className="account-context" aria-label={t("مساحة مرصد", "Marsad workspace")}>
+        <div className="account-context-mark" aria-hidden="true"><ShieldCheck size={26} strokeWidth={1.7} /></div>
+        <div className="account-context-copy">
+          <strong>{t("من ملفات المشروع إلى تقرير واضح.", "From project files to a clear report.")}</strong>
+          <ul>
+            <li><FolderOpen size={18} aria-hidden="true" />{t("نظّم ملفاتك حسب المشروع", "Organize files by project")}</li>
+            <li><FileText size={18} aria-hidden="true" />{t("راجع الدليل وخطوات الإصلاح", "Review evidence and fixes")}</li>
+          </ul>
+        </div>
+        <div className="account-context-grid" aria-hidden="true"><i /><i /><i /></div>
+      </aside>
+      <div className="project-panel project-account">
+        <header className="project-account-heading">
+          <h1 id={titleId} ref={title} tabIndex={-1}>{register ? t("أنشئ حسابك", "Create your account") : t("سجّل دخولك إلى مرصد", "Sign in to Marsad")}</h1>
+          <p>{register ? t("ابدأ مشروعك الأول واحتفظ بتقاريرك في مكان واحد.", "Start your first project and keep your reports in one place.")
+            : t("ادخل على مشاريعك وتقاريرك.", "Access your projects and reports.")}</p>
+        </header>
+        {!options && !optionsError && <p role="status">{t("جاري تحميل طرق تسجيل الدخول…", "Loading sign-in options…")}</p>}
+        {optionsError && <div className="project-account-feedback">
           <p className="error" role="alert">{optionsError}</p>
           <button className="btn" type="button" onClick={() => {
             setOptionsError("");
             setAttempt((value) => value + 1);
           }}>{t("إعادة المحاولة", "Retry")}</button>
-        </div>
-      )}
-      {options?.password && (
-        <>
-          {options.registration && (
-            <div className="project-account-modes" role="group" aria-label={t("نوع الحساب", "Account mode")}>
-              <button type="button" aria-pressed={!register} disabled={busy} onClick={() => changeMode("login")}>{t("عندي حساب", "I have an account")}</button>
-              <button type="button" aria-pressed={register} disabled={busy} onClick={() => changeMode("register")}>{t("إنشاء حساب", "Create an account")}</button>
-            </div>
-          )}
-          <form className="project-form project-account-form" onSubmit={submit} aria-busy={busy}>
-            <label>{t("البريد الإلكتروني", "Email")}
+        </div>}
+        {options?.password && <form className="project-form project-account-form" onSubmit={submit} aria-busy={busy}>
+          <label>{t("البريد الإلكتروني", "Email")}
+            <span className="account-input">
+              <Mail size={17} aria-hidden="true" />
               <input name="email" type="email" autoComplete="username" dir="ltr" maxLength={254} required disabled={busy} />
-            </label>
+            </span>
+          </label>
+          <div className="account-password">
             <label htmlFor={passwordId}>{t("كلمة المرور", "Password")}</label>
-            <div className="project-password-field">
+            <div className="account-input account-secret">
               <input key={mode} id={passwordId} name="password" type={showPassword ? "text" : "password"} dir="ltr"
                 autoComplete={register ? "new-password" : "current-password"}
                 aria-describedby={register ? hintId : undefined}
                 maxLength={256} required disabled={busy} />
-              <button className="btn" type="button" aria-controls={passwordId} disabled={busy}
+              <button type="button" aria-controls={passwordId} disabled={busy}
+                aria-label={showPassword ? t("إخفاء كلمة المرور", "Hide password") : t("إظهار كلمة المرور", "Show password")}
                 onClick={() => setShowPassword((value) => !value)}>
-                {showPassword ? t("إخفاء كلمة المرور", "Hide password") : t("إظهار كلمة المرور", "Show password")}
+                {showPassword ? <EyeOff size={19} aria-hidden="true" /> : <Eye size={19} aria-hidden="true" />}
               </button>
             </div>
             {register && <p id={hintId} className="project-account-hint">{t("من ١٢ إلى ١٢٨ حرف.", "12 to 128 characters.")}</p>}
-            {error && <p className="error" role="alert">{error}</p>}
-            <button className="btn primary" disabled={busy}>
-              {register ? t("إنشاء الحساب", "Create account") : t("تسجيل الدخول", "Sign in")}
-            </button>
-            {busy && <p role="status" className="project-account-hint">{register ? t("جاري إنشاء الحساب…", "Creating your account…") : t("جاري تسجيل الدخول…", "Signing in…")}</p>}
-          </form>
-        </>
-      )}
-      {options?.oidc && <a className="btn" href={api + "/auth/login"}>{t("الدخول بحساب المؤسسة", "Sign in with your organization")}</a>}
-      {options && !options.password && !options.oidc && <p role="status">{t("تسجيل الدخول للمشاريع غير متاح حاليًا.", "Project sign-in is currently unavailable.")}</p>}
-      <a className="project-account-lab" href="/demo">{t("جرّب المختبر المحلي", "Try the local demo")}</a>
+          </div>
+          {error && <p className="error" role="alert">{error}</p>}
+          <button className="btn primary account-submit" disabled={busy}>
+            {busy ? (register ? t("جاري إنشاء الحساب…", "Creating account…") : t("جاري تسجيل الدخول…", "Signing in…"))
+              : (register ? t("إنشاء الحساب", "Create account") : t("تسجيل الدخول", "Sign in"))}
+            <DirectionArrow size={18} aria-hidden="true" />
+          </button>
+        </form>}
+        {options?.oidc && <a className="btn account-organization" href={api + "/auth/login"}>
+          <Building2 size={18} aria-hidden="true" />{t("الدخول بحساب المؤسسة", "Sign in with your organization")}
+        </a>}
+        {options && !options.password && !options.oidc && <p role="status">{t("تسجيل الدخول للمشاريع غير متاح حاليًا.", "Project sign-in is currently unavailable.")}</p>}
+        {options?.password && options.registration && <div className="account-mode-switch">
+          <span>{register ? t("عندك حساب بالفعل؟", "Already have an account?") : t("أول مرة تستخدم مرصد؟", "New to Marsad?")}</span>
+          <button type="button" disabled={busy} onClick={() => changeMode(register ? "login" : "register")}>
+            {register ? t("عندي حساب", "I have an account") : t("إنشاء حساب", "Create an account")}
+          </button>
+        </div>}
+      </div>
     </section>
   );
 }
@@ -246,17 +269,19 @@ function ScanStatus({ projectId, scanId, lang }) {
       <h1>{t("متابعة الفحص", "Scan progress")}</h1>
       {error && <p className="workspace-error" role="alert">{errorText(error, t)} <button className="btn" onClick={() => setReload((n) => n + 1)}>{t("إعادة المحاولة", "Retry")}</button></p>}
       {!scan && !error && <p role="status">{t("جاري تحميل حالة الفحص…", "Loading scan status…")}</p>}
-      {scan && <Panel title={label(states, scan.state, t)}>
-        <p role="status" className="workspace-scan-status"><bdi>{scan.artifact.name}</bdi><span className="workspace-badge">{label(states, scan.state, t)}</span></p>
-        <p>{t("محاولة", "Attempt")} {number(scan.attempt, lang)}</p>
+      {scan && <Panel title={<bdi>{scan.artifact.name}</bdi>}>
+        <p role="status" className="workspace-scan-status"><span className="workspace-badge" data-state={scan.state}>{label(states, scan.state, t)}</span></p>
         {scan.report_available && <a className="btn primary" href={reportLink(projectId, scan.id)}>{t("فتح التقرير", "Open report")}</a>}
         {canScan && isActive(scan.state) &&
           <button className="btn" onClick={cancel} disabled={cancelling}>{t("إلغاء الفحص", "Cancel scan")}</button>}
-        {!!events.length && <ol className="workspace-timeline" aria-label={t("سجل الفحص", "Scan events")}>{events.map((item) => <li key={item.sequence}>
+        {!!events.length && <details className="workspace-advanced">
+          <summary>{t("سجل الفحص", "Scan activity")}</summary>
+          <ol className="workspace-timeline" aria-label={t("سجل الفحص", "Scan events")}>{events.map((item) => <li key={item.sequence}>
           <b>{label(states, item.kind, t)}</b>
           <p dir="auto">{t(item.detail, eventDetail(item))}</p>
           <time dateTime={item.occurred_at}>{new Date(item.occurred_at).toLocaleString(lang === "ar" ? "ar-EG" : "en")}</time>
-        </li>)}</ol>}
+          </li>)}</ol>
+        </details>}
       </Panel>}
     </div>
   );
@@ -281,47 +306,74 @@ function ScanList({ project, scans, lang, t }) {
   </li>)}</ul> : <p>{t("لسه مفيش فحوصات للمشروع ده.", "This project has no scans yet.")}</p>;
 }
 
-function NewScan({ projects, project, snapshot, choose, navigate, lang }) {
+function NewScan({ projects, project, choose, navigate, lang }) {
   const t = translate(lang);
   const [step, setStep] = useState(0);
   const [kind, setKind] = useState("");
   const [source, setSource] = useState(null);
   const [enrich, setEnrich] = useState(false);
+  const [acknowledged, setAcknowledged] = useState(false);
+  const [profile, setProfile] = useState(null);
+  const [profileFailure, setProfileFailure] = useState(null);
+  const [retryProfile, setRetryProfile] = useState(0);
+  const [staleProfile, setStaleProfile] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const heading = useRef(null);
   const request = useRef(null);
   const idempotency = useRef(crypto.randomUUID());
   const title = useId();
-  const policy = snapshot?.policy;
   const candidates = projects.filter((item) => item.role !== "viewer");
   const access = candidates.some((item) => item.id === project?.id);
+  const policyPath = access ? projectApi(project.id) + "/scan-profile" : null;
+  const profileValue = profile?.path === policyPath ? profile.value : null;
+  const profileError = profileFailure?.path === policyPath ? profileFailure.error : null;
+  const model = profileValue?.model_connection;
+  const limit = profileValue?.max_bytes;
+  const allowedKinds = profileValue?.allowed_kinds ?? [];
   const labels = [t("المشروع", "Project"), t("الملف", "Source"), t("المراجعة", "Review")];
 
   useEffect(() => () => request.current?.abort(), []);
   useEffect(() => { if (step > 0) heading.current?.focus(); }, [step]);
+  useEffect(() => {
+    if (!policyPath) return;
+    const controller = new AbortController();
+    action(policyPath, { signal: controller.signal }).then(
+      (value) => { if (!controller.signal.aborted) setProfile({ path: policyPath, value }); },
+      (error) => { if (!controller.signal.aborted) setProfileFailure({ path: policyPath, error }); },
+    );
+    return () => controller.abort();
+  }, [policyPath, retryProfile]);
 
   function updateEvidence(update) {
     update();
+    setAcknowledged(false);
     setError("");
     idempotency.current = crypto.randomUUID();
   }
 
   async function launch(event) {
     event.preventDefault();
-    if (request.current || !access || !source || !policy?.allowed_kinds.includes(kind)) return;
+    if (request.current || !access || !source || !acknowledged || !allowedKinds.includes(kind)) return;
     const controller = new AbortController();
     request.current = controller;
     setBusy(true);
     setError("");
     try {
       const content = await encoded(source);
-      const options = post({ kind, name: source.name, content, enrich });
+      if (controller.signal.aborted) return;
+      const options = post({
+        kind, name: source.name, content, scope_version: profileValue.scope_version, acknowledge_scope: true,
+        ...(enrich && model ? { model_connection: model.id } : {}),
+      });
       options.headers["Idempotency-Key"] = idempotency.current;
       const saved = await action(projectApi(project.id) + "/scans", { ...options, signal: controller.signal });
       if (!controller.signal.aborted) navigate(scanLink(project.id, saved.id));
     } catch (err) {
-      if (!controller.signal.aborted) setError(errorText(err, t));
+      if (!controller.signal.aborted) {
+        setStaleProfile(err.status === 409);
+        setError(errorText(err, t));
+      }
     } finally {
       request.current = null;
       if (!controller.signal.aborted) setBusy(false);
@@ -338,21 +390,42 @@ function NewScan({ projects, project, snapshot, choose, navigate, lang }) {
       <li key={index} aria-current={step === index ? "step" : undefined}><span>{number(index + 1, lang)}</span>{text}</li>)}</ol>
     <h2 id={title} ref={heading} tabIndex={-1}>{labels[step]}</h2>
     {error && <p className="workspace-error" role="alert">{error}</p>}
+    {staleProfile && <button className="btn" onClick={() => {
+      setStaleProfile(false);
+      setProfile(null);
+      setAcknowledged(false);
+      setError("");
+      setStep(0);
+      setRetryProfile((value) => value + 1);
+      idempotency.current = crypto.randomUUID();
+    }}>{t("راجع نطاق الفحص من جديد", "Review the updated scope")}</button>}
+    {profileError && <p className="workspace-error" role="alert">{errorText(profileError, t)} <button type="button" className="btn" onClick={() => {
+      setProfileFailure(null);
+      setRetryProfile((value) => value + 1);
+    }}>{t("إعادة المحاولة", "Retry")}</button></p>}
     {step === 0 && <form className="project-form" onSubmit={(event) => {
       event.preventDefault();
-      if (access && policy) {
-        setKind(policy.allowed_kinds[0] || "");
+      if (access && allowedKinds.length) {
+        if (!allowedKinds.includes(kind)) {
+          setKind(allowedKinds[0]);
+          setSource(null);
+        }
         setStep(1);
       }
     }}>
       <ProjectSelector projects={candidates} value={access ? project.id : ""} onChange={choose} t={t} required />
-      {access && !policy && <p role="status">{t("بنحمّل سياسة المشروع…", "Loading project policy…")}</p>}
-      <button className="btn primary" disabled={!access || !policy}>{t("متابعة إلى الملف", "Continue to source")}</button>
+      {access && !profileValue && !profileError && <p role="status">{t("بنحمّل نطاق الفحص…", "Loading scan scope…")}</p>}
+      <button className="btn primary" disabled={!access || !allowedKinds.length}>{t("متابعة إلى الملف", "Continue to source")}</button>
     </form>}
     {step === 1 && <form className="project-form" onSubmit={(event) => {
       event.preventDefault();
-      if (!source?.size || source.size > 2_000_000) {
-        setError(t("اختار ملف حجمه من ١ بايت لحد ٢ ميجابايت.", "Choose a file between 1 byte and 2 MB."));
+      if (!source?.size || source.size > limit) {
+        setError(t("اختار ملف بالحجم المسموح.", "Choose a file within the upload limit."));
+        return;
+      }
+      const matching = extensions[kind].split(",").some((extension) => source.name.toLowerCase().endsWith(extension));
+      if (!matching) {
+        setError(t("امتداد الملف لازم يطابق نوع المدخل.", "The file extension must match the selected input."));
         return;
       }
       setError("");
@@ -363,7 +436,7 @@ function NewScan({ projects, project, snapshot, choose, navigate, lang }) {
           setKind(event.target.value);
           setSource(null);
         })}>
-          {policy?.allowed_kinds.map((option) => <option key={option} value={option}>{label(kinds, option, t)}</option>)}
+          {allowedKinds.map((option) => <option key={option} value={option}>{label(kinds, option, t)}</option>)}
         </select>
       </label>
       <label className="workspace-upload"><UploadCloud size={25} aria-hidden="true"/>
@@ -372,7 +445,7 @@ function NewScan({ projects, project, snapshot, choose, navigate, lang }) {
           onChange={(event) => updateEvidence(() => setSource(event.target.files[0] || null))} />
       </label>
       {source && <p dir="auto"><bdi>{source.name}</bdi> · <bdi>{number(source.size, lang)} {t("بايت", "bytes")}</bdi></p>}
-      <p className="workspace-hint">{t("الحد الأقصى ٢ ميجابايت. الملف بيتحلّل من غير زيارة رابط الهدف.", "Maximum 2 MB. File analysis does not visit the target URL.")}</p>
+      <p className="workspace-hint">{t("الحد الأقصى", "Limit")} <bdi>{number(limit / 1_000_000, lang)} {t("ميجابايت", "MB")}</bdi></p>
       <div className="workspace-actions">
         <button className="btn" type="button" onClick={() => setStep(0)}>{t("رجوع", "Back")}</button>
         <button className="btn primary">{t("مراجعة الفحص", "Review scan")}</button>
@@ -382,20 +455,93 @@ function NewScan({ projects, project, snapshot, choose, navigate, lang }) {
       <dl className="workspace-summary">
         <div><dt>{t("المشروع", "Project")}</dt><dd><bdi>{project?.name}</bdi></dd></div>
         <div><dt>{t("الملف", "File")}</dt><dd><bdi>{source?.name}</bdi></dd></div>
-        <div><dt>{t("نوع المدخل", "Input type")}</dt><dd>{label(kinds, kind, t)}</dd></div>
-        <div><dt>{t("عنوان مرجعي للهدف", "Target reference")}</dt><dd><bdi>{policy?.base_url || t("غير محدد", "Unspecified")}</bdi></dd></div>
         <div><dt>{t("نطاق الفحص", "Scan scope")}</dt><dd>{t("الملف المرفوع فقط", "Uploaded file only")}</dd></div>
       </dl>
-      <label className="project-check">
-        <input type="checkbox" checked={enrich} disabled={busy} onChange={(event) => updateEvidence(() => setEnrich(event.target.checked))}/>
-        {t("ترتيب أولويات بالموديل عند توفره", "Prioritize results with a model if available")}
+      {model && <label className="project-check">
+        <input type="checkbox" checked={enrich} disabled={busy} onChange={(event) => {
+          setEnrich(event.target.checked);
+          setError("");
+          idempotency.current = crypto.randomUUID();
+        }} />
+        {t("استخدم ترتيب الأولويات الذكي", "Use smart prioritization")}
+      </label>}
+      <label className="project-check workspace-ack">
+        <input name="acknowledge_scope" type="checkbox" checked={acknowledged} disabled={busy} required
+          onChange={(event) => setAcknowledged(event.target.checked)} />
+        {t("عندي صلاحية لمراجعة الملف ده", "I have permission to review this file")}
       </label>
       <div className="workspace-actions">
         <button className="btn" type="button" disabled={busy} onClick={() => setStep(1)}>{t("رجوع", "Back")}</button>
-        <button className="btn primary" disabled={busy || !policy}>{busy ? t("جاري إرسال الفحص…", "Submitting scan…") : t("إرسال الفحص", "Submit scan")}</button>
+        <button className="btn primary" disabled={busy || !profileValue || !acknowledged || staleProfile}>{busy ? t("جاري إرسال الفحص…", "Submitting scan…") : t("إرسال الفحص", "Submit scan")}</button>
       </div>
     </form>}
   </section>;
+}
+
+function TechnicalSettings({ project, snapshot, save, lang, busy }) {
+  const t = translate(lang);
+  const [open, setOpen] = useState(false);
+  const [technical, setTechnical] = useState(null);
+  const [failure, setFailure] = useState(null);
+  const [attempt, retry] = useState(0);
+  const [connection, setConnection] = useState(null);
+  const version = snapshot?.version;
+  useEffect(() => {
+    if (!open) return;
+    const controller = new AbortController();
+    setTechnical(null);
+    setFailure(null);
+    action(projectApi(project.id) + "/technical", { signal: controller.signal }).then(
+      (value) => {
+        if (controller.signal.aborted) return;
+        setTechnical(value);
+        setConnection(value.model_connection ?? null);
+      },
+      (error) => { if (!controller.signal.aborted) setFailure(error); },
+    );
+    return () => controller.abort();
+  }, [project.id, open, attempt, version]);
+
+  const server = technical?.server_connection;
+  const policy = snapshot?.policy;
+  return <details className="card project-panel workspace-advanced workspace-technical" onToggle={(event) => setOpen(event.currentTarget.open)}>
+    <summary>{t("إعدادات تقنية للمشروع", "Technical project settings")}</summary>
+    {failure && <p className="workspace-error" role="alert">{errorText(failure, t)} <button className="btn" onClick={() => retry((value) => value + 1)}>{t("إعادة المحاولة", "Retry")}</button></p>}
+    {open && !failure && !technical && <p role="status">{t("بنحمّل الإعدادات التقنية…", "Loading technical settings…")}</p>}
+    {technical && <>
+      <section className="workspace-technical-group" aria-label={t("ترتيب الأولويات", "Prioritization")}>
+        <h2>{t("ترتيب الأولويات", "Prioritization")}</h2>
+        {server || technical.model_connection ? <form className="project-form" onSubmit={(event) => save(event, {
+          allowed_kinds: policy.allowed_kinds, base_url: policy.base_url || null,
+          rules: Object.fromEntries(Object.entries(policy).filter(([name]) => !["allowed_kinds", "base_url", "model_connection"].includes(name))),
+          model_connection: connection, expected_version: version,
+        })}>
+          <label>{t("اتصال الموديل المسموح", "Allowed model connection")}
+            <select value={connection || ""} onChange={(event) => setConnection(event.target.value || null)} disabled={busy || !policy}>
+              <option value="">{t("فحص محلي", "Local scan")}</option>
+              {connection && connection !== server?.id && <option value={connection} disabled>{t("الاتصال غير متاح", "Connection unavailable")}</option>}
+              {server && <option value={server.id}>{server.model}</option>}
+            </select>
+          </label>
+          {server && !technical.server_ready && <p role="status">{t("الاتصال مضبوط على الخادم والبوابة غير جاهزة حاليًا. الفحص المحلي متاح.", "The connection is configured but the gateway is currently unavailable. Local analysis is available.")}</p>}
+          <p>{t("الاتصال مُدار من الخادم. حدّه استدعاء واحد لكل فحص يطلبه.", "The connection is managed on the server and limited to one call per opted-in scan.")}</p>
+          <button className="btn" disabled={busy || !policy || connection === (technical.model_connection ?? null)}>{t("حفظ الاتصال", "Save connection")}</button>
+        </form> : <p>{t("ترتيب الأولويات بالموديل غير مفعّل على الخادم. الفحص المحلي متاح.", "Model prioritization is unavailable on the server. Local analysis is available.")}</p>}
+      </section>
+      <section className="workspace-technical-group" aria-label={t("أدوات الفحص", "Scan tools")}>
+        <h2>{t("أدوات الفحص", "Scan tools")}</h2>
+        <ul className="workspace-tool-list">
+          {technical.tools.map((tool) => <li key={tool.id}>
+            <b>{t(tool.title_ar, tool.title_en)}</b>
+            <span className="workspace-badge">{tool.status === "available" ? t("متاحة", "Available") : t("غير مفعّلة", "Disabled")}</span>
+            <small><bdi>{tool.version}</bdi> · {tool.supported_inputs.map((kind) => label(kinds, kind, t)).join(" · ")}</small>
+            {tool.reason === "adapter_unavailable" && <small>{t("المحلل غير متاح على الخادم.", "The analyzer is unavailable on the server.")}</small>}
+          </li>)}
+        </ul>
+        <a className="workspace-back" href="/checks">{t("كتالوج الفحوصات", "Check catalog")}</a>
+      </section>
+    </>}
+  </details>;
 }
 
 function Dashboard({ location, navigate, user, onLogout, lang }) {
@@ -426,6 +572,7 @@ function Dashboard({ location, navigate, user, onLogout, lang }) {
   const snapshot = snapshotState?.path === path ? snapshotState : null;
   const memory = memoryState?.path === path ? memoryState.value : null;
   const manage = project && ["owner", "admin"].includes(project.role);
+  const needsSnapshot = !inScan;
   useLayoutEffect(() => { activePath.current = path; }, [path]);
 
   async function loadMemory() {
@@ -454,7 +601,7 @@ function Dashboard({ location, navigate, user, onLogout, lang }) {
   useEffect(() => {
     setSnapshot(null);
     setMemory(null);
-    if (!path) return;
+    if (!path || !needsSnapshot) return;
     const controller = new AbortController();
     const signal = controller.signal;
     Promise.all([action(path + "/policy", { signal }), action(path + "/scans", { signal })])
@@ -463,7 +610,7 @@ function Dashboard({ location, navigate, user, onLogout, lang }) {
       })
       .catch((err) => { if (!signal.aborted) setError(errorText(err, t)); });
     return () => controller.abort();
-  }, [path, retry]);
+  }, [path, needsSnapshot, retry]);
   async function submit(event, operation) {
     event.preventDefault();
     if (busy) return;
@@ -482,16 +629,9 @@ function Dashboard({ location, navigate, user, onLogout, lang }) {
   return <div className="project-workspace">
     <div className="project-header">
       <div><h1>{title}</h1>{inOverview && <p>{t("أهلًا،", "Welcome,")} <bdi>{user.display_name}</bdi></p>}</div>
-      <div className="workspace-actions">
-        {!inScan && !inSettings && <a className="btn primary" href={newScanLink(project?.role !== "viewer" ? project?.id : "")}><Plus size={17} aria-hidden="true" />{t("فحص جديد", "New scan")}</a>}
-        <button className="btn" disabled={busy} onClick={async () => {
-          setBusy(true);
-          setError("");
-          try { await action(api + "/auth/logout", { method: "POST" }); onLogout(); }
-          catch (err) { setError(errorText(err, t)); }
-          finally { setBusy(false); }
-        }}>{t("تسجيل الخروج", "Sign out")}</button>
-      </div>
+      {!inScan && !inSettings && <a className="btn primary" href={newScanLink(project?.role !== "viewer" ? project?.id : "")}>
+        <Plus size={17} aria-hidden="true" />{t("فحص جديد", "New scan")}
+      </a>}
     </div>
     {error && <p className="workspace-error" role="alert">{error} <button className="btn" onClick={() => setRetry((value) => value + 1)}>{t("إعادة المحاولة", "Retry")}</button></p>}
     {loading && <p role="status">{t("بنحمّل المشاريع…", "Loading projects…")}</p>}
@@ -506,7 +646,7 @@ function Dashboard({ location, navigate, user, onLogout, lang }) {
         {project && snapshot && <ScanList project={project.id} scans={snapshot.scans.slice(0, 5)} lang={lang} t={t} />}
       </Panel>
     </>}
-    {!loading && inScan && <NewScan key={selected || "new"} projects={projects} project={project} snapshot={snapshot} choose={choose} navigate={navigate} lang={lang} />}
+    {!loading && inScan && <NewScan key={selected || "new"} projects={projects} project={project} choose={choose} navigate={navigate} lang={lang} />}
     {!loading && inHistory && <Panel title={t("سجل الفحوصات", "Scan history")}>
       {projects.length ? <ProjectSelector projects={projects} value={project?.id} onChange={choose} t={t} /> : <a className="btn" href="/projects">{t("فتح المشاريع", "Open projects")}</a>}
       {project && !snapshot && !error && <p role="status">{t("بنحمّل الفحوصات…", "Loading scans…")}</p>}
@@ -514,15 +654,29 @@ function Dashboard({ location, navigate, user, onLogout, lang }) {
     </Panel>}
     {inSettings && <Panel title={t("الحساب", "Account")}>
       <p><bdi>{user.display_name}</bdi></p>
-      <dl className="workspace-summary"><div><dt>{t("معرّف المستخدم", "Account ID")}</dt><dd><bdi>{user.id}</bdi></dd></div></dl>
+      <details className="workspace-advanced">
+        <summary>{t("معرّف الحساب", "Account ID")}</summary>
+        <p><bdi>{user.id}</bdi></p>
+      </details>
+        <button className="btn" disabled={busy} onClick={async () => {
+          setBusy(true);
+          setError("");
+          try { await action(api + "/auth/logout", { method: "POST" }); onLogout(); }
+          catch (err) { setError(errorText(err, t)); }
+          finally { setBusy(false); }
+        }}>{t("تسجيل الخروج", "Sign out")}</button>
     </Panel>}
-    {inSettings && <Panel title={t("الأدوات التقنية", "Technical tools")}>
-      <a className="workspace-back" href="/checks">{t("كتالوج فحوصات المشاريع", "Security check catalog")} <ArrowUpRight size={15} aria-hidden="true"/></a>
-      <a className="workspace-back" href="/demo?settings=models">{t("موديلات المختبر", "Demo models")} <ArrowUpRight size={15} aria-hidden="true"/></a>
+    {inSettings && !loading && !!projects.length && <Panel title={t("إعدادات المشروع", "Project settings")}>
+      <ProjectSelector projects={projects} value={project?.id} onChange={choose} t={t} />
+      {manage && <TechnicalSettings key={project.id} project={project} snapshot={snapshot} lang={lang} busy={busy}
+        save={(event, body) => submit(event, async () => {
+          const policy = await action(path + "/policy", json("PUT", body));
+          if (activePath.current === path) setSnapshot((old) => old?.path === path ? { ...old, ...policy } : old);
+        })} />}
     </Panel>}
     {inSettings && !loading && <details className="card project-panel workspace-advanced">
       <summary>{t("خيارات ترحيل التقارير", "Report migration")}</summary>
-      {projects.length ? <ProjectSelector projects={projects} value={project?.id} onChange={choose} t={t} /> : <p>{t("أنشئ مشروع عشان تربط بيه تقرير.", "Create a project to import an existing report.")}</p>}
+      {!projects.length && <p>{t("أنشئ مشروع عشان تربط بيه تقرير.", "Create a project to import an existing report.")}</p>}
       {project?.role === "viewer" && <p>{t("استيراد التقرير يحتاج صلاحية المحلل أو الإدارة.", "Report import requires analyst or management access.")}</p>}
       {project && project.role !== "viewer" && <form className="project-form" onSubmit={(event) => submit(event, async (data) => {
         const id = encodeURIComponent(data.get("id").trim());
@@ -565,11 +719,12 @@ function Dashboard({ location, navigate, user, onLogout, lang }) {
         <ScanList project={project.id} scans={snapshot.scans.slice(0, 5)} lang={lang} t={t} />
         {snapshot.scans.length > 5 && <a href={"/scans?project=" + project.id}>{t("كل فحوصات المشروع", "All project scans")}</a>}
       </Panel>
-      {manage && <Panel title={t("سياسة المدخلات والهدف", "Input policy and target")}>
+      {manage && <details className="card project-panel workspace-advanced">
+        <summary>{t("سياسة المدخلات والهدف", "Input policy and target")}</summary>
         <p>{t("عنوان الهدف للربط بس. الفحص بيحلل الملفات اللي رفعتها.", "The target is a reference. Scans analyze the files you upload.")}</p>
         <form className="project-form" onSubmit={(event) => submit(event, async (data) => {
           const policy = await action(path + "/policy", json("PUT", {
-            allowed_kinds: data.getAll("kinds"), base_url: data.get("url") || null,
+            allowed_kinds: data.getAll("kinds"), base_url: data.get("url") || null, expected_version: snapshot.version,
             rules: JSON.parse(data.get("rules") || "{}"),
           }));
           if (activePath.current === path) setSnapshot((old) => old?.path === path ? { ...old, ...policy } : old);
@@ -582,21 +737,17 @@ function Dashboard({ location, navigate, user, onLogout, lang }) {
           </fieldset>
           <label>{t("خيارات القواعد (JSON)", "Rule options (JSON)")}<textarea name="rules" dir="ltr" rows={4}
             defaultValue={JSON.stringify(Object.fromEntries(Object.entries(snapshot.policy)
-              .filter(([key]) => !["allowed_kinds", "base_url"].includes(key))), null, 2)} /></label>
+              .filter(([key]) => !["allowed_kinds", "base_url", "model_connection"].includes(key))), null, 2)} /></label>
           <button className="btn" disabled={busy}>{t("حفظ السياسة", "Save policy")}</button>
         </form>
-      </Panel>}
-      <Panel title={t("ذاكرة المشروع", "Project knowledge")}>
+      </details>}
+      <details className="card project-panel workspace-advanced">
+        <summary>{t("مراجع المشروع", "Project references")}</summary>
         <button className="btn" onClick={async () => {
           try { await loadMemory(); }
           catch (err) { setError(errorText(err, t)); }
-        }}>{t("تحميل سياق المشروع", "Load project context")}</button>
-        {memory && <dl className="spec">{Object.entries({
-          working: t("حالة التشغيل", "Current run"), episodic: t("تاريخ الفحوصات", "Scan history"), semantic: t("المراجع", "References"),
-          procedural: t("القواعد", "Rules"), project: t("سياسة المشروع", "Project policy"), finding: t("تاريخ النتائج", "Finding history"),
-        }).map(([id, title]) => <React.Fragment key={id}>
-          <dt>{title}</dt><dd>{Array.isArray(memory[id]) ? memory[id].length : memory[id].version}</dd>
-        </React.Fragment>)}</dl>}
+        }}>{t("عرض المراجع المحفوظة", "Show saved references")}</button>
+        {memory && !memory.semantic?.length && <p>{t("لسه مفيش مراجع محفوظة.", "There are no saved references yet.")}</p>}
         {memory?.semantic?.map((note) => <article key={note.id}><h3>{note.title}</h3><p>{note.note}</p>
           <p dir="auto">{note.reference}</p>{manage && <button className="btn" onClick={async () => {
             try { await action(path + "/memory/knowledge/" + note.id, { method: "DELETE" });
@@ -612,8 +763,9 @@ function Dashboard({ location, navigate, user, onLogout, lang }) {
           <label>{t("المعلومة", "Note")}<textarea name="note" maxLength={2000} required /></label>
           <button className="btn" disabled={busy}>{t("إضافة مرجع", "Add reference")}</button>
         </form>}
-      </Panel>
-      {manage && <Panel title={t("إدارة صلاحيات الوصول", "Manage access")}>
+      </details>
+      {manage && <details className="card project-panel workspace-advanced">
+        <summary>{t("إدارة صلاحيات الوصول", "Manage access")}</summary>
         <form className="project-form" onSubmit={(event) => submit(event, async (data) => {
           const userId = encodeURIComponent(data.get("user_id").trim());
           const target = data.get("target");
@@ -632,7 +784,7 @@ function Dashboard({ location, navigate, user, onLogout, lang }) {
           <label>{t("الإجراء", "Action")}<select name="change"><option value="grant">{t("إضافة أو تعديل", "Grant or update")}</option><option value="revoke">{t("إبطال", "Revoke")}</option></select></label>
           <button className="btn" disabled={busy}>{t("حفظ الصلاحية", "Save access")}</button>
         </form>
-      </Panel>}
+      </details>}
     </div>}
   </div>;
 }

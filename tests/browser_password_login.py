@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from playwright.sync_api import expect, sync_playwright
 
-from browser_phase6 import ORIGIN, project_scan
+from browser_phase6 import ORIGIN, open_report_section, project_scan
 
 
 def main():
@@ -21,7 +21,7 @@ def main():
         page.get_by_label("البريد الإلكتروني", exact=True).fill(email)
         page.get_by_label("كلمة المرور", exact=True).fill(password)
         page.get_by_role("button", name="إنشاء الحساب", exact=True).click()
-        expect(page.get_by_role("button", name="تسجيل الخروج")).to_be_visible()
+        expect(page.get_by_label("اسم المؤسسة", exact=True)).to_be_visible()
 
         page.get_by_label("اسم المؤسسة", exact=True).fill("Local account acceptance")
         page.get_by_role("button", name="إنشاء مؤسسة", exact=True).click()
@@ -31,8 +31,9 @@ def main():
         project = parse_qs(urlsplit(page.url).query)["project"][0]
         report = project_scan(page, project, '<form action="/session"><input name="password" type="password"></form>')
         report_link = f"{ORIGIN}/reports/{report}?project={project}"
+        open_report_section(page, "coverage")
         expect(page.locator(".reports-coverage li")).to_have_count(100)
-        page.goto(ORIGIN + "/projects")
+        page.goto(ORIGIN + "/settings")
         page.get_by_role("button", name="تسجيل الخروج").click()
         page.get_by_label("البريد الإلكتروني", exact=True).fill(email)
         forbidden = context.request.get(f"{ORIGIN}/api/platform/projects/{project}/reports/{report}")
@@ -41,8 +42,9 @@ def main():
         page.get_by_role("button", name="تسجيل الدخول", exact=True).click()
         expect(page.get_by_role("button", name="تسجيل الخروج")).to_be_visible()
         page.goto(report_link)
-        expect(page.get_by_role("heading", name="تغطية الفحص")).to_be_visible()
+        expect(page.get_by_role("link", name="تحميل PDF")).to_be_visible()
         page.reload()
+        open_report_section(page, "coverage")
         expect(page.locator(".reports-coverage li")).to_have_count(100)
         assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
         browser.close()

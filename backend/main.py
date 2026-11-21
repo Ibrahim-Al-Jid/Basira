@@ -462,8 +462,11 @@ def report_html(report, lang):
 
 @app.get("/api/reports/{report_id}/download")
 def download(report_id: str, request: Request, lang: Literal["en", "ar"] = "en",
-             format: Literal["html", "json"] = "html"):
+             format: Literal["html", "json", "pdf"] = "html"):
     report = load_report(request, report_id)
+    if format == "pdf":
+        from .report_pdf import pdf_download
+        return pdf_download(report, lang)
     if format == "json":
         return JSONResponse(report.model_dump(mode="json"), headers={
             "Content-Disposition": f'attachment; filename="marsad-{report_id}.json"',

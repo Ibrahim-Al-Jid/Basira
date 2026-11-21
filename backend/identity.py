@@ -192,19 +192,25 @@ def require_membership(db, org_id, user_id):
     return member
 
 
+def project_access(db, project_id, user_id):
+    return db.execute(
+        select(Project.org_id, Membership.role).join(
+            Membership, and_(Membership.org_id == Project.org_id, Membership.user_id == user_id,
+                             Membership.revoked_at.is_(None)),
+        ).join(User, and_(User.id == Membership.user_id, User.disabled_at.is_(None))).outerjoin(
+            ProjectGrant, and_(
+                ProjectGrant.org_id == Project.org_id, ProjectGrant.project_id == Project.id,
+                ProjectGrant.user_id == user_id, ProjectGrant.revoked_at.is_(None),
+            ),
+        ).where(Project.id == project_id,
+                or_(Membership.role.in_(MANAGERS), ProjectGrant.user_id.is_not(None)))
+    ).one_or_none()
+
+
 def require_project(request, project_id, action):
     user = require_user(request)
     with platform_session() as db:
-        result = db.execute(
-            select(Project.org_id, Membership.role).join(
-                Membership, and_(Membership.org_id == Project.org_id, Membership.user_id == user.id,
-                                 Membership.revoked_at.is_(None))
-            ).outerjoin(ProjectGrant, and_(
-                ProjectGrant.org_id == Project.org_id, ProjectGrant.project_id == Project.id,
-                ProjectGrant.user_id == user.id, ProjectGrant.revoked_at.is_(None),
-            )).where(Project.id == project_id,
-                     or_(Membership.role.in_(MANAGERS), ProjectGrant.user_id.is_not(None)))
-        ).one_or_none()
+        result = project_access(db, project_id, user.id)
     if not result:
         raise HTTPException(404, "المشروع غير متاح.")
     if action not in ROLE_ACTIONS[result.role]:

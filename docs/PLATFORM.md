@@ -25,7 +25,13 @@ docker compose -p marsad-local -f compose.yaml -f compose.local.yaml --env-file 
 
 ### إضافة إثراء OpenRouter
 
-فعّل الـprofile `model` فقط لو عندك مفتاح وموديل مصرح، وحدد `MARSAD_OPENROUTER_KEY` و`MARSAD_OPENROUTER_MODEL` وسر `MARSAD_GATEWAY_TOKEN`، واضبط `MARSAD_GATEWAY_URL=http://model-gateway:8001`. شغّل `docker compose --profile model up --build -d`. الإثراء اختياري لكل طلب. البوابة تستقبل معرّفات القواعد وأعدادها، وترجع ترتيب أولويات مع توكنات الاستهلاك لو المزوّد رجّعها. إعادة المحاولة تحفظ حجز استدعاء واحد، ولو المحاولة انقطعت يستخدم التقرير الترتيب المحلي. مفتاح المزوّد موجود عند البوابة فقط في مسار المشاريع.
+للمشاريع، اضبط `MARSAD_PROJECT_MODEL_ENABLED=1` و`MARSAD_OPENROUTER_MODEL` و`MARSAD_GATEWAY_URL=http://model-gateway:8001` و`MARSAD_GATEWAY_TOKEN` بقيمة مستقلة عشوائية. ضع المفتاح في ملف `openrouter.key` داخل مجلد مخصص وخاص خارج المستودع. احفظ مسار المجلد في `MARSAD_OPENROUTER_SECRET_DIR` داخل إعداد البيئة المحلي.
+
+```powershell
+docker compose -p marsad-local -f compose.yaml -f compose.local.yaml -f compose.model.yaml --env-file .env.local --profile model up -d --build
+```
+
+بعد التشغيل، المالك أو المدير يختار اتصال الموديل في إعدادات المشروع التقنية. البوابة بتقرأ الملف مع كل طلب، فاستبدال محتوى الملف أو حذفه يغيّر حالة الجاهزية. أعد تحميل إعدادات المشروع أو رحلة الفحص لقراءة الحالة. المفتاح محصور في البوابة. في بيئات بتزوّد أسرارها مباشرة عبر متغيرات البيئة، إعداد البوابة الأساسي يدعم `MARSAD_OPENROUTER_KEY`. فحوصات المشاريع تستخدم معرّف الاتصال وإقرار النطاق بدل الحقل القديم `enrich`. [عقود المرحلة التاسعة](PHASE9.md)
 
 ## المدخلات وتغطية الفحص
 

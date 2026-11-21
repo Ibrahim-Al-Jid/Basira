@@ -1,6 +1,6 @@
 # نموذج بيانات مرصد
 
-المختبر المجهول يستخدم SQLite لتخزين `sessions(owner)` و`reports(id, owner, created_at, model, finding_count, report_json)` و`report_index(id, summary_json)`. قاعدة PostgreSQL تخص المشاريع. المخطط المنفذ أدناه يغطي [Phase 4](../work/plan.md#phase-4) لحد [Phase 6](../work/plan.md#phase-6)، وبعده النموذج المنطقي للتوسعات.
+المختبر المجهول يستخدم SQLite لتخزين `sessions(owner)` و`reports(id, owner, created_at, model, finding_count, report_json)` و`report_index(id, summary_json)`. قاعدة PostgreSQL تخص المشاريع. المخطط المنفذ أدناه يغطي [Phase 4](../work/plan.md#phase-4) لحد [Phase 9](../work/plan.md#phase-9)، وبعده النموذج المنطقي للتوسعات.
 
 ## مخطط PostgreSQL المنفذ
 
@@ -10,6 +10,7 @@
 | الحساب المحلي | `password_credentials` يربط المستخدم ببصمة Argon2id، و`password_attempt_limits` يفرض سقفًا للمحاولات. الاتنين بيضافوا في `platform_password_0005`. |
 | تشغيل الفحص | `project_scans` يخزن المدخل مؤقتًا ورقم المحاولة والـlease والنسخة النهائية والفهرس المختصر. `project_scan_events` يسجل تسلسل الأحداث، و`scan_dispatch_outbox` يسجل عناوين التسليم. |
 | السياسة والذاكرة | `project_review_settings` للإعدادات الحالية، ونسخة السياسة بتتثبت في كل فحص. `project_knowledge` للمراجع المنقّحة، و`project_finding_observations` لتكرار الأدلة. |
+| تتبع المصادر والأدلة | `project_assets` مرجع معلن، `project_scan_provenance` بصمة لقطة ونسخة نطاق وقواعد وأدوات، و`project_evidence_records` مواضع أدلة منقّحة وبصماتها. `platform_provenance_0006` يضيف مهلة المدخل الخام. |
 | توافق SQLite | `project_legacy_reports` يحتفظ بنسخة التقرير اللي اتربط بمشروع مع المعرّف الأصلي. |
 
 جداول المشروع السابقة بتتضاف في `platform_runtime_0002`. جداول التشغيل والذاكرة والتقارير المرتبطة عليها RLS بمفاتيح المؤسسة والمشروع. حساب الـDispatcher عنده قراءة وتحديث الـoutbox. مرحلة التقارير بتضيف `finding_reviews` للحالة و`finding_review_activity` لسجل التغييرات والتعليقات في الترحيل `platform_review_0003`، والترحيل `platform_observation_0004` يوحّد بصمات الملاحظات القديمة مع المراجعة. الجداول الجديدة كمان عليها RLS. [تشغيل المنصة](PLATFORM.md)
@@ -28,6 +29,10 @@ erDiagram
     PROJECTS ||--o{ PROJECT_LEGACY_REPORTS : claims
     PROJECTS ||--o{ PROJECT_KNOWLEDGE : stores
     PROJECTS ||--o{ FINDING_REVIEWS : tracks
+    PROJECTS ||--o{ PROJECT_ASSETS : declares
+    PROJECT_ASSETS |o--o{ PROJECT_SCAN_PROVENANCE : labels
+    PROJECT_SCANS ||--o| PROJECT_SCAN_PROVENANCE : records
+    PROJECT_SCAN_PROVENANCE ||--o{ PROJECT_EVIDENCE_RECORDS : lists
     PROJECT_SCANS ||--o{ PROJECT_SCAN_EVENTS : streams
     PROJECT_SCANS ||--o{ SCAN_DISPATCH_OUTBOX : dispatches
     PROJECT_SCANS ||--o{ PROJECT_FINDING_OBSERVATIONS : records

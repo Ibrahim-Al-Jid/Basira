@@ -6,6 +6,8 @@ from urllib.parse import urlparse
 
 from playwright.sync_api import expect, sync_playwright
 
+from browser_phase6 import open_report_section
+
 BASE = os.environ.get("MARSAD_TEST_URL", "http://127.0.0.1:8766")
 assert urlparse(BASE).hostname == "127.0.0.1"
 SOURCE = (
@@ -73,7 +75,13 @@ def main():
         workspace = page.locator(".reports-workspace")
         expect(workspace).to_have_attribute("dir", "rtl")
         expect(page.get_by_text("review.htm", exact=True)).to_be_visible()
-        expect(page.get_by_role("heading", name="تغطية الفحص")).to_be_visible()
+        expect(page.get_by_role("link", name="تحميل PDF")).to_be_visible()
+        with page.expect_download() as pdf:
+            page.get_by_role("link", name="تحميل PDF").click()
+        assert pdf.value.suggested_filename.endswith(".pdf")
+        assert Path(pdf.value.path()).read_bytes().startswith(b"%PDF-")
+        expect(page.locator(".reports-coverage")).to_have_count(0)
+        open_report_section(page, "coverage")
         expect(page.locator(".reports-finding")).to_have_count(2)
         page.locator(".reports-finding summary").first.focus()
         page.keyboard.press("Enter")
@@ -82,11 +90,13 @@ def main():
 
         page.get_by_role("button", name="English", exact=True).click()
         expect(workspace).to_have_attribute("dir", "ltr")
-        expect(page.get_by_role("heading", name="Scan coverage")).to_be_visible()
+        expect(page.locator("#report-coverage > summary")).to_have_text("Scan coverage")
+        open_report_section(page, "filters")
         page.locator('select[name="findingSeverity"]').select_option("medium")
         assert "findingSeverity=medium" in page.url
         page.reload()
         expect(page.locator(".reports-finding")).to_have_count(1)
+        open_report_section(page, "export")
         for lang, title, direction in (("ar", "Download Arabic HTML", "rtl"),
                                        ("en", "Download English HTML", "ltr")):
             html = download(page, page.get_by_role("link", name=title))
@@ -106,7 +116,7 @@ def main():
         expect(page.get_by_role("link", name="review.htm")).to_have_count(1)
         assert "q=review.htm" in page.url
         page.get_by_role("link", name="review.htm").click()
-        expect(page.get_by_role("heading", name="Scan coverage")).to_be_visible()
+        expect(page.locator("#report-coverage > summary")).to_have_text("Scan coverage")
         page.set_viewport_size({"width": 390, "height": 844})
         assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
         page.get_by_role("button", name="العربية", exact=True).click()
@@ -121,6 +131,7 @@ def main():
         editor = page.get_by_label("كود HTML", exact=True)
         editor.fill(SOURCE.decode())
         run_review(page)
+        open_report_section(page, "export")
         pasted = json.loads(download(page, page.locator('a[href$="?format=json"]')))
         assert pasted["findings"] == report["findings"]
         assert pasted["coverage"] == report["coverage"]

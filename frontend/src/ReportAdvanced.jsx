@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { agents, fetchJson, post } from "./data";
 
 const REVIEW_STATUS = ["open", "triaged", "resolved", "accepted"];
@@ -9,7 +9,7 @@ const COPY = {
     compare: "مقارنة الفحوصات",
     baseline: "التقرير المرجعي",
     choose: "اختار تقرير من نفس المشروع",
-    current: "التقرير الحالي",
+    unavailableBaseline: "التقرير المرجعي غير متاح",
     noBaselines: "أكمل فحص تاني في المشروع عشان يبقى متاح للمقارنة.",
     noChanges: "المقارنة ما رجّعتش أي نتائج.",
     baselineLoading: "جاري تحميل التقارير المرجعية…",
@@ -63,7 +63,7 @@ const COPY = {
     compare: "Compare scans",
     baseline: "Baseline report",
     choose: "Choose a report from this project",
-    current: "Current report",
+    unavailableBaseline: "Baseline report unavailable",
     noBaselines: "Complete another scan in this project to compare results.",
     noChanges: "This comparison returned no findings.",
     baselineLoading: "Loading baseline reports…",
@@ -164,20 +164,17 @@ export function ReportComparison({
   const changes = comparison.data?.changes || [];
   const changeCounts = new Map();
   for (const change of changes) changeCounts.set(change.change, (changeCounts.get(change.change) || 0) + 1);
-  const currentLabel = sourceLabel(t, report.source || report.input_artifact);
   return (
     <section className="reports-panel reports-section reports-advanced" aria-label={advanced.compare}>
-      <h2>{advanced.compare}</h2>
-      <p className="reports-annotation">{advanced.current} · <bdi>{currentLabel}</bdi> · {dateText(lang, report.created_at)}</p>
       <label className="reports-review-field">
         {advanced.baseline}
         <select value={baseline || ""} onChange={(event) => onBaselineChange(event.target.value)}
           disabled={!candidates.length && !baseline}>
           <option value="">{advanced.choose}</option>
-          {baseline && !currentSelection && <option value={baseline}>{baseline}</option>}
+          {baseline && !currentSelection && <option value={baseline}>{advanced.unavailableBaseline}</option>}
           {candidates.map((candidate) => (
             <option key={candidate.id} value={candidate.id}>
-              {sourceLabel(t, candidate.source || candidate.input_artifact)} · {dateText(lang, candidate.created_at)} · {candidate.id.slice(0, 8)}
+              {sourceLabel(t, candidate.source || candidate.input_artifact)} · {dateText(lang, candidate.created_at)}
             </option>
           ))}
         </select>
@@ -294,13 +291,11 @@ function ReviewForm({ action, item, reportApi, lang, t, onSaved, disabled }) {
 
 export function FindingReview({ reportApi, findings, lang, t, dateText }) {
   const advanced = COPY[lang];
-  const headingId = useId();
   const review = useResource(reportApi + "/review");
   const items = review.data?.items || [];
   const detailsByRule = new Map(findings.map((finding) => [finding.rule, finding]));
   return (
-    <section className="reports-panel reports-section reports-advanced" aria-labelledby={headingId}>
-      <h2 id={headingId}>{advanced.findingsReview}</h2>
+    <section className="reports-panel reports-section reports-advanced" aria-label={advanced.findingsReview}>
       {review.loading && <p role="status" className="reports-annotation">{advanced.reviewLoading}</p>}
       {review.error && <Retry message={lang === "ar" ? review.error : advanced.reviewError} retry={review.reload} label={t.retry} />}
       {review.data && !items.length && <p className="reports-empty">{advanced.noReview}</p>}

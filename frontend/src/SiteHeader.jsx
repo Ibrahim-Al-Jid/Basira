@@ -3,14 +3,14 @@ import { ArrowUpRight, Languages, Menu, Moon, Plus, Sun, X } from "lucide-react"
 
 const labels = {
   ar: {
-    home: "الرئيسية", coverage: "التغطية", demo: "جرّب المختبر", dashboard: "نظرة عامة",
+    home: "الرئيسية", dashboard: "نظرة عامة",
     projects: "المشاريع", scans: "الفحوصات", findings: "النتائج", reports: "التقارير",
     settings: "الإعدادات", start: "ابدأ الآن", scan: "فحص جديد", open: "افتح القائمة",
     close: "اقفل القائمة", nav: "التنقل الرئيسي", light: "الوضع الفاتح", dark: "الوضع الداكن",
     language: "Switch to English", skip: "انتقل إلى المحتوى",
   },
   en: {
-    home: "Home", coverage: "Coverage", demo: "Try the demo", dashboard: "Overview",
+    home: "Home", dashboard: "Overview",
     projects: "Projects", scans: "Scans", findings: "Findings", reports: "Reports",
     settings: "Settings", start: "Get started", scan: "New scan", open: "Open menu",
     close: "Close menu", nav: "Main navigation", light: "Light theme", dark: "Dark theme",
@@ -22,7 +22,7 @@ const workspace = [
   ["dashboard", "/dashboard"], ["projects", "/projects"], ["scans", "/scans"],
   ["findings", "/findings"], ["reports", "/reports"], ["settings", "/settings"],
 ];
-const publicNav = [["home", "/"], ["coverage", "/checks"], ["demo", "/demo"]];
+const publicNav = [["home", "/"]];
 export const readPreference = (key, fallback) => {
   try { return localStorage.getItem("marsad-" + key) ?? fallback; }
   catch { return fallback; }
@@ -37,10 +37,12 @@ export function SiteHeader({ pathname, follow, lang, setLang, theme, setTheme, p
   const [open, setOpen] = useState(false);
   const menu = useRef(null);
   useEffect(() => setOpen(false), [pathname]);
-  const launch = publicPage ? "/dashboard" : "/new-scan";
-  const links = publicPage ? publicNav : workspace;
-  const action = <a className="site-cta" href={launch} onClick={(event) => follow(event, launch)}>
-    {publicPage ? t.start : t.scan}{publicPage ? <ArrowUpRight size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
+  const accountPage = pathname.replace(/\/$/, "") === "/signin";
+  const isPublic = publicPage || accountPage;
+  const launch = isPublic ? "/signin" : "/new-scan";
+  const links = isPublic ? publicNav : workspace;
+  const action = !accountPage && <a className="site-cta" href={launch} onClick={(event) => follow(event, launch)}>
+    {isPublic ? t.start : t.scan}{isPublic ? <ArrowUpRight size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
   </a>;
   return <>
     <a className="site-skip" href="#main-content">{t.skip}</a>

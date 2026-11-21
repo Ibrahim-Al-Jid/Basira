@@ -19,6 +19,14 @@ def download(page, link):
     return json.loads(Path(pending.value.path()).read_text(encoding="utf-8"))
 
 
+def open_report_section(page, name):
+    disclosure = page.locator(f"#report-{name}")
+    expect(disclosure).to_be_visible()
+    if disclosure.get_attribute("open") is None:
+        disclosure.locator(":scope > summary").click()
+    expect(disclosure).to_have_attribute("open", "")
+
+
 def project_scan(page, project, text):
     page.goto(f"{ORIGIN}/new-scan?project={project}")
     page.get_by_role("button", name="متابعة إلى الملف").click()
@@ -26,7 +34,11 @@ def project_scan(page, project, text):
         "name": "portal.html", "mimeType": "text/html", "buffer": text.encode(),
     })
     page.get_by_role("button", name="مراجعة الفحص").click()
-    page.get_by_role("button", name="إرسال الفحص").click()
+    expect(page.get_by_role("button", name="تسجيل الخروج")).to_have_count(0)
+    submit = page.get_by_role("button", name="إرسال الفحص")
+    expect(submit).to_be_disabled()
+    page.get_by_label("عندي صلاحية لمراجعة الملف ده").check()
+    submit.click()
     link = page.get_by_role("link", name="فتح التقرير")
     expect(link).to_be_visible(timeout=30_000)
     page.reload()
@@ -46,9 +58,15 @@ def lab_check(browser):
     })
     tab.get_by_role("button", name="تشغيل الفحص").click()
     tab.get_by_role("link", name="فتح التقرير").click()
+    expect(tab.get_by_role("link", name="تحميل PDF")).to_be_visible()
+    expect(tab.locator(".reports-coverage")).to_have_count(0)
+    expect(tab.locator(".reports-finding summary[data-rule='HTML-17']")).to_be_visible()
+    expect(tab.get_by_role("heading", name="سجل تشغيل الأدوات")).to_have_count(0)
+    open_report_section(tab, "coverage")
     expect(tab.locator(".reports-coverage > li")).to_have_count(100)
-    expect(tab.locator(".reports-finding summary").filter(has_text="HTML-17")).to_be_visible()
+    open_report_section(tab, "technical")
     expect(tab.get_by_role("heading", name="سجل تشغيل الأدوات")).to_be_visible()
+    open_report_section(tab, "export")
     assert tab.get_by_role("link", name="تحميل SARIF").count() == 0
 
 
@@ -91,12 +109,14 @@ def main():
         current_source = ('<script src="https://assets.example.test/site.js"></script>'
                           '<form action="http://portal.example.test/"></form>')
         current = project_scan(page, project, current_source)
+        open_report_section(page, "compare")
         page.get_by_label("التقرير المرجعي").select_option(first)
         expect(page.get_by_text("الفحصين قابلين للمقارنة.")).to_be_visible()
         expect(page.locator('[data-review-state="resolved"]')).to_have_count(1)
         expect(page.locator('[data-review-state="new"]')).to_have_count(1)
         assert "baseline=" + first in page.url
 
+        open_report_section(page, "review")
         review = page.locator(".reports-review-item").first
         review.locator("summary").focus()
         page.keyboard.press("Enter")
@@ -110,8 +130,19 @@ def main():
 
         page.get_by_role("button", name="English", exact=True).click()
         expect(page.locator(".reports-workspace")).to_have_attribute("dir", "ltr")
+        expect(page.get_by_role("heading", name="Scan provenance")).to_have_count(0)
+        with page.expect_response(lambda response: response.url.endswith(f"/scans/{current}/provenance")) as provenance:
+            open_report_section(page, "technical")
+        assert provenance.value.ok
+        expect(page.get_by_role("heading", name="Scan provenance")).to_be_visible()
+        expect(page.get_by_text("File digest", exact=True)).to_be_visible()
         expect(page.get_by_role("heading", name="Tool execution")).to_be_visible()
         expect(page.get_by_text("These scans are comparable.")).to_be_visible()
+        with page.expect_download() as pdf:
+            page.get_by_role("link", name="Download PDF").click()
+        assert pdf.value.suggested_filename.endswith(".pdf")
+        assert Path(pdf.value.path()).read_bytes().startswith(b"%PDF-")
+        open_report_section(page, "export")
         report = download(page, page.get_by_role("link", name="Download SARIF"))
         assert report["version"] == "2.1.0"
         assert report["runs"][0]["results"][0]["ruleId"] == "http-form"
@@ -129,6 +160,7 @@ def main():
         changed = user.put(f"{ORIGIN}/api/platform/projects/{project}/policy", data={"allowed_kinds": ["html"]})
         assert changed.ok
         project_scan(page, project, current_source)
+        open_report_section(page, "compare")
         page.get_by_label("التقرير المرجعي").select_option(current)
         expect(page.get_by_text("سياسة الفحص اتغيّرت. اختار تقرير بنفس إصدار السياسة.")).to_be_visible()
         assert errors == [], errors

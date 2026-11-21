@@ -12,7 +12,7 @@ def reflows(page):
 
 
 def landing(browser):
-    for width in (320, 390, 1280):
+    for width in (320, 390, 566, 1280):
         for language in ("ar", "en"):
             context = browser.new_context(viewport={"width": width, "height": 850})
             page = context.new_page()
@@ -24,13 +24,14 @@ def landing(browser):
             expect(page.locator("html")).to_have_attribute("dir", "rtl" if language == "ar" else "ltr")
             expect(page.locator("html")).to_have_attribute("data-theme", "dark")
             expect(page.locator(".landing-marquee-group:not([aria-hidden]) > li")).to_have_count(6)
-            pause = page.get_by_role("button", name="أوقف الحركة" if language == "ar" else "Pause motion")
-            pause.focus()
-            page.keyboard.press("Enter")
-            expect(page.locator(".marsad-landing")).to_have_attribute("data-motion", "paused")
-            metric = page.get_by_role("button", name="قاعدة انطبقت" if language == "ar" else "Applicable checks")
-            metric.click()
-            expect(metric).to_have_attribute("aria-pressed", "true")
+            expect(page.locator(".landing-motion-control")).to_have_count(0)
+            marquee = page.locator(".landing-marquee-track")
+            assert marquee.evaluate("(node) => getComputedStyle(node).animationPlayState") == "running"
+            assert marquee.evaluate("(node) => getComputedStyle(node).animationName") != "none"
+            expect(page.locator(".marsad-landing a[href='/demo'], .marsad-landing a[href='/checks']")).to_have_count(0)
+            expect(page.locator(".marsad-landing a[href='/signin']").first).to_be_visible()
+            expect(page.locator(".landing-benchmark")).to_have_count(0)
+            expect(page.get_by_role("link", name="Explore the demo" if language == "en" else "جرّب العرض")).to_have_count(0)
             reflows(page)
             page.get_by_role("button", name="الوضع الفاتح" if language == "ar" else "Light theme").click()
             page.reload()
@@ -46,7 +47,7 @@ def landing(browser):
                 menu.focus()
                 page.keyboard.press("Enter")
                 expect(page.locator(".site-mobile-menu")).to_have_attribute("aria-expanded", "true")
-                expect(page.get_by_role("navigation").get_by_role("link", name="التغطية" if language == "ar" else "Coverage")).to_be_visible()
+                expect(page.locator("#site-navigation a[href='/checks'], #site-navigation a[href='/demo']")).to_have_count(0)
             assert not errors, errors
             context.close()
 
@@ -94,9 +95,12 @@ def workspace(browser):
     expect(page.locator(".reports-finding")).to_have_count(1)
     page.get_by_role("link", name="فتح التقرير الكامل").click()
     expect(page.get_by_role("heading", name="تقرير فحص المشروع")).to_be_visible()
-    page.get_by_role("link", name="تغطية الفحص").focus()
+    expect(page.locator(".reports-coverage")).to_have_count(0)
+    coverage = page.locator("#report-coverage > summary")
+    coverage.focus()
     page.keyboard.press("Enter")
-    expect(page.locator("#report-coverage")).to_be_focused()
+    expect(coverage).to_be_focused()
+    expect(page.locator(".reports-coverage")).to_be_visible()
     page.get_by_role("button", name="English", exact=True).click()
     expect(page.locator(".reports-workspace")).to_have_attribute("dir", "ltr")
     page.get_by_role("button", name="التبديل إلى العربية").click()

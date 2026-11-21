@@ -13,6 +13,7 @@ import time
 from zipfile import BadZipFile, ZipFile
 
 from .contracts import Finding, RuleCoverage
+from .phase9_contracts import ANALYZER_INPUTS, TOOL_PROTOCOL_VERSION
 from .rules import RULES, SourceIndex
 
 MAX_ARTIFACT = 2_000_000
@@ -179,7 +180,7 @@ def prepare(kind, name, raw):
 
 
 def defensive_review(kind, name, raw, policy):
-    return review_prepared(prepare(kind, name, raw), policy)
+    return review_prepared(prepare(kind, name, raw), policy, kind=kind)
 
 
 def tool_record(identifier, agent, tool, started, rows=()):
@@ -192,7 +193,8 @@ def tool_record(identifier, agent, tool, started, rows=()):
         outcome = "done"
     return {"id": identifier, "agent": agent, "tool": tool, "status": outcome,
             "checks": statuses["clear"] + statuses["matched"], "matched": statuses["matched"],
-            "coverage": [row.rule for row in rows], "duration_ms": round((time.monotonic() - started) * 1000)}
+            "coverage": [row.rule for row in rows], "duration_ms": round((time.monotonic() - started) * 1000),
+            "version": RULESET_VERSION if tool in ANALYZER_INPUTS else TOOL_PROTOCOL_VERSION}
 
 
 def catalog():
@@ -211,14 +213,23 @@ def catalog():
     return {"version": RULESET_VERSION, "rules": rules, "tools": tools}
 
 
-def review_prepared(prepared, policy):
+def review_prepared(prepared, policy, *, kind=None):
     # Adapters are statically registered. Uploaded data cannot select executable commands.
     started = time.monotonic()
     files, har, advisories = prepared
     findings = []
     coverage = []
+    pinned = policy.get("_analysis_plan")
+    if pinned is None:
+        planned = set(ANALYZER_INPUTS)  # Compatibility for the anonymous lab and queued historical jobs.
+    else:
+        planned = {item["id"] for item in pinned}
+        expected = [{"id": tool, "version": RULESET_VERSION} for tool, inputs in ANALYZER_INPUTS.items()
+                    if kind in inputs and tool in planned]
+        if policy.get("_ruleset_version") != RULESET_VERSION or not expected or expected != pinned:
+            raise InputError("نسخة خطة الفحص غير متوافقة. قدّم الملف من جديد.")
     local_status = {rule_id: "not_applicable" for rule_id in RULES}
-    for path, html in files.items():
+    for path, html in files.items() if "html-attributes" in planned else ():
         if PurePosixPath(path).suffix.lower() not in {".html", ".htm"}:
             continue
         index = SourceIndex(html)
@@ -232,10 +243,18 @@ def review_prepared(prepared, policy):
     for rule in RULES.values():
         coverage.append(RuleCoverage(rule=rule.id, domain=rule.domain, match_count=counts[rule.id],
                                      status=local_status[rule.id]))
-    task_runs = [tool_record("analysis-html", "analysis", "html-attributes", started, coverage)]
+    task_runs = [tool_record("analysis-html", "analysis", "html-attributes", started, coverage)] if "html-attributes" in planned else []
     for adapter in ADAPTERS:
         tool_started = time.monotonic()
         expected = adapter.rules
+        if adapter.id not in planned:
+            eligible = kind in ANALYZER_INPUTS[adapter.id]
+            coverage.extend(
+                RuleCoverage(rule=rule, domain=DOMAINS[rule.split("-")[0]],
+                             status="skipped" if eligible else "not_applicable", match_count=0,
+                             reason="adapter_unavailable" if eligible else "unsupported_input") for rule in expected
+            )
+            continue
         try:
             module = import_module(".checks." + adapter.module, __package__)
             results = module.check(files, har, policy, advisories)
@@ -269,12 +288,14 @@ def review_prepared(prepared, policy):
         task_runs.append(tool_record("analysis-" + adapter.id, "analysis", adapter.id, tool_started, adapter_coverage))
     applied = sum(row.status in ("matched", "clear") for row in coverage)
     unique = len({finding["rule"] for finding in findings})
-    errors = sum(row.status == "error" for row in coverage)
+    errors = sum(row.status in {"error", "skipped"} for row in coverage)
     return {
         "summary_ar": f"انطبقت {applied} قاعدة على الملفات المقدّمة. ظهرت {unique} أنواع نتائج في "
                       f"{len(findings)} مواضع، وتعذّر تنفيذ {errors} قاعدة.",
-        "summary_en": f"{applied} rules applied to the submitted artifacts. Found {unique} finding types "
-                      f"at {len(findings)} locations, and {errors} rules could not run.",
+        "summary_en": f"{applied} {'rule' if applied == 1 else 'rules'} applied to the submitted artifacts. "
+                      f"Found {unique} {'finding type' if unique == 1 else 'finding types'} "
+                      f"at {len(findings)} {'location' if len(findings) == 1 else 'locations'}. "
+                      f"{errors} {'rule' if errors == 1 else 'rules'} could not run.",
         "summary_source": "system",
         "enrichment": "disabled",
         "findings": findings,

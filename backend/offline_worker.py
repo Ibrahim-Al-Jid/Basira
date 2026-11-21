@@ -111,7 +111,7 @@ def scan_payload(data):
             ("planning", "تجهيز المدخل والقواعد", "Prepare the artifact and checks",
              plan),
             ("analysis", "تنفيذ الفحوصات الدفاعية", "Run offline defensive checks",
-             lambda state: {"result": review_prepared(state["prepared"], state["policy"])}),
+             lambda state: {"result": review_prepared(state["prepared"], state["policy"], kind=state["kind"])}),
             ("validation", "مطابقة الأدلة مع التغطية", "Verify evidence counts against coverage", review),
             ("reporting", "تجهيز التقرير", "Assemble the report", report),
         ]

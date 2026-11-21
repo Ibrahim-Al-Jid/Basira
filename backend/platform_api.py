@@ -7,26 +7,36 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Header, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 import sqlalchemy as sa
 from sqlalchemy.exc import IntegrityError
 
 from . import platform_runtime as store
 from . import advanced_reporting as advanced
-from .artifact_review import EXTENDED_IDS, InputError, RULESET_VERSION, decode_payload, redact_label, safe_path
+from .artifact_review import EXTENDED_IDS, MAX_ARTIFACT, InputError, RULESET_VERSION, decode_payload, redact_label, safe_path
 from .contracts import History, HistoryItem, Report, history_item
-from .identity import require_project
+from .identity import ROLE_ACTIONS, require_project
+from .phase9_contracts import (
+    ArtifactKind, FindingObservation, ModelConnection, ScanProfile, ScanProvenance,
+    TechnicalRegistry, analyzer_plan, manifests,
+)
 from .rules import RULES
 
 router = APIRouter(prefix="/api/platform/projects/{project_id}", tags=["Project review"])
-ArtifactKind = Literal["html", "repository", "har", "config"]
 
 
 class Submission(BaseModel):
+    model_config = ConfigDict(extra="forbid", json_schema_extra={
+        "examples": [{"kind": "html", "name": "evidence.html", "content": "PHA+ZXZpZGVuY2U8L3A+",
+                      "scope_version": 0, "acknowledge_scope": True}],
+    })
     kind: ArtifactKind
     name: str = Field(min_length=1, max_length=240)
     content: str = Field(min_length=4, max_length=2_666_668)
-    enrich: bool = False
+    enrich: bool = Field(False, json_schema_extra={"deprecated": True})
+    scope_version: int | None = Field(default=None, ge=0)
+    acknowledge_scope: bool = False
+    model_connection: ModelConnection | None = None
 
     @model_validator(mode="after")
     def extension(self):
@@ -35,6 +45,10 @@ class Submission(BaseModel):
         if "/" in self.name or not self.name.lower().endswith(expected[self.kind]):
             raise ValueError("Invalid artifact extension")
         safe_path(self.name)
+        if self.scope_version is not None and not self.acknowledge_scope:
+            raise ValueError("The reviewed scope must be acknowledged")
+        if self.model_connection is not None and self.scope_version is None:
+            raise ValueError("A model connection requires a reviewed scope version")
         return self
 
 
@@ -42,17 +56,20 @@ class Policy(BaseModel):
     allowed_kinds: list[ArtifactKind] = Field(min_length=1, max_length=4)
     base_url: str | None = Field(default=None, max_length=250)
     rules: dict = Field(default_factory=dict, max_length=30)
+    expected_version: int | None = Field(default=None, ge=0)
+    model_connection: ModelConnection | None = None
 
     @model_validator(mode="after")
     def validate_settings(self):
         if self.base_url:
             url = urlsplit(self.base_url)
+            _ = url.port
             if (url.scheme not in {"https", "http"} or not url.hostname or url.username is not None or
                     url.password is not None or url.query or url.fragment):
                 raise ValueError("Target URL must be a URL without credentials, query, or fragment")
-        if len(json.dumps(self.rules, ensure_ascii=True)) > 12_000:
+        if len(json.dumps(self.rules, ensure_ascii=True, allow_nan=False)) > 12_000:
             raise ValueError("Policy exceeds the allowed size")
-        if {"allowed_kinds", "base_url", "version"} & self.rules.keys():
+        if {"allowed_kinds", "base_url", "version", "model_connection", "_analysis_plan", "_ruleset_version"} & self.rules.keys():
             raise ValueError("Reserved policy key")
         return self
 
@@ -82,7 +99,8 @@ def submit(project_id: str, body: Submission, request: Request,
     try:
         raw = decode_payload(body.content)
         return store.create_scan(ctx, {"kind": body.kind, "name": redact_label(body.name), "bytes": len(raw),
-                                       "enrich": body.enrich}, raw, key)
+                                       "enrich": body.enrich}, raw, key,
+                                 scope_version=body.scope_version, model_connection=body.model_connection)
     except InputError as exc:
         raise HTTPException(422, str(exc)) from None
     except store.Conflict as exc:
@@ -111,6 +129,20 @@ def status(project_id: str, scan_id: str, request: Request, after: Annotated[int
     return view if view else missing()
 
 
+@router.get("/scans/{scan_id}/provenance", response_model=ScanProvenance)
+def scan_provenance(project_id: str, scan_id: str, request: Request):
+    result = store.scan_provenance(project(request, project_id, "read"), scan_id)
+    return result if result is not None else missing()
+
+
+@router.get("/scans/{scan_id}/evidence", response_model=list[FindingObservation])
+def scan_evidence(project_id: str, scan_id: str, request: Request,
+                  offset: Annotated[int, Query(ge=0, le=5000)] = 0,
+                  limit: Annotated[int, Query(ge=1, le=100)] = 50):
+    result = store.scan_evidence(project(request, project_id, "read"), scan_id, offset, limit)
+    return result if result is not None else missing()
+
+
 @router.post("/scans/{scan_id}/cancel")
 def cancel_scan(project_id: str, scan_id: str, request: Request):
     ctx = project(request, project_id, "scan")
@@ -121,28 +153,63 @@ def cancel_scan(project_id: str, scan_id: str, request: Request):
 @router.get("/policy")
 def read_policy(project_id: str, request: Request):
     ctx = project(request, project_id, "read")
+    version, policy = current_policy(ctx)
+    return {"version": version, "policy": policy}
+
+
+def current_policy(ctx):
     with store.platform_session() as db:
         store.bind_project(db, ctx.org_id, ctx.project_id)
-        row = db.execute(sa.select(store.settings).where(
-            store.scope(store.settings, ctx.org_id, ctx.project_id),
-        )).mappings().first()
-        return {"version": row["version"], "policy": row["policy"]} if row else {
-            "version": 0, "policy": {"allowed_kinds": ["html"]},
-        }
+        return store.project_policy(db, ctx.org_id, ctx.project_id)
+
+
+@router.get("/scan-profile", response_model=ScanProfile)
+def scan_profile(project_id: str, request: Request):
+    from .model_connections import connection_is_ready, public_connection
+
+    ctx = project(request, project_id, "read")
+    version, policy = current_policy(ctx)
+    connection = public_connection(policy)
+    can_enrich = "scan" in ROLE_ACTIONS[ctx.role] and connection_is_ready(connection)
+    configured_tools = {kind: analyzer_plan(kind) for kind in policy.get("allowed_kinds", ["html"])}
+    return ScanProfile(scope_version=version, allowed_kinds=[kind for kind, plans in configured_tools.items() if plans],
+                       max_bytes=MAX_ARTIFACT, asset_linked=bool(policy.get("base_url")),
+                       enrichment_available=can_enrich, model_connection=connection if can_enrich else None,
+                       tools_by_input=configured_tools)
+
+
+@router.get("/technical", response_model=TechnicalRegistry)
+def technical(project_id: str, request: Request):
+    from .model_connections import connection_is_ready, public_connection
+
+    version, policy = current_policy(project(request, project_id, "manage"))
+    tools, roles = manifests()
+    server = public_connection()
+    return TechnicalRegistry(scope_version=version, model_connection=policy.get("model_connection"),
+                             server_connection=server, server_ready=connection_is_ready(server), tools=tools, roles=roles,
+                             permissions={role: sorted(actions) for role, actions in ROLE_ACTIONS.items()})
 
 
 @router.put("/policy")
 def update_policy(project_id: str, request: Request, body: Policy):
+    from .model_connections import public_connection
+
     ctx = project(request, project_id, "manage")
     policy = {"allowed_kinds": list(dict.fromkeys(body.allowed_kinds)), "base_url": body.base_url, **body.rules}
     with store.platform_session() as db:
         store.bind_project(db, ctx.org_id, ctx.project_id)
-        projects = store.metadata.tables["projects"]
-        db.execute(sa.select(projects.c.id).where(projects.c.org_id == ctx.org_id,
-                                                  projects.c.id == ctx.project_id).with_for_update()).one()
+        store.lock_project(db, ctx.org_id, ctx.project_id)
         condition = store.scope(store.settings, ctx.org_id, ctx.project_id)
-        version = db.execute(sa.select(store.settings.c.version).where(condition)).scalar_one_or_none()
-        if version is None:
+        version, existing = store.project_policy(db, ctx.org_id, ctx.project_id)
+        if body.expected_version is not None and body.expected_version != version:
+            raise HTTPException(409, "سياسة المشروع اتغيّرت. ارجع حمّل الإعدادات.")
+        selected = body.model_connection if "model_connection" in body.model_fields_set else existing.get("model_connection")
+        if selected is not None:
+            connection = public_connection()
+            if selected != existing.get("model_connection") and (connection is None or selected != connection["id"]):
+                raise HTTPException(409, "اتصال الموديل المطلوب غير متاح.")
+            policy["model_connection"] = selected
+        if version == 0:
             db.execute(store.settings.insert().values(org_id=ctx.org_id, project_id=ctx.project_id,
                                                       version=1, policy=policy))
             return {"version": 1, "policy": policy}
@@ -175,9 +242,12 @@ def report_detail(project_id: str, report_id: str, request: Request):
 
 @router.get("/reports/{report_id}/download")
 def export(project_id: str, report_id: str, request: Request, lang: Literal["ar", "en"] = "en",
-           format: Literal["html", "json", "sarif"] = "html"):
+           format: Literal["html", "json", "sarif", "pdf"] = "html"):
     from .main import report_html
     value = load(project(request, project_id, "export"), report_id)
+    if format == "pdf":
+        from .report_pdf import pdf_download
+        return pdf_download(value, lang)
     if format == "sarif":
         return JSONResponse(advanced.sarif(value, lang), headers={
             "Content-Disposition": 'attachment; filename="marsad-report.sarif"',

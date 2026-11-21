@@ -63,15 +63,21 @@ def execute_scan(org_id, project_id, scan_id):
             store.finish(org_id, project_id, scan_id, row["lease"], message=result["error"])
             return
         data = result["result"]
-        if row["input_meta"].get("enrich") and os.environ.get("MARSAD_GATEWAY_URL") and os.environ.get("MARSAD_GATEWAY_TOKEN"):
-            if data["findings"] and store.reserve_enrichment(org_id, project_id, scan_id, row["lease"]):
-                enrich(data)
+        connection = None
+        if row["input_meta"].get("model_connection") and data["findings"]:
+            if os.environ.get("MARSAD_GATEWAY_URL") and os.environ.get("MARSAD_GATEWAY_TOKEN"):
+                connection = store.reserve_model_connection(org_id, project_id, scan_id, row["lease"])
+            if connection:
+                enrich(data, connection)
             elif row["enrichment_reserved_at"] is not None:
                 data["enrichment"] = "fallback"
                 data["metrics"]["modelCalls"] = 1
+            else:
+                data["enrichment"] = "fallback"
         report = Report.model_validate({
             **data, "schema_version": 2, "id": scan_id, "created_at": store.timestamp(store.now()),
-            "model": None, "input_artifact": row["input_meta"],
+            "model": connection["model"] if connection and data.get("enrichment") == "model" else None,
+            "input_artifact": row["input_meta"],
             "policy_version": row["policy"]["version"], "ruleset_version": RULESET_VERSION,
         }).model_dump(mode="json")
     except (OSError, ValueError, KeyError, RuntimeError):
@@ -102,8 +108,12 @@ def dispatch_once(deliver=None):
 
 
 def dispatcher():
+    next_cleanup = 0
     while True:
         try:
+            if time.monotonic() >= next_cleanup:
+                next_cleanup = time.monotonic() + 30
+                store.expire_pending_artifacts()
             if dispatch_once():
                 continue
         except Exception:

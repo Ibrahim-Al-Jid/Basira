@@ -4,6 +4,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
 
+from .phase9_contracts import ArtifactKind, CoverageStatus
+
 MAX_SOURCE_BYTES = 1_000_000
 MAX_SOURCE_CHARS = 250_000
 SourceKind = Literal["sample", "paste", "file"]
@@ -81,13 +83,13 @@ class Finding(BaseModel):
 class RuleCoverage(BaseModel):
     rule: str
     domain: str
-    status: Literal["matched", "clear", "not_applicable", "skipped", "error"]
+    status: CoverageStatus
     match_count: int = Field(ge=0)
     reason: str | None = None
 
 
 class ArtifactInfo(BaseModel):
-    kind: Literal["html", "repository", "har", "config"]
+    kind: ArtifactKind
     name: str
     bytes: int = Field(ge=1)
 
@@ -131,6 +133,7 @@ class TaskRun(BaseModel):
     matched: int = Field(ge=0)
     coverage: list[str] = Field(default_factory=list)
     duration_ms: int = Field(ge=0)
+    version: str | None = None
 
 
 class Report(BaseModel):

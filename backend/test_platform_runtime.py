@@ -242,24 +242,36 @@ def statuses(report, *rules):
     return tuple(rows[rule] for rule in rules)
 
 
-def test_gateway_keeps_raw_input_and_memory_out_of_provider(monkeypatch):
+def test_gateway_keeps_raw_input_and_memory_out_of_provider(monkeypatch, tmp_path):
     monkeypatch.setenv("MARSAD_GATEWAY_TOKEN", "token-for-testing")
-    monkeypatch.setenv("MARSAD_OPENROUTER_KEY", "provider-key-for-testing")
-    monkeypatch.setenv("MARSAD_OPENROUTER_MODEL", "test-model")
+    key = tmp_path / "test-gateway.key"
+    key.write_text("first-fake-key", encoding="utf-8")
+    monkeypatch.setenv("MARSAD_OPENROUTER_KEY_FILE", str(key))
+    monkeypatch.setenv("MARSAD_OPENROUTER_KEY", "fallback-key-must-not-be-used")
+    monkeypatch.setenv("MARSAD_OPENROUTER_MODEL", "test/model")
     seen = []
     def provider(url, *, headers, timeout, json):
-        seen.append((url, json["messages"][-1]["content"]))
+        assert json["max_tokens"] == 1200
+        assert json["provider"]["data_collection"] == "deny"
+        seen.append((url, json["messages"][-1]["content"], headers["Authorization"]))
         return httpx.Response(200, request=httpx.Request("POST", url), json={
             "choices": [{"message": {"content": '{"priority":["http-form"]}'}}],
         })
     monkeypatch.setattr(model_gateway.httpx, "post", provider)
     with TestClient(model_gateway.app) as service:
         headers = {"Authorization": "Bearer token-for-testing"}
-        assert service.post("/priority", json={"counts": {"http-form": 1}}).status_code == 401
-        assert service.post("/priority", headers=headers, json={
-            "counts": {"http-form": 1}, "memory": "secret user content",
-        }).status_code == 422
-        assert service.post("/priority", headers=headers, json={"counts": {"http-form": 1}}).json() == {
-            "priority": ["http-form"],
-        }
-    assert seen == [("https://openrouter.ai/api/v1/chat/completions", '{"http-form": 1}')]
+        facts = {"connection": "openrouter-default", "model": "test/model", "counts": {"http-form": 1}}
+        assert service.get("/health").status_code == 401
+        assert service.get("/health", headers=headers).json() == {"ready": True, "model": "test/model"}
+        assert service.post("/priority", json=facts).status_code == 401
+        invalid = service.post("/priority", headers=headers, json={**facts, "memory": "secret user content"})
+        assert invalid.status_code == 422 and "secret user content" not in invalid.text
+        assert service.post("/priority", headers=headers, json={**facts, "model": "other/model"}).status_code == 503
+        for label in ("first-fake-key", "rotated-fake-key"):
+            key.write_text(label, encoding="utf-8")
+            assert service.post("/priority", headers=headers, json=facts).json() == {"priority": ["http-form"]}
+        key.unlink()
+        assert service.get("/health", headers=headers).json() == {"ready": False, "model": "test/model"}
+        assert service.post("/priority", headers=headers, json=facts).status_code == 503
+    assert seen == [("https://openrouter.ai/api/v1/chat/completions", '{"http-form": 1}', f"Bearer {label}")
+                    for label in ("first-fake-key", "rotated-fake-key")]

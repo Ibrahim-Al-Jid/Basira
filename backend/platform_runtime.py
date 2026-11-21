@@ -2,6 +2,7 @@
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 import sqlalchemy as sa
@@ -9,6 +10,10 @@ from sqlalchemy.exc import IntegrityError
 
 from .platform_db import Base, bind_project, platform_session
 from .contracts import Report, history_item
+from .phase9_contracts import (
+    PROFILE, RAW_RETENTION_MINUTES, Asset, FindingObservation, ScanProvenance,
+    ScopeVersion, SourceSnapshot, analyzer_plan, json_digest,
+)
 
 
 def now():
@@ -32,6 +37,7 @@ scans = sa.Table(
     sa.Column("state", sa.String(16), nullable=False),
     sa.Column("input_meta", sa.JSON, nullable=False),
     sa.Column("raw", sa.LargeBinary),
+    sa.Column("source_expires_at", sa.DateTime),
     sa.Column("policy", sa.JSON, nullable=False),
     sa.Column("report", sa.JSON),
     sa.Column("report_index", sa.JSON),
@@ -46,6 +52,7 @@ scans = sa.Table(
     sa.UniqueConstraint("org_id", "project_id", "id", name="uq_project_scans_scope"),
     sa.UniqueConstraint("org_id", "user_id", "idempotency_key", name="uq_project_scans_request"),
     sa.Index("ix_project_scans_timeline", "org_id", "project_id", "created_at"),
+    sa.Index("ix_project_scans_source_expiry", "source_expires_at"),
 )
 events = sa.Table(
     "project_scan_events", metadata,
@@ -118,9 +125,51 @@ legacy = sa.Table(
     sa.ForeignKeyConstraint(("org_id", "project_id"), ("projects.org_id", "projects.id")),
     sa.Index("ix_legacy_reports_scope", "org_id", "project_id"),
 )
-TENANT_TABLES = (scans, events, settings, notes, findings, legacy)
+assets = sa.Table(
+    "project_assets", metadata,
+    sa.Column("org_id", sa.String(32), primary_key=True),
+    sa.Column("project_id", sa.String(32), primary_key=True),
+    sa.Column("id", sa.String(32), primary_key=True),
+    sa.Column("reference_digest", sa.String(64), nullable=False),
+    sa.Column("reference", sa.String(250), nullable=False),
+    sa.Column("created_at", sa.DateTime, nullable=False),
+    sa.ForeignKeyConstraint(("org_id", "project_id"), ("projects.org_id", "projects.id")),
+    sa.UniqueConstraint("org_id", "project_id", "reference_digest", name="uq_project_assets_reference"),
+)
+provenance = sa.Table(
+    "project_scan_provenance", metadata,
+    sa.Column("org_id", sa.String(32), primary_key=True),
+    sa.Column("project_id", sa.String(32), primary_key=True),
+    sa.Column("scan_id", sa.String(32), primary_key=True),
+    sa.Column("asset_id", sa.String(32)),
+    sa.Column("source_sha256", sa.String(64), nullable=False),
+    sa.Column("scope", sa.JSON, nullable=False),
+    sa.Column("tools", sa.JSON, nullable=False),
+    sa.ForeignKeyConstraint(("org_id", "project_id", "scan_id"),
+                            ("project_scans.org_id", "project_scans.project_id", "project_scans.id"),
+                            ondelete="CASCADE"),
+    sa.ForeignKeyConstraint(("org_id", "project_id", "asset_id"),
+                            ("project_assets.org_id", "project_assets.project_id", "project_assets.id")),
+)
+evidence_records = sa.Table(
+    "project_evidence_records", metadata,
+    sa.Column("org_id", sa.String(32), primary_key=True),
+    sa.Column("project_id", sa.String(32), primary_key=True),
+    sa.Column("scan_id", sa.String(32), primary_key=True),
+    sa.Column("ordinal", sa.Integer, primary_key=True),
+    sa.Column("rule", sa.String(60), nullable=False),
+    sa.Column("line", sa.Integer, nullable=False),
+    sa.Column("path", sa.String(240)),
+    sa.Column("evidence_sha256", sa.String(64), nullable=False),
+    sa.ForeignKeyConstraint(("org_id", "project_id", "scan_id"),
+                            ("project_scan_provenance.org_id", "project_scan_provenance.project_id",
+                             "project_scan_provenance.scan_id"), ondelete="CASCADE"),
+)
+TENANT_TABLES = (scans, events, settings, notes, findings, legacy, assets, provenance, evidence_records)
 TERMINAL = {"completed", "partial", "failed", "cancelled"}
 MAX_ATTEMPTS = 3
+EXPIRED_MESSAGE = "انتهت مدة الاحتفاظ بالمدخل قبل اكتمال الفحص."
+INVALID_PROVENANCE_MESSAGE = "تعذّر التحقق من مصدر الفحص أو النطاق المسجّل."
 
 
 class Conflict(ValueError):
@@ -150,8 +199,50 @@ def record(db, row, kind, detail):
     return sequence
 
 
-def create_scan(ctx, envelope, raw, idempotency_key):
-    digest = hashlib.sha256(json.dumps(envelope, sort_keys=True).encode() + b"\x00" + raw).hexdigest()
+def project_policy(db, org_id, project_id):
+    row = db.execute(sa.select(settings).where(scope(settings, org_id, project_id))).mappings().first()
+    return (row["version"], row["policy"]) if row else (0, {"allowed_kinds": ["html"]})
+
+
+def lock_project(db, org_id, project_id):
+    projects = metadata.tables["projects"]
+    db.execute(sa.select(projects.c.id).where(projects.c.org_id == org_id,
+                                               projects.c.id == project_id).with_for_update()).one()
+
+
+def declared_asset(db, ids, ref, clock):
+    if not ref:
+        return None
+    try:
+        url = urlsplit(ref)
+        if (url.scheme not in {"http", "https"} or not url.hostname or url.username is not None or
+                url.password is not None or url.query or url.fragment):
+            return None
+        host = url.hostname
+        origin = f"{url.scheme}://{f'[{host}]' if ':' in host else host}"
+        port = url.port
+    except ValueError:
+        return None
+    if port is not None and (url.scheme, port) not in {("http", 80), ("https", 443)}:
+        origin += f":{port}"
+    fingerprint = json_digest([origin, url.path.rstrip("/")])
+    existing = db.execute(sa.select(assets.c.id).where(scope(assets, **ids),
+                                                       assets.c.reference_digest == fingerprint)).scalar_one_or_none()
+    if existing:
+        return existing
+    asset_id = uuid4().hex
+    from .artifact_review import redact_label
+    db.execute(assets.insert().values(**ids, id=asset_id, reference_digest=fingerprint,
+                                     reference=redact_label(origin), created_at=clock))
+    return asset_id
+
+
+def create_scan(ctx, envelope, raw, idempotency_key, *, scope_version=None, model_connection=None):
+    from .artifact_review import RULESET_VERSION
+    from .model_connections import public_connection
+
+    request = {**envelope, "scope_version": scope_version, "model_connection": model_connection} if scope_version is not None else envelope
+    digest = hashlib.sha256(json.dumps(request, sort_keys=True).encode() + b"\x00" + raw).hexdigest()
     ids = {"org_id": ctx.org_id, "project_id": ctx.project_id}
     with platform_session() as db:
         bind_project(db, **ids)
@@ -164,9 +255,7 @@ def create_scan(ctx, envelope, raw, idempotency_key):
             if found["request_digest"] != digest:
                 raise Conflict("المفتاح ده مرتبط بطلب مختلف.")
             return scan_view(found)
-        projects = metadata.tables["projects"]
-        db.execute(sa.select(projects.c.id).where(projects.c.org_id == ctx.org_id,
-                                                   projects.c.id == ctx.project_id).with_for_update()).one()
+        lock_project(db, **ids)
         found = find_existing()
         if found:
             if found["request_digest"] != digest:
@@ -181,19 +270,38 @@ def create_scan(ctx, envelope, raw, idempotency_key):
         )).scalar_one()
         if pending >= 10 or recent >= 8:
             raise QueueLimit()
-        policy_row = db.execute(sa.select(settings).where(scope(settings, **ids))).mappings().first()
-        if not policy_row or envelope["kind"] not in policy_row["policy"].get("allowed_kinds", ["html"]):
-            if envelope["kind"] != "html" or policy_row:
-                raise Conflict("نوع المدخل خارج السياسة الحالية للمشروع.")
+        version, policy = project_policy(db, **ids)
+        if scope_version is not None and scope_version != version:
+            raise Conflict("سياسة المشروع اتغيّرت. راجع النطاق مرة تانية قبل الفحص.")
+        if envelope["kind"] not in policy.get("allowed_kinds", ["html"]):
+            raise Conflict("نوع المدخل خارج السياسة الحالية للمشروع.")
+        connection = public_connection(policy) if model_connection else None
+        if model_connection and (not connection or model_connection != connection["id"]):
+            raise Conflict("اتصال الموديل مش متاح في سياسة المشروع.")
+        tools = analyzer_plan(envelope["kind"])
+        if not tools:
+            raise Conflict("مفيش أدوات تحليل مسجلة لنوع المدخل ده.")
+        clock = now()
+        scan_id = uuid4().hex
+        artifact = {**envelope, "enrich": bool(connection)}
+        if connection:
+            artifact.update(model_connection=connection["id"], connection_model=connection["model"])
         data = {
-            **ids, "id": uuid4().hex, "user_id": ctx.user_id, "state": "queued", "cursor": 0,
-            "idempotency_key": idempotency_key, "request_digest": digest, "input_meta": envelope, "raw": raw,
-            "policy": {"version": policy_row["version"], **policy_row["policy"]} if policy_row else {"version": 0},
-            "created_at": now(), "updated_at": now(), "attempt": 0,
+            **ids, "id": scan_id, "user_id": ctx.user_id, "state": "queued", "cursor": 0,
+            "idempotency_key": idempotency_key, "request_digest": digest, "input_meta": artifact, "raw": raw,
+            "policy": {**policy, "version": version, "_analysis_plan": tools, "_ruleset_version": RULESET_VERSION},
+            "source_expires_at": clock + timedelta(minutes=RAW_RETENTION_MINUTES),
+            "created_at": clock, "updated_at": clock, "attempt": 0,
         }
         try:
             with db.begin_nested():
+                asset_id = declared_asset(db, ids, policy.get("base_url"), clock)
                 db.execute(scans.insert().values(**data))
+                pinned_scope = ScopeVersion(version=version, sha256=json_digest({"version": version, **policy}),
+                                            asset_id=asset_id, ruleset_version=RULESET_VERSION)
+                db.execute(provenance.insert().values(**ids, scan_id=scan_id, asset_id=asset_id,
+                           source_sha256=hashlib.sha256(raw).hexdigest(),
+                           scope=pinned_scope.model_dump(mode="json"), tools=tools))
                 db.execute(dispatch.insert().values(scan_id=data["id"], **ids, available_at=now()))
                 data["cursor"] = record(db, data, "queued", "تم تسجيل الطلب للفحص.")
                 db.execute(scans.update().where(scans.c.id == data["id"]).values(cursor=data["cursor"]))
@@ -206,18 +314,43 @@ def create_scan(ctx, envelope, raw, idempotency_key):
 
 
 def scan_view(row):
+    artifact = {key: value for key, value in row["input_meta"].items() if key not in {"connection_model", "model_connection"}}
     return {
-        "id": row["id"], "state": row["state"], "artifact": row["input_meta"], "attempt": row["attempt"],
+        "id": row["id"], "state": row["state"], "artifact": artifact, "attempt": row["attempt"],
         "cursor": row["cursor"], "created_at": timestamp(row["created_at"]),
         "updated_at": timestamp(row["updated_at"]), "report_available": row["state"] in {"completed", "partial"},
     }
+
+
+def intact_input(db, row):
+    policy = row["policy"]
+    pinned = db.execute(sa.select(provenance.c.source_sha256, provenance.c.scope, provenance.c.tools).where(
+        scope(provenance, row["org_id"], row["project_id"]), provenance.c.scan_id == row["id"],
+    )).mappings().first()
+    if not pinned:
+        return "_analysis_plan" not in policy  # Historical queued jobs have no provenance record.
+    if row["raw"] is None:
+        return False
+    original_policy = {key: value for key, value in policy.items() if key not in {"_analysis_plan", "_ruleset_version"}}
+    return (hashlib.sha256(row["raw"]).hexdigest() == pinned["source_sha256"] and
+            json_digest(original_policy) == pinned["scope"].get("sha256") and
+            policy.get("_analysis_plan") == pinned["tools"] and
+            policy.get("_ruleset_version") == pinned["scope"].get("ruleset_version"))
 
 
 def claim(org_id, project_id, scan_id):
     with platform_session() as db:
         bind_project(db, org_id, project_id)
         row = select_scan(db, org_id, project_id, scan_id, lock=True)
-        if not row or row["state"] in TERMINAL or (row["lease_until"] and row["lease_until"] > now()):
+        if not row or row["state"] in TERMINAL:
+            return None
+        if row["source_expires_at"] and row["source_expires_at"] <= now():
+            close_scan(db, row, "failed", EXPIRED_MESSAGE)
+            return None
+        if row["lease_until"] and row["lease_until"] > now():
+            return None
+        if not intact_input(db, row):
+            close_scan(db, row, "failed", INVALID_PROVENANCE_MESSAGE)
             return None
         if row["attempt"] >= MAX_ATTEMPTS:
             close_scan(db, row, "failed", "وصلت المهمة للحد الأقصى لمحاولات التشغيل.")
@@ -250,6 +383,9 @@ def finish(org_id, project_id, scan_id, lease, *, report=None, message=None):
         row = select_scan(db, org_id, project_id, scan_id, lock=True)
         if (not row or row["state"] != "running" or row["lease"] != lease or row["lease_until"] <= now()):
             return False
+        if row["source_expires_at"] and row["source_expires_at"] <= now():
+            close_scan(db, row, "failed", EXPIRED_MESSAGE)
+            return False
         if report is None:
             close_scan(db, row, "failed", message or "تعذّر تنفيذ الفحص.")
             return True
@@ -265,6 +401,19 @@ def finish(org_id, project_id, scan_id, lease, *, report=None, message=None):
                  "fingerprint": item["fingerprint"], "rule": item["rule"], "count": item["count"]}
                 for item in observations.values()
             ])
+        project_provenance = db.execute(sa.select(provenance.c.scan_id).where(
+            scope(provenance, org_id, project_id), provenance.c.scan_id == scan_id,
+        )).scalar_one_or_none()
+        if project_provenance and report["findings"]:
+            from .artifact_review import redact_label
+            db.execute(evidence_records.insert(), [
+                {"org_id": org_id, "project_id": project_id, "scan_id": scan_id, **FindingObservation(
+                    ordinal=index, rule=item["rule"], line=item["line"],
+                    path=(redact_label(item.get("path")) or "")[:240] or None,
+                    evidence_sha256=hashlib.sha256(item["evidence"].encode()).hexdigest(),
+                ).model_dump()}
+                for index, item in enumerate(report["findings"])
+            ])
         return True
 
 
@@ -277,6 +426,85 @@ def reserve_enrichment(org_id, project_id, scan_id, lease):
             scans.c.lease_until > now(), scans.c.state == "running", scans.c.enrichment_reserved_at.is_(None),
         ).values(enrichment_reserved_at=now()))
         return updated.rowcount == 1
+
+
+def reserve_model_connection(org_id, project_id, scan_id, lease):
+    """Recheck the pinned provider and current manager opt-in before reserving budget."""
+    from .identity import ROLE_ACTIONS, project_access
+    from .model_connections import public_connection
+
+    with platform_session() as db:
+        bind_project(db, org_id, project_id)
+        lock_project(db, org_id, project_id)
+        row = select_scan(db, org_id, project_id, scan_id, lock=True)
+        if (not row or row["state"] != "running" or row["lease"] != lease or row["lease_until"] <= now() or
+                row["enrichment_reserved_at"] or (row["source_expires_at"] and row["source_expires_at"] <= now())):
+            return None
+        actor = project_access(db, project_id, row["user_id"])
+        if not actor or actor.org_id != org_id or "scan" not in ROLE_ACTIONS[actor.role]:
+            return None
+        _, policy = project_policy(db, org_id, project_id)
+        connection = public_connection(policy)
+        if (not connection or row["input_meta"].get("model_connection") != connection["id"] or
+                row["input_meta"].get("connection_model") != connection["model"]):
+            return None
+        db.execute(scans.update().where(scans.c.id == scan_id).values(enrichment_reserved_at=now()))
+        return connection
+
+
+def expire_pending_artifacts():
+    # The dispatcher has execute-only permissions for this operation on PostgreSQL.
+    with platform_session() as db:
+        if db.bind.dialect.name == "postgresql":
+            return db.execute(sa.text("SELECT public.marsad_expire_artifacts()")).scalar_one()
+        rows = db.execute(sa.select(scans).where(scans.c.raw.is_not(None), scans.c.source_expires_at <= now(),
+                          scans.c.state.in_(["queued", "running"])).limit(100)).mappings().all()
+        for row in rows:
+            close_scan(db, row, "failed", EXPIRED_MESSAGE)
+        return len(rows)
+
+
+def scan_provenance(ctx, scan_id):
+    ids = {"org_id": ctx.org_id, "project_id": ctx.project_id}
+    with platform_session() as db:
+        bind_project(db, **ids)
+        sidecar = db.execute(sa.select(provenance).where(
+            scope(provenance, **ids), provenance.c.scan_id == scan_id,
+        )).mappings().first()
+        if not sidecar:
+            return None
+        row = db.execute(sa.select(scans.c.id, scans.c.input_meta, scans.c.created_at, scans.c.source_expires_at).where(
+            scope(scans, **ids), scans.c.id == scan_id,
+        )).mappings().one()
+        asset = None
+        if sidecar["asset_id"]:
+            ref = db.execute(sa.select(assets.c.reference).where(
+                scope(assets, **ids), assets.c.id == sidecar["asset_id"],
+            )).scalar_one()
+            asset = Asset(id=sidecar["asset_id"], reference=ref)
+        count = db.execute(sa.select(sa.func.count()).select_from(evidence_records).where(
+            scope(evidence_records, **ids), evidence_records.c.scan_id == scan_id,
+        )).scalar_one()
+        return ScanProvenance(
+            snapshot=SourceSnapshot(id=scan_id, sha256=sidecar["source_sha256"], kind=row["input_meta"]["kind"],
+                                    bytes=row["input_meta"]["bytes"], created_at=timestamp(row["created_at"]),
+                                    raw_expires_at=timestamp(row["source_expires_at"])),
+            scope=sidecar["scope"], asset=asset, tools=sidecar["tools"], evidence_count=count,
+        )
+
+
+def scan_evidence(ctx, scan_id, offset, limit):
+    ids = {"org_id": ctx.org_id, "project_id": ctx.project_id}
+    with platform_session() as db:
+        bind_project(db, **ids)
+        if db.execute(sa.select(provenance.c.scan_id).where(
+            scope(provenance, **ids), provenance.c.scan_id == scan_id,
+        )).scalar_one_or_none() is None:
+            return None
+        rows = db.execute(sa.select(evidence_records).where(
+            scope(evidence_records, **ids), evidence_records.c.scan_id == scan_id,
+        ).order_by(evidence_records.c.ordinal).offset(offset).limit(limit)).mappings()
+        return [FindingObservation.model_validate(row) for row in rows]
 
 
 def cancel(ctx, scan_id):

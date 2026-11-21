@@ -1,0 +1,13 @@
+# Mount a private directory containing openrouter.key on the gateway only.
+services:
+  model-gateway:
+    environment:
+      MARSAD_OPENROUTER_KEY: ""
+      MARSAD_OPENROUTER_KEY_FILE: /run/marsad-provider/openrouter.key
+    volumes:
+      - type: bind
+        source: ${MARSAD_OPENROUTER_SECRET_DIR:?Set the private host directory for openrouter.key}
+        target: /run/marsad-provider
+        read_only: true
+        bind:
+          create_host_path: false
