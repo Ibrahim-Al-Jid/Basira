@@ -48,7 +48,21 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Marsad failed to start. Check the Docker Compose output above.' }
     $published = docker compose @compose port app 8000
     if ($LASTEXITCODE -ne 0 -or -not $published) { throw 'Marsad did not publish its local web port.' }
-    Write-Host "Open http://$published/signin to sign in or create an account."
+    $url = "http://$published"
+    $deadline = [DateTime]::UtcNow.AddSeconds(45)
+    $options = $null
+    while (-not $options -and [DateTime]::UtcNow -lt $deadline) {
+        try {
+            $options = Invoke-RestMethod "$url/api/platform/auth/options" -TimeoutSec 3
+        } catch {
+            Start-Sleep -Seconds 1
+        }
+    }
+    if (-not $options) { throw 'Marsad did not become ready. Check the app logs in Docker Desktop.' }
+    if (-not ($options.password -and $options.registration)) {
+        throw 'Marsad responded, but local sign-in or registration is disabled.'
+    }
+    Write-Host "Open $url/signin to sign in or create an account."
 } finally {
     Pop-Location
 }
