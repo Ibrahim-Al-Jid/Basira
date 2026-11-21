@@ -2,7 +2,9 @@
 import base64
 from datetime import timedelta
 import json
+import os
 import secrets
+import sys
 import time
 from uuid import uuid4
 
@@ -47,12 +49,17 @@ def main():
         checked(owner.put(path + "/policy", json={
             "allowed_kinds": ["config"], "base_url": "https://artifact.example.test",
         }))
-        source = json.dumps({"files": {"Dockerfile": "FROM python:3\nUSER 0\n"}}).encode()
+        secret = "sk_" + "test_" + "a0B9c8D7e6F5g4H3i2J1k0L9"
+        source = json.dumps({"files": {
+            "Dockerfile": "FROM python:3\nUSER 0\n",
+            "requirements.txt": "# Fixture dependency\nJinja2==3.1.4\n",
+            "sample.py": f'# Fixture credential signature\nstripe.api_key = "{secret}"\n',
+        }}).encode()
         headers = {"Idempotency-Key": uuid4().hex}
         body = {"kind": "config", "name": "settings.json", "content": base64.b64encode(source).decode()}
         scan = checked(owner.post(path + "/scans", headers=headers, json=body), 202)["id"]
         assert checked(owner.post(path + "/scans", headers=headers, json=body), 202)["id"] == scan
-        for _ in range(30):
+        for _ in range(50):
             snapshot = checked(owner.get(path + "/scans/" + scan))
             if snapshot["state"] not in {"queued", "running"}:
                 break
@@ -63,8 +70,18 @@ def main():
         assert all(event["sequence"] > cursor for event in resumed["events"])
         assert resumed["events"][-1]["kind"] == "completed"
         report = checked(owner.get(path + "/reports/" + scan))
-        assert len(report["coverage"]) == 100
+        assert len([row for row in report["coverage"] if row["rule"] not in {"SRC-01", "SCA-01"}]) == 100
         assert {entry["rule"] for entry in report["findings"]} >= {"INF-01", "INF-02"}
+        enabled = set(os.environ.get("MARSAD_SOURCE_ADAPTERS", "").split(","))
+        if "gitleaks" in enabled:
+            assert any(item["rule"] == "SRC-01" and item["path"] == "sample.py" and item["line"] == 2
+                       for item in report["findings"])
+        if "osv-scanner" in enabled:
+            assert any(item["rule"] == "SCA-01" and item["path"] == "requirements.txt"
+                       and item["line"] == 2 and item["advisory"]["database_date"] for item in report["findings"])
+        for format in ("json", "sarif", "pdf"):
+            exported = owner.get(path + f"/reports/{scan}/download?format={format}")
+            assert exported.is_success and secret.encode() not in exported.content
         assert len({entry["role"] for entry in report["steps"] if entry["status"] == "done"}) == 5
         assert checked(owner.get(path + "/reports"))["reports"][0]["id"] == scan
         assert checked(owner.get(path + "/reports/" + scan + "/download?format=json")) == report
@@ -82,5 +99,33 @@ def main():
         print("PostgreSQL RLS, Redis/Celery delivery, offline scanner, idempotency, report and cursor verified.")
 
 
+def cancel_with_paused_dispatcher():
+    """Exercise the live PostgreSQL/API lease boundary with a deterministic lease."""
+    with seed() as owner:
+        org, project = provision(owner)
+        path = f"/api/platform/projects/{project}"
+        source = base64.b64encode(b"<p>Cancellation fixture</p>").decode()
+        assigned = checked(owner.post(path + "/scans", headers={"Idempotency-Key": uuid4().hex},
+                                      json={"kind": "html", "name": "cancel.html", "content": source}), 202)
+        scan = assigned["id"]
+        leased = store.claim(org, project, scan)
+        assert leased is not None, "Pause the isolated dispatch service before running this scenario."
+        state = checked(owner.post(f"{path}/scans/{scan}/cancel"))
+        assert state["state"] == "cancelled"
+        assert not store.finish(org, project, scan, leased["lease"], report={})
+        resumed = checked(owner.get(f"{path}/scans/{scan}", params={"after": assigned["cursor"]}))
+        assert [event["kind"] for event in resumed["events"]] == ["running", "cancelled"]
+        assert owner.get(f"{path}/reports/{scan}").status_code == 404
+        with platform_session() as db:
+            bind_project(db, org, project)
+            row = store.select_scan(db, org, project, scan)
+            assert row["raw"] is None and row["report"] is None
+            assert db.scalar(sa.select(store.dispatch.c.scan_id).where(store.dispatch.c.scan_id == scan)) is None
+        print("PostgreSQL cancellation, cursor recovery and rejection of late publication verified.")
+
+
 if __name__ == "__main__":
-    main()
+    if "--cancel-with-dispatcher-paused" in sys.argv:
+        cancel_with_paused_dispatcher()
+    else:
+        main()

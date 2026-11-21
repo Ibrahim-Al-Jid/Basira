@@ -289,27 +289,54 @@ function ReviewForm({ action, item, reportApi, lang, t, onSaved, disabled }) {
   );
 }
 
+export function ReportDialog({ lang, title, onClose, children }) {
+  const dialog = useRef(null);
+  useEffect(() => {
+    dialog.current?.showModal();
+  }, []);
+  return <dialog className="reports-dialog" ref={dialog} aria-label={title} onClose={onClose}>
+    <header className="reports-dialog-heading">
+      <h2>{title}</h2>
+      <button className="reports-button" type="button" autoFocus onClick={() => dialog.current.close()}>
+        {lang === "ar" ? "إغلاق" : "Close"}
+      </button>
+    </header>
+    {children}
+  </dialog>;
+}
+
 export function FindingReview({ reportApi, findings, lang, t, dateText }) {
   const advanced = COPY[lang];
   const review = useResource(reportApi + "/review");
   const items = review.data?.items || [];
+  const [selected, select] = useState("");
   const detailsByRule = new Map(findings.map((finding) => [finding.rule, finding]));
+  const titleOf = (item) => {
+    const finding = detailsByRule.get(item.rule);
+    return (lang === "ar" ? finding?.title_ar || finding?.title : finding?.title) || item.rule;
+  };
+  const item = items.find((item) => item.fingerprint === selected) || items[0];
   return (
     <section className="reports-panel reports-section reports-advanced" aria-label={advanced.findingsReview}>
       {review.loading && <p role="status" className="reports-annotation">{advanced.reviewLoading}</p>}
       {review.error && <Retry message={lang === "ar" ? review.error : advanced.reviewError} retry={review.reload} label={t.retry} />}
       {review.data && !items.length && <p className="reports-empty">{advanced.noReview}</p>}
       {!!items.length && !review.data.can_edit && <p className="reports-annotation">{advanced.readOnly}</p>}
-      {items.map((item) => {
-        const finding = detailsByRule.get(item.rule);
-        const title = lang === "ar" ? finding?.title_ar || finding?.title : finding?.title;
-        return (
-          <details className="reports-finding reports-review-item" key={item.fingerprint}>
-            <summary>
-              {title && <strong>{title}</strong>}
-              <RuleReference rule={item.rule} path={item.path} />
+      {items.length > 1 && <label className="reports-review-field">
+        {lang === "ar" ? "النتيجة" : "Finding"}
+        <select value={item.fingerprint} onChange={(event) => select(event.target.value)}>
+          {items.map((item) => <option value={item.fingerprint} key={item.fingerprint}>
+            {item.rule} · {titleOf(item)}{item.path ? " · " + item.path : ""}
+          </option>)}
+        </select>
+      </label>}
+      {item && (
+          <article className="reports-review-item" key={item.fingerprint}>
+            <header className="reports-review-heading">
+              <h2>{titleOf(item)}</h2>
               <span className="reports-tag" data-review-state={item.status}>{advanced[item.status] || item.status}</span>
-            </summary>
+              <RuleReference rule={item.rule} path={item.path} />
+            </header>
             <div className="reports-review-body">
               <div className="reports-review-history">
                 <section>
@@ -351,15 +378,15 @@ export function FindingReview({ reportApi, findings, lang, t, dateText }) {
                 </div>
               )}
             </div>
-          </details>
-        );
-      })}
+          </article>
+      )}
     </section>
   );
 }
 
 export function ToolRuns({ runs, lang, t, label, count }) {
   const advanced = COPY[lang];
+  const [selected, select] = useState(null);
   return (
     <section className="reports-panel reports-section reports-advanced">
       <h2>{advanced.toolRuns}</h2>
@@ -378,17 +405,18 @@ export function ToolRuns({ runs, lang, t, label, count }) {
                 {run.duration_ms != null && <div><dt>{advanced.duration}</dt><dd>{count(run.duration_ms)} {advanced.ms}</dd></div>}
               </dl>
               {!!run.coverage?.length && (
-                <details className="reports-tool-coverage">
-                  <summary>{advanced.runCoverage} · {count(run.coverage.length)}</summary>
-                  <ul className="reports-tool-rules">
-                    {run.coverage.map((rule) => <li key={rule}><code dir="ltr">{rule}</code></li>)}
-                  </ul>
-                </details>
+                <button type="button" className="reports-button" onClick={() => select(run)}
+                  aria-label={advanced.runCoverage + " · " + run.tool}>{advanced.runCoverage} · {count(run.coverage.length)}</button>
               )}
             </li>
           ))}
         </ul>
       )}
+      {selected && <ReportDialog lang={lang} title={advanced.runCoverage + " · " + selected.tool} onClose={() => select(null)}>
+        <ul className="reports-tool-rules">
+          {selected.coverage.map((rule) => <li key={rule}><code dir="ltr">{rule}</code></li>)}
+        </ul>
+      </ReportDialog>}
     </section>
   );
 }

@@ -7,6 +7,7 @@ import sqlalchemy as sa
 from . import phase9_contracts, platform_jobs as jobs, platform_runtime as store
 from .artifact_review import RULESET_VERSION, catalog
 from .platform_db import platform_session
+from .test_platform_identity import invite_member
 from .test_platform_runtime import artifact, platform, submit  # noqa: F401
 
 
@@ -22,7 +23,7 @@ def test_scoped_snapshot_pins_policy_and_tool_versions(platform):
     owner, stranger, ctx = platform
     path = root(ctx)
     original = owner.get(path + "/scan-profile").json()
-    assert original["allowed_kinds"] == ["html"]
+    assert original["allowed_kinds"] == list(phase9_contracts.DEFAULT_INPUTS)
     assert original["scope_version"] == 0
     assert original["mode"] == "offline"
     assert {tool["id"] for tool in original["tools_by_input"]["html"]} == {
@@ -80,14 +81,13 @@ def test_technical_manifests_and_provenance_access_follow_project_grants(platfor
     assert set(status["permissions"]) == {"owner", "admin", "analyst", "viewer"}
     assert status["permissions"]["viewer"] == ["export", "read"]
     assert len(status["roles"]) == 5
-    assert len(status["tools"]) == 14
     manifests = {tool["id"]: tool for tool in status["tools"]}
+    assert manifests["openapi-contract"]["supported_inputs"] == ["openapi"]
     assert all(tool in manifests for role in status["roles"] for tool in role["tools"])
     assert "html" not in manifests["dependency-evidence"]["supported_inputs"]
     assert all(not role["network"] for role in status["roles"])
     user_id = other.get("/api/platform/auth/me").json()["id"]
-    members = f"/api/platform/organizations/{ctx.org_id}/members"
-    assert owner.post(members, json={"user_id": user_id, "role": "viewer"}).status_code == 200
+    invite_member(owner, other, ctx.org_id, "viewer")
     grants = path + "/grants"
     assert owner.post(grants, json={"user_id": user_id}).status_code == 200
     assert other.get(path + "/technical").status_code == 403
@@ -158,6 +158,7 @@ def test_missing_eligible_adapter_is_skipped_without_changing_the_catalog(platfo
 def test_model_requires_reviewed_connection_and_can_be_disabled_before_reservation(platform, monkeypatch):
     owner, stranger, ctx = platform
     path = root(ctx)
+    monkeypatch.setenv("MARSAD_OPERATOR_MODEL_ORGS", ctx.org_id)
     monkeypatch.setenv("MARSAD_PROJECT_MODEL_ENABLED", "1")
     monkeypatch.setenv("MARSAD_OPENROUTER_MODEL", "approved/defensive")
     from . import model_connections
@@ -190,6 +191,7 @@ def test_disabling_scan_actor_revokes_provider_budget(platform, monkeypatch):
     from .platform_db import User, utc_now
 
     owner, _, ctx = platform
+    monkeypatch.setenv("MARSAD_OPERATOR_MODEL_ORGS", ctx.org_id)
     monkeypatch.setenv("MARSAD_PROJECT_MODEL_ENABLED", "1")
     monkeypatch.setenv("MARSAD_OPENROUTER_MODEL", "approved/defensive")
     assert owner.put(root(ctx) + "/policy", json={
@@ -206,6 +208,7 @@ def test_disabling_scan_actor_revokes_provider_budget(platform, monkeypatch):
 def test_worker_records_model_when_authorized_and_preserves_evidence(platform, monkeypatch):
     owner, _, ctx = platform
     path = root(ctx)
+    monkeypatch.setenv("MARSAD_OPERATOR_MODEL_ORGS", ctx.org_id)
     monkeypatch.setenv("MARSAD_PROJECT_MODEL_ENABLED", "1")
     monkeypatch.setenv("MARSAD_OPENROUTER_MODEL", "approved/defensive")
     monkeypatch.setenv("MARSAD_GATEWAY_URL", "http://gateway.test")
@@ -231,7 +234,9 @@ def test_worker_records_model_when_authorized_and_preserves_evidence(platform, m
         assert url == "http://gateway.test/priority"
         assert headers == {"Authorization": "Bearer internal-fixture-token"}
         assert json == {"connection": "openrouter-default", "model": "approved/defensive",
-                        "counts": {"http-script": 1}}
+                        "counts": {"http-script": 1}, "org_id": ctx.org_id, "project_id": ctx.project_id,
+                        "scan_id": model_id, "lease": json["lease"], "generation": "operator"}
+        assert len(json["lease"]) == 32
         return httpx.Response(200, request=httpx.Request("POST", url), json={"priority": ["http-script"]})
 
     monkeypatch.setattr(httpx, "get", health)

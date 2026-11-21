@@ -68,8 +68,8 @@ def execute_scan(org_id, project_id, scan_id):
             if os.environ.get("MARSAD_GATEWAY_URL") and os.environ.get("MARSAD_GATEWAY_TOKEN"):
                 connection = store.reserve_model_connection(org_id, project_id, scan_id, row["lease"])
             if connection:
-                enrich(data, connection)
-            elif row["enrichment_reserved_at"] is not None:
+                enrich(data, connection, org_id=org_id, project_id=project_id, scan_id=scan_id, lease=row["lease"])
+            elif row["enrichment_started_at"] is not None:
                 data["enrichment"] = "fallback"
                 data["metrics"]["modelCalls"] = 1
             else:

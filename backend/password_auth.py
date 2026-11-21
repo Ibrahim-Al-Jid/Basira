@@ -8,14 +8,15 @@ import secrets
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 from fastapi import APIRouter, HTTPException, Request, Response
-from pydantic import BaseModel, Field, SecretStr, field_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError
 
 from .identity import (
-    PASSWORD_ISSUER, issue_session, oidc_settings, password_auth_enabled, session_digest, set_platform_cookie,
+    PASSWORD_ISSUER, account_view, issue_session, normalize_person_name, oidc_settings, password_auth_enabled,
+    session_digest, set_platform_cookie,
 )
 from .platform_db import Base, PlatformUnavailable, User, platform_session, utc_now
 
@@ -61,6 +62,22 @@ class Credentials(BaseModel):
         if "\x00" in value or any(0xD800 <= ord(char) <= 0xDFFF for char in value):
             raise ValueError("Invalid password text")
         return password
+
+
+class Registration(Credentials):
+    first_name: str | None = Field(default=None, max_length=80)
+    last_name: str | None = Field(default=None, max_length=80)
+
+    @field_validator("first_name", "last_name")
+    @classmethod
+    def clean_name(cls, value):
+        return normalize_person_name(value) if value is not None else None
+
+    @model_validator(mode="after")
+    def name_pair(self):
+        if (self.first_name is None) != (self.last_name is None):
+            raise ValueError("Both names are required together")
+        return self
 
 
 def registration(request):
@@ -109,11 +126,11 @@ def dummy_password_hash():
 
 def authenticated(request, response, token, user):
     set_platform_cookie(response, token, secure=request.url.scheme == "https")
-    return {"id": user.id, "display_name": user.display_name}
+    return account_view(user)
 
 
 @router.post("/password/register", status_code=201)
-def register(body: Credentials, request: Request, response: Response):
+def register(body: Registration, request: Request, response: Response):
     if not registration(request):
         raise HTTPException(403, "إنشاء حساب بالإيميل مش متاح في الإعدادات دي.")
     password = body.password.get_secret_value()
@@ -123,7 +140,9 @@ def register(body: Credentials, request: Request, response: Response):
     encoded = HASHER.hash(password)
     try:
         with platform_session() as db:
-            user = User(issuer=PASSWORD_ISSUER, subject=body.email, display_name=body.email)
+            user = User(issuer=PASSWORD_ISSUER, subject=body.email,
+                        first_name=body.first_name, last_name=body.last_name,
+                        display_name=f"{body.first_name} {body.last_name}" if body.first_name else "")
             db.add(user)
             db.flush()
             db.execute(credentials.insert().values(user_id=user.id, password_hash=encoded))

@@ -7,7 +7,10 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
-ArtifactKind = Literal["html", "repository", "har", "config"]
+from .source_adapters import SOURCE_KINDS, configured_tools
+
+ArtifactKind = Literal["html", "repository", "har", "config", "openapi", "zap"]
+DEFAULT_INPUTS = ("repository", "html", "har", "openapi", "config", "zap")
 CoverageStatus = Literal["matched", "clear", "not_applicable", "skipped", "error"]
 AgentRole = Literal["orchestrator", "planning", "analysis", "validation", "reporting"]
 Identifier = Annotated[str, Field(pattern=r"^[a-f0-9]{32}$")]
@@ -17,14 +20,16 @@ ModelConnection = Literal["openrouter-default"]
 PROFILE = "offline-artifact"
 TOOL_PROTOCOL_VERSION = "marsad-tool-1"
 RAW_RETENTION_MINUTES = 15
-ALL_INPUTS = ("html", "repository", "har", "config")
+ALL_INPUTS = DEFAULT_INPUTS
 ANALYZER_INPUTS = {
     "html-attributes": ("html", "repository", "config"),
-    "browser-controls": ALL_INPUTS,
+    "browser-controls": ("html", "repository", "har", "config"),
     "dependency-evidence": ("repository", "config"),
     "deployment-config": ("repository", "config"),
-    "browser-controls-extra": ALL_INPUTS,
+    "browser-controls-extra": ("html", "repository", "har", "config"),
     "deployment-config-extra": ("repository", "config"),
+    "openapi-contract": ("openapi",),
+    "zap-passive-report": ("zap",),
 }
 ANALYZER_TITLES = {
     "html-attributes": "HTML attributes",
@@ -33,6 +38,13 @@ ANALYZER_TITLES = {
     "deployment-config": "Deployment configuration",
     "browser-controls-extra": "Extended browser and response controls",
     "deployment-config-extra": "Extended dependency and deployment controls",
+    "openapi-contract": "Offline API contract",
+    "zap-passive-report": "Saved ZAP passive evidence",
+}
+ANALYZER_TITLES_AR = {
+    "html-attributes": "خصائص HTML الأساسية",
+    "openapi-contract": "عقد API المحلي",
+    "zap-passive-report": "أدلة ZAP السلبية المحفوظة",
 }
 ROLE_TOOLS = {
     "orchestrator": ("base64-envelope", "artifact-router"),
@@ -117,7 +129,13 @@ class Asset(BaseModel):
     id: Identifier
     kind: Literal["website_reference"] = "website_reference"
     reference: str
-    source: Literal["project_policy"] = "project_policy"
+    source: Literal["project_policy", "scan_reference"] = "project_policy"
+
+
+class GitHubSnapshotRef(BaseModel):
+    repository: str = Field(max_length=140, pattern=r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+    commit: str = Field(pattern=r"^[a-f0-9]{40}$")
+    connection_id: Identifier
 
 
 class SourceSnapshot(BaseModel):
@@ -127,12 +145,14 @@ class SourceSnapshot(BaseModel):
     bytes: int = Field(ge=1)
     created_at: datetime
     raw_expires_at: datetime
+    github: GitHubSnapshotRef | None = None
 
 
 class ScopeVersion(BaseModel):
     version: int = Field(ge=0)
     sha256: Digest
     asset_id: Identifier | None
+    asset_source: Literal["project_policy", "scan_reference"] = "project_policy"
     ruleset_version: str
     profile: Literal["offline-artifact"] = PROFILE
     mode: Literal["offline"] = "offline"
@@ -172,11 +192,14 @@ def adapter_available(adapter):
 def analyzer_plan(kind):
     from .artifact_review import ADAPTERS, RULESET_VERSION
     adapters = {entry.id: entry for entry in ADAPTERS}
-    return [
+    tools = [
         {"id": tool, "version": RULESET_VERSION}
         for tool, inputs in ANALYZER_INPUTS.items()
-        if kind in inputs and (tool == "html-attributes" or adapter_available(adapters[tool]))
+        if kind in inputs and (tool not in adapters or adapter_available(adapters[tool]))
     ]
+    if kind in SOURCE_KINDS:
+        tools.extend(tool.pin for tool in configured_tools())
+    return tools
 
 
 def manifests():
@@ -192,12 +215,16 @@ def manifests():
         available = not adapter or adapter_available(adapter)
         tools.append(ToolManifest(
             id=tool, version=RULESET_VERSION, title_en=ANALYZER_TITLES[tool],
-            title_ar=adapter.title_ar if adapter else "خصائص HTML الأساسية",
+            title_ar=adapter.title_ar if adapter else ANALYZER_TITLES_AR[tool],
             supported_inputs=inputs, status="available" if available else "disabled",
             reason=None if available else "adapter_unavailable",
         ))
+    source_tools = configured_tools()
+    tools.extend(ToolManifest(id=tool.id, version=tool.version, title_en=tool.title_en,
+                              title_ar=tool.title_ar, supported_inputs=SOURCE_KINDS) for tool in source_tools)
     roles = [
-        RoleManifest(id=role, tools=allowed, input_contract=ROLE_BOUNDARIES[role][0],
+        RoleManifest(id=role, tools=[*allowed, *(tool.id for tool in source_tools if role == "analysis")],
+                     input_contract=ROLE_BOUNDARIES[role][0],
                      output_contract=ROLE_BOUNDARIES[role][1])
         for role, allowed in ROLE_TOOLS.items()
     ]

@@ -1,0 +1,26 @@
+.scan-source-picker {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+.scan-source-picker legend { font-weight: 650; margin-block-end: .6rem; }
+.scan-source-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: .65rem;
+}
+.scan-source-options .scan-kind {
+  display: flex;
+  align-items: flex-start;
+  gap: .65rem;
+  padding: .85rem;
+  border: 1px solid var(--line);
+  border-radius: .85rem;
+  cursor: pointer;
+}
+.scan-kind:has(:checked) { border-color: var(--accent); }
+.scan-kind:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.project-form .scan-kind input { width: auto; min-height: auto; margin-block: .25rem 0; accent-color: var(--accent); }
+.scan-kind span { display: grid; min-width: 0; gap: .25rem; }
+.scan-kind small { color: var(--muted); font-weight: normal; }

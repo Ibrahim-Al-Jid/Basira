@@ -85,15 +85,20 @@ def report_pdf(report, lang):
         pdf.write_line(t("فحص جزئي: تعذر إكمال بعض خطوات التحليل.", "Partial scan: some checks could not finish."), bold=True)
     pdf.ln(4)
 
+    suggested = {rule: index for index, rule in enumerate(report.priority or [])} if report.enrichment == "model" else {}
     groups = {}
-    for finding in sorted(report.findings, key=lambda item: (SEVERITIES.get(item.severity, 9), item.rule, item.line)):
+    for finding in sorted(report.findings, key=lambda item: (
+        suggested.get(item.rule, len(suggested)), SEVERITIES.get(item.severity, 9), item.rule, item.line,
+    )):
         groups.setdefault(finding.rule, []).append(finding)
     coverage = Counter(entry.status for entry in report.coverage or [])
     pdf.write_line(t("ملخص الفحص", "Scan summary"), size=15, bold=True, height=9)
     pdf.write_line(t(f"أنواع النتائج: {len(groups)}   |   مواضع الأدلة: {len(report.findings)}",
                      f"Finding types: {len(groups)}   |   Evidence locations: {len(report.findings)}"))
     if report.coverage is not None:
-        applied = coverage["matched"] + coverage["clear"]
+        applied = report.metrics.checksRun
+        if applied is None:
+            applied = coverage["matched"] + coverage["clear"]
         pdf.write_line(t(f"قواعد تم تشغيلها: {applied}   |   قواعد غير منطبقة: {coverage['not_applicable']}",
                          f"Checks run: {applied}   |   Not applicable: {coverage['not_applicable']}"))
         if coverage["skipped"] or coverage["error"]:
@@ -101,9 +106,35 @@ def report_pdf(report, lang):
                              f"Skipped: {coverage['skipped']}   |   Could not run: {coverage['error']}"), color=MUTED)
     else:
         pdf.write_line(t("تفاصيل التغطية غير متاحة لهذا التقرير.", "Coverage details are unavailable for this report."), color=MUTED)
+    if report.input_manifest is not None:
+        manifest = report.input_manifest
+        skipped = sum(item.status == "skipped" for item in manifest)
+        pdf.write_line(t(f"ملفات مقروءة: {len(manifest) - skipped}  |  ملفات متخطاة: {skipped}",
+                         f"Files read: {len(manifest) - skipped}  |  Files skipped: {skipped}"), color=MUTED)
+        for item in manifest[:8]:
+            label = t("مقروء", "Read") if item.status == "included" else t("متخطى", "Skipped")
+            pdf.write_line(f"{label} · {printable(item.path, 160)}", size=9, color=MUTED)
+        if len(manifest) > 8:
+            pdf.write_line(t("القائمة كاملة متاحة في مرصد وتصدير JSON.",
+                             "The complete list is available in Marsad and the JSON export."), size=9, color=MUTED)
+    if report.imported_evidence:
+        imported = report.imported_evidence
+        pdf.write_line(t(f"دليل ZAP مستورد · تنبيهات مقبولة: {imported.accepted_alerts} · مستبعدة: {imported.skipped_alerts}",
+                         f"Imported ZAP evidence · Alerts accepted: {imported.accepted_alerts} · Skipped: {imported.skipped_alerts}"),
+                       color=MUTED)
+    if report.api_inventory:
+        api = report.api_inventory
+        pdf.write_line(t(f"OpenAPI {api.version} · عمليات {api.operations} · تتطلب مصادقة في الوثيقة {api.declared_auth}",
+                         f"OpenAPI {api.version} · {api.operations} operations · {api.declared_auth} declare required authentication"),
+                       color=MUTED)
+        pdf.write_line(t(f"مراجع محلية {api.local_references} · مراجع لم تُحل {api.unresolved_references}",
+                         f"{api.local_references} local references · {api.unresolved_references} unresolved references"),
+                       color=MUTED)
     pdf.ln(5)
 
     pdf.write_line(t("النتائج والإصلاحات", "Findings and recommended fixes"), size=16, bold=True, height=10)
+    if suggested:
+        pdf.write_line(t("ترتيب الأولويات المقترح من الموديل", "Order suggested by the model"), size=9, color=MUTED)
     if not groups:
         pdf.write_line(t("لم يسجل التقرير أدلة مطابقة ضمن نطاق الفحص.", "No matching evidence was recorded within the scan scope."), color=MUTED)
     for rule, matches in groups.items():
@@ -115,7 +146,9 @@ def report_pdf(report, lang):
                        size=13, bold=True, height=8, fill=True)
         pdf.write_line(f"{label}   |   {t('عدد المواضع', 'Locations')}: {len(matches)}", size=9, color=MUTED)
         location = printable(finding.path or (source.name if source else ""), 120)
-        location_str = f"{printable(rule, 60)}  /  {location + '  /  ' if location else ''}L{finding.line}"
+        document = finding.domain == "api" or (report.input_artifact and report.input_artifact.kind == "zap")
+        suffix = "Document" if document else f"L{finding.line}"
+        location_str = f"{printable(rule, 60)}  /  {location + '  /  ' if location else ''}{suffix}"
         pdf.write_line(location_str, size=9, color=MUTED, direction="ltr")
         if finding.evidence:
             pdf.write_line(printable(finding.evidence, 225), size=9, color=MUTED, direction="ltr")

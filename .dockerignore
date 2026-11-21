@@ -5,4 +5,6 @@
 **/dist
 data
 .env*
+**/*.pem
+**/*.key
 .pytest_cache

@@ -1,20 +1,21 @@
 """OIDC sign-in, revocable sessions, and organization/project permissions."""
 
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import UTC, timedelta
 from functools import lru_cache
 import hashlib
 import os
 import re
 import secrets
 from typing import Literal
+import unicodedata
 from urllib.parse import urlsplit
 
 from authlib.integrations.starlette_client import OAuth, OAuthError
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from joserfc.errors import JoseError
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import and_, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from starlette.concurrency import run_in_threadpool
@@ -84,6 +85,57 @@ class MemberInput(BaseModel):
 
 class GrantInput(BaseModel):
     user_id: str = Field(pattern=r"^[0-9a-f]{32}$")
+
+
+def normalize_person_name(value):
+    value = " ".join(part for part in unicodedata.normalize("NFC", value).split(" ") if part)
+    if not 1 <= len(value) <= 80 or not any(char.isalpha() for char in value) or any(
+        not (char in " .-'’" or unicodedata.category(char)[0] in {"L", "M"}) for char in value
+    ):
+        raise ValueError("Use a valid personal name")
+    return value
+
+
+class ProfileInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    first_name: str = Field(max_length=80)
+    last_name: str = Field(max_length=80)
+    username: str | None = Field(default=None, max_length=30)
+
+    @field_validator("first_name", "last_name")
+    @classmethod
+    def clean_name(cls, value):
+        return normalize_person_name(value)
+
+    @field_validator("username")
+    @classmethod
+    def clean_username(cls, value):
+        if value is None:
+            return None
+        value = value.strip()
+        if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9._]{1,28}[a-zA-Z0-9]", value):
+            raise ValueError("Use a username of 3–30 letters, digits, dots or underscores")
+        return value.lower()
+
+
+def public_name(name):
+    return name if name and "@" not in name else ""
+
+
+def member_name(name):
+    return public_name(name) or "Marsad member"
+
+
+def account_view(user):
+    created = user.created_at
+    return {"id": user.id, "display_name": public_name(user.display_name),
+            "first_name": user.first_name, "last_name": user.last_name, "username": user.username,
+            "created_at": created if created.tzinfo else created.replace(tzinfo=UTC)}
+
+
+def member_view(row):
+    return {**row, "display_name": member_name(row["display_name"])}
 
 
 def endpoint_allowed(url):
@@ -231,7 +283,7 @@ def persist_login(settings, claims, old_digest):
         raise ValueError("Unexpected identity audience")
     name = claims.get("name")
     display_name = name.replace("\x00", "").strip()[:200] if isinstance(name, str) else ""
-    display_name = display_name or "Marsad user"
+    display_name = public_name(display_name)
     identity = select(User).where(User.issuer == settings.issuer, User.subject == subject)
     with platform_session() as db:
         user = db.scalar(identity)
@@ -247,7 +299,8 @@ def persist_login(settings, claims, old_digest):
                     raise
         if user.disabled_at is not None:
             raise HTTPException(403, "الحساب غير متاح.")
-        user.display_name = display_name
+        if not user.first_name:
+            user.display_name = display_name
         return issue_session(db, user.id, old_digest)
 
 
@@ -276,14 +329,30 @@ async def callback(request: Request):
         token = await run_in_threadpool(persist_login, settings, claims, request.session.pop("previous_session", None))
     except (OAuthError, JoseError, oidc_httpx.HTTPError, ValueError, TypeError, KeyError):
         raise HTTPException(400, "تعذّر التحقق من تسجيل الدخول. ابدأ من جديد.") from None
-    response = RedirectResponse("/projects", status_code=303, headers={"Referrer-Policy": "no-referrer"})
+    response = RedirectResponse("/dashboard", status_code=303, headers={"Referrer-Policy": "no-referrer"})
     return set_platform_cookie(response, token, secure=urlsplit(settings.redirect_uri).scheme == "https")
 
 
 @router.get("/auth/me")
 def me(request: Request):
-    user = require_user(request)
-    return {"id": user.id, "display_name": user.display_name}
+    return account_view(require_user(request))
+
+
+@router.put("/auth/profile")
+def update_profile(body: ProfileInput, request: Request):
+    actor = require_user(request)
+    try:
+        with platform_session() as db:
+            user = db.scalar(select(User).where(User.id == actor.id, User.disabled_at.is_(None)).with_for_update())
+            if not user:
+                raise HTTPException(401, "الحساب غير متاح.")
+            user.first_name, user.last_name, user.username = body.first_name, body.last_name, body.username
+            user.display_name = f"{body.first_name} {body.last_name}"
+            db.flush()
+            updated = account_view(user)
+    except IntegrityError:
+        raise HTTPException(409, "اسم المستخدم مستخدم بالفعل.") from None
+    return updated
 
 
 @router.post("/auth/logout", status_code=204)
@@ -332,7 +401,7 @@ def list_members(org_id: str, request: Request):
             User, User.id == Membership.user_id,
         ).where(Membership.org_id == org_id, Membership.revoked_at.is_(None),
                 User.disabled_at.is_(None)).order_by(User.display_name, User.id)).mappings()
-        return {"members": [dict(item) for item in items]}
+        return {"members": [member_view(item) for item in items]}
 
 
 @router.post("/organizations/{org_id}/members")
@@ -342,17 +411,10 @@ def add_member(org_id: str, body: MemberInput, request: Request):
         actor = require_membership(db, org_id, user.id)
         if actor.role != "owner":
             raise HTTPException(403, "تعديل عضوية المؤسسة يتطلب صلاحية المالك.")
-        target = db.get(User, body.user_id)
-        if not target or target.disabled_at is not None:
-            raise HTTPException(404, "المستخدم غير متاح.")
-        member = db.get(Membership, (org_id, body.user_id))
-        if member:
-            if member.role == "owner":
-                raise HTTPException(409, "دور مالك المؤسسة ثابت.")
-            member.role = body.role
-            member.revoked_at = None
-        else:
-            db.add(Membership(org_id=org_id, user_id=body.user_id, role=body.role))
+        member = require_membership(db, org_id, body.user_id)
+        if member.role == "owner":
+            raise HTTPException(409, "دور مالك المؤسسة ثابت.")
+        member.role = body.role
         return {"user_id": body.user_id, "role": body.role}
 
 
@@ -411,7 +473,7 @@ def list_grants(project_id: str, request: Request):
             ProjectGrant.org_id == context.org_id, ProjectGrant.project_id == context.project_id,
             ProjectGrant.revoked_at.is_(None), Membership.revoked_at.is_(None), User.disabled_at.is_(None),
         ).order_by(User.display_name, User.id)).mappings()
-        return {"grants": [dict(item) for item in items]}
+        return {"grants": [member_view(item) for item in items]}
 
 
 @router.post("/projects/{project_id}/grants")
@@ -441,6 +503,8 @@ def remove_grant(project_id: str, user_id: str, request: Request):
 
 
 def install_identity(app):
+    from .organization_invitations import router as invitation_router
+
     state_secret = os.environ.get("MARSAD_OIDC_STATE_SECRET", "")
     redirect_uri = os.environ.get("MARSAD_OIDC_REDIRECT_URI", "")
     if len(state_secret) >= 32 and endpoint_allowed(redirect_uri):
@@ -454,5 +518,6 @@ def install_identity(app):
                             headers={"Cache-Control": "no-store"})
 
     app.include_router(router)
+    app.include_router(invitation_router)
     from .password_auth import router as password_router
     app.include_router(password_router)

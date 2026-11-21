@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 from playwright.sync_api import expect, sync_playwright
 
-from browser_phase6 import open_report_section
+from browser_phase6 import open_report_section, report_locale
 
 BASE = os.environ.get("MARSAD_TEST_URL", "http://127.0.0.1:8766")
 assert urlparse(BASE).hostname == "127.0.0.1"
@@ -41,13 +41,13 @@ def download(page, link):
 def main():
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
-        context = browser.new_context(viewport={"width": 1440, "height": 1050})
+        context = browser.new_context(locale="ar-EG", viewport={"width": 1440, "height": 1050})
         page = context.new_page()
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
         page.goto(BASE + "/reports")
         expect(page.get_by_text("لسه مفيش تقارير محفوظة.")).to_be_visible()
-        page.locator("main").get_by_role("link", name="فحص جديد").click()
+        page.goto(BASE + "/demo")
 
         choose_file(page, "wrong.txt", SOURCE)
         expect(page.get_by_role("alert")).to_contain_text("امتداد")
@@ -81,17 +81,22 @@ def main():
         assert pdf.value.suggested_filename.endswith(".pdf")
         assert Path(pdf.value.path()).read_bytes().startswith(b"%PDF-")
         expect(page.locator(".reports-coverage")).to_have_count(0)
-        open_report_section(page, "coverage")
         expect(page.locator(".reports-finding")).to_have_count(2)
-        page.locator(".reports-finding summary").first.focus()
+        evidence_button = page.locator(".reports-finding button").first
+        evidence_button.focus()
         page.keyboard.press("Enter")
-        expect(page.locator(".reports-finding[open] .reports-finding-body li")).to_have_count(2)
+        evidence = page.get_by_role("dialog")
+        expect(evidence.locator(".reports-finding-body li")).to_have_count(2)
+        page.keyboard.press("Escape")
+        expect(evidence).to_have_count(0)
+        expect(evidence_button).to_be_focused()
+        open_report_section(page, "coverage")
         expect(page.locator(".reports-coverage")).to_contain_text("غير منطبق")
 
-        page.get_by_role("button", name="English", exact=True).click()
+        report_locale(page, "en")
         expect(workspace).to_have_attribute("dir", "ltr")
-        expect(page.locator("#report-coverage > summary")).to_have_text("Scan coverage")
-        open_report_section(page, "filters")
+        expect(page.locator('a[data-report-section="coverage"]')).to_have_text("Scan coverage")
+        open_report_section(page, "findings")
         page.locator('select[name="findingSeverity"]').select_option("medium")
         assert "findingSeverity=medium" in page.url
         page.reload()
@@ -116,13 +121,13 @@ def main():
         expect(page.get_by_role("link", name="review.htm")).to_have_count(1)
         assert "q=review.htm" in page.url
         page.get_by_role("link", name="review.htm").click()
-        expect(page.locator("#report-coverage > summary")).to_have_text("Scan coverage")
+        expect(page.locator('a[data-report-section="coverage"]')).to_have_text("Scan coverage")
         page.set_viewport_size({"width": 390, "height": 844})
         assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
-        page.get_by_role("button", name="العربية", exact=True).click()
+        report_locale(page, "ar")
         assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
 
-        other = browser.new_context().new_page()
+        other = browser.new_context(locale="ar-EG").new_page()
         other.goto(BASE + detail_path)
         expect(other.get_by_role("alert")).to_contain_text("غير موجود")
 

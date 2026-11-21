@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from playwright.sync_api import expect, sync_playwright
 
-from browser_phase6 import ORIGIN, project_scan
+from browser_phase6 import ORIGIN, project_scan, report_locale
 
 
 def reflows(page):
@@ -14,13 +14,12 @@ def reflows(page):
 def landing(browser):
     for width in (320, 390, 566, 1280):
         for language in ("ar", "en"):
-            context = browser.new_context(viewport={"width": width, "height": 850})
+            context = browser.new_context(locale="ar-EG" if language == "ar" else "en-US",
+                                          viewport={"width": width, "height": 850})
             page = context.new_page()
             errors = []
             page.on("pageerror", lambda error: errors.append(str(error)))
             page.goto(ORIGIN)
-            if language == "en":
-                page.get_by_role("button", name="Switch to English").click()
             expect(page.locator("html")).to_have_attribute("dir", "rtl" if language == "ar" else "ltr")
             expect(page.locator("html")).to_have_attribute("data-theme", "dark")
             expect(page.locator(".landing-marquee-group:not([aria-hidden]) > li")).to_have_count(6)
@@ -33,25 +32,14 @@ def landing(browser):
             expect(page.locator(".landing-benchmark")).to_have_count(0)
             expect(page.get_by_role("link", name="Explore the demo" if language == "en" else "جرّب العرض")).to_have_count(0)
             reflows(page)
-            page.get_by_role("button", name="الوضع الفاتح" if language == "ar" else "Light theme").click()
-            page.reload()
-            expect(page.locator("html")).to_have_attribute("data-theme", "light")
-            expect(page.locator("html")).to_have_attribute("lang", language)
-            reflows(page)
             assert page.goto(ORIGIN + "/demo").status == 200
             expect(page.get_by_role("button", name="تشغيل الفحص" if language == "ar" else "Run scan")).to_be_disabled()
             expect(page.get_by_role("button", name="تحميل العينة" if language == "ar" else "Load sample")).to_be_visible()
             reflows(page)
-            if width != 1280:
-                menu = page.get_by_role("button", name="افتح القائمة" if language == "ar" else "Open menu")
-                menu.focus()
-                page.keyboard.press("Enter")
-                expect(page.locator(".site-mobile-menu")).to_have_attribute("aria-expanded", "true")
-                expect(page.locator("#site-navigation a[href='/checks'], #site-navigation a[href='/demo']")).to_have_count(0)
             assert not errors, errors
             context.close()
 
-    context = browser.new_context(viewport={"width": 390, "height": 820}, reduced_motion="reduce")
+    context = browser.new_context(locale="ar-EG", viewport={"width": 390, "height": 820}, reduced_motion="reduce")
     page = context.new_page()
     page.goto(ORIGIN)
     expect(page.get_by_role("button", name="أوقف الحركة")).to_be_hidden()
@@ -61,11 +49,11 @@ def landing(browser):
 
 
 def workspace(browser):
-    context = browser.new_context(viewport={"width": 390, "height": 844})
+    context = browser.new_context(locale="ar-EG", viewport={"width": 390, "height": 844})
     page = context.new_page()
     issues = []
     page.on("pageerror", lambda error: issues.append(str(error)))
-    for route in ("/signin", "/dashboard", "/projects", "/new-scan", "/scans", "/findings", "/reports", "/settings", "/checks", "/demo"):
+    for route in ("/signin", "/dashboard", "/projects", "/new-scan", "/scans", "/findings", "/reports", "/settings", "/demo"):
         assert page.goto(ORIGIN + route).status == 200, route
         reflows(page)
     assert context.request.get(ORIGIN + "/api/phase8-unknown").status == 404
@@ -90,20 +78,19 @@ def workspace(browser):
     expect(page.get_by_role("link", name="portal.html")).to_be_visible()
     assert parse_qs(urlsplit(page.url).query)["project"] == [project_id]
 
-    page.goto(f"{ORIGIN}/findings?project={project_id}")
-    page.get_by_role("combobox", name="الفحص", exact=True).select_option(report_id)
+    page.goto(f"{ORIGIN}/findings?project={project_id}&report={report_id}")
+    page.wait_for_url(f"**/reports/{report_id}?*#report-findings")
     expect(page.locator(".reports-finding")).to_have_count(1)
-    page.get_by_role("link", name="فتح التقرير الكامل").click()
     expect(page.get_by_role("heading", name="تقرير فحص المشروع")).to_be_visible()
     expect(page.locator(".reports-coverage")).to_have_count(0)
-    coverage = page.locator("#report-coverage > summary")
+    coverage = page.locator('a[data-report-section="coverage"]')
     coverage.focus()
     page.keyboard.press("Enter")
     expect(coverage).to_be_focused()
     expect(page.locator(".reports-coverage")).to_be_visible()
-    page.get_by_role("button", name="English", exact=True).click()
+    report_locale(page, "en")
     expect(page.locator(".reports-workspace")).to_have_attribute("dir", "ltr")
-    page.get_by_role("button", name="التبديل إلى العربية").click()
+    report_locale(page, "ar")
     expect(page.locator(".reports-workspace")).to_have_attribute("dir", "rtl")
     assert parse_qs(urlsplit(page.url).query)["lang"] == ["ar"]
     reflows(page)
@@ -121,7 +108,7 @@ def main():
         landing(browser)
         workspace(browser)
         browser.close()
-    print("Phase 8 browser checks passed for layout, themes, locales, keyboard/motion, auth, wizard, and report scope.")
+    print("Phase 8 browser checks passed for layout, locales, motion, auth, wizard, and report scope.")
 
 
 if __name__ == "__main__":

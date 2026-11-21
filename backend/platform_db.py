@@ -32,12 +32,18 @@ class Base(DeclarativeBase):
 
 class User(Base):
     __tablename__ = "users"
-    __table_args__ = (UniqueConstraint("issuer", "subject", name="uq_users_issuer_subject"),)
+    __table_args__ = (
+        UniqueConstraint("issuer", "subject", name="uq_users_issuer_subject"),
+        Index("ux_users_username", "username", unique=True),
+    )
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
     issuer: Mapped[str] = mapped_column(String(500))
     subject: Mapped[str] = mapped_column(String(255))
     display_name: Mapped[str] = mapped_column(String(200))
+    first_name: Mapped[str | None] = mapped_column(String(80))
+    last_name: Mapped[str | None] = mapped_column(String(80))
+    username: Mapped[str | None] = mapped_column(String(30))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     disabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

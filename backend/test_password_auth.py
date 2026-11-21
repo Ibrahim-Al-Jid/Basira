@@ -1,3 +1,7 @@
+from pathlib import Path
+
+from alembic import command
+from alembic.config import Config
 import pytest
 from fastapi.testclient import TestClient
 import sqlalchemy as sa
@@ -5,7 +9,7 @@ import sqlalchemy as sa
 from .identity import SESSION_COOKIE
 from .main import app
 from .platform_db import Base, User, database_engine, platform_session
-from .password_auth import credentials
+from .password_auth import HASHER, credentials
 
 EMAIL = "local-owner@example.test"
 PASSWORD = "separate test passphrase 64"
@@ -45,7 +49,8 @@ def test_register_login_revoke_and_tenant_boundary(accounts):
     assert "HttpOnly" in response.headers["set-cookie"]
     assert "SameSite=strict" in response.headers["set-cookie"]
     account = response.json()
-    assert account["display_name"] == EMAIL
+    assert account["display_name"] == ""
+    assert EMAIL not in response.text
     assert owner.get(AUTH + "/me").json() == account
     with platform_session() as db:
         stored = db.execute(sa.select(credentials.c.password_hash)).scalar_one()
@@ -110,3 +115,64 @@ def test_existing_local_session_denied_when_login_disabled(accounts, monkeypatch
     monkeypatch.setenv("MARSAD_PASSWORD_AUTH_ENABLED", "0")
     assert owner.get(AUTH + "/me").status_code == 401
     assert owner.get(AUTH + "/options").json()["password"] is False
+
+
+def test_signup_names_and_private_profile_updates(accounts):
+    owner, other = accounts
+    named = {"email": EMAIL, "password": PASSWORD, "first_name": "إبراهيم", "last_name": "حمدي"}
+    incomplete = dict(named)
+    incomplete.pop("last_name")
+    assert owner.post(AUTH + "/password/register", json=incomplete).status_code == 422
+    created = owner.post(AUTH + "/password/register", json=named)
+    assert created.status_code == 201
+    account = created.json()
+    assert account["display_name"] == "إبراهيم حمدي"
+    assert account["username"] is None and account["created_at"]
+    assert EMAIL not in created.text
+
+    profile = {"first_name": "إبراهيم", "last_name": "حمدي", "username": "Ibrahim.H"}
+    assert other.put(AUTH + "/profile", json=profile).status_code == 401
+    assert owner.put(AUTH + "/profile", json={**profile, "id": "another-account"}).status_code == 422
+    foreign = owner.put(AUTH + "/profile", json=profile, headers={"Origin": "https://foreign.example.test"})
+    assert foreign.status_code == 403
+    assert owner.put(AUTH + "/profile", json={**profile, "first_name": EMAIL}).status_code == 422
+    changed = owner.put(AUTH + "/profile", json=profile)
+    assert changed.status_code == 200
+    assert changed.headers["cache-control"] == "no-store"
+    assert changed.json() == {**account, "username": "ibrahim.h"}
+    assert owner.get(AUTH + "/me").json() == changed.json()
+
+    assert authenticate(other, "register", "other@example.test").status_code == 201
+    assert other.put(AUTH + "/profile", json={**profile, "username": "IBRAHIM.h"}).status_code == 409
+    assert other.get(AUTH + "/me").json()["display_name"] == ""
+    assert owner.put(AUTH + "/profile", json={**profile, "username": None}).json()["username"] is None
+    assert other.put(AUTH + "/profile", json=profile).status_code == 200
+    assert authenticate(owner, "login").json() == account
+
+
+def test_existing_password_account_survives_profile_migration(monkeypatch, tmp_path):
+    url = "sqlite:///" + (tmp_path / "legacy.sqlite3").as_posix()
+    for key in ("MARSAD_PLATFORM_DATABASE_URL", "MARSAD_PLATFORM_MIGRATION_URL"):
+        monkeypatch.setenv(key, url)
+    monkeypatch.setenv("MARSAD_PASSWORD_AUTH_ENABLED", "1")
+    config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+    command.upgrade(config, "platform_models_0008")
+    engine = database_engine(url)
+    account_id = "a" * 32
+    try:
+        with engine.begin() as conn:
+            conn.execute(sa.text(
+                "INSERT INTO users (id, issuer, subject, display_name, created_at) "
+                "VALUES (:id, 'urn:marsad:password', :email, :email, '2025-01-01 10:00:00')"
+            ), {"id": account_id, "email": EMAIL})
+            conn.execute(credentials.insert().values(user_id=account_id, password_hash=HASHER.hash(PASSWORD)))
+        command.upgrade(config, "platform_profiles_0009")
+        with TestClient(app, base_url=BASE) as client:
+            login = authenticate(client, "login")
+            assert login.status_code == 200
+            assert login.json() == {
+                "id": account_id, "display_name": "", "first_name": None, "last_name": None,
+                "username": None, "created_at": "2025-01-01T10:00:00+00:00",
+            }
+    finally:
+        engine.dispose()

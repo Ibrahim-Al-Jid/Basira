@@ -15,6 +15,7 @@ from sqlalchemy import inspect, update
 
 from . import identity
 from .identity import oidc_httpx as httpx
+from .organization_invitations import OrganizationInvitation
 from .platform_db import AuthSession, Base, database_engine, platform_session, utc_now
 
 
@@ -61,6 +62,47 @@ def actor(app, subject):
     client.cookies.set(identity.SESSION_COOKIE, token)
     user_id = client.get("/api/platform/auth/me").json()["id"]
     return client, user_id, token
+
+
+def invite_member(owner, member, org_id, role):
+    invite = owner.post(f"/api/platform/organizations/{org_id}/invitations", json={"role": role})
+    assert invite.status_code == 201, invite.text
+    joined = member.post("/api/platform/invitations/accept", json={"token": invite.json()["token"]})
+    assert joined.status_code == 200, joined.text
+    assert joined.json()["org_id"] == org_id and joined.json()["role"] == role
+
+
+def test_invitation_scope_replay_expiry_and_revocation(platform):
+    owner, _, _ = actor(platform, "invite-owner")
+    recipient, recipient_id, _ = actor(platform, "invitee")
+    foreign, _, _ = actor(platform, "invite-foreign")
+    orgs = "/api/platform/organizations"
+    org = owner.post(orgs, json={"name": "Inviting team"}).json()["id"]
+    other_org = foreign.post(orgs, json={"name": "Other team"}).json()["id"]
+    path = f"{orgs}/{org}/invitations"
+    accept = "/api/platform/invitations/accept"
+    assert owner.post(f"{orgs}/{org}/members", json={"user_id": recipient_id, "role": "admin"}).status_code == 404
+    assert foreign.post(path, json={"role": "admin"}).status_code == 404
+    assert owner.post(path, json={"role": "owner"}).status_code == 422
+    created = owner.post(path, json={"role": "viewer"}).json()
+    token = created["token"]
+    assert token not in owner.get(path).text
+    payload = {"token": token}
+    with platform_session() as db:
+        invitation = db.get(OrganizationInvitation, created["id"])
+        assert invitation.token_digest == sha256(token.encode()).hexdigest()
+    assert foreign.delete(f"{orgs}/{other_org}/invitations/{created['id']}").status_code == 404
+    assert recipient.post(accept, json=payload).json()["role"] == "viewer"
+    assert recipient.post(accept, json=payload).status_code == 404
+    assert recipient.get(path).status_code == 403
+    revoked = owner.post(path, json={"role": "admin"}).json()
+    assert owner.delete(f"{path}/{revoked['id']}").status_code == 204
+    assert foreign.post(accept, json={"token": revoked["token"]}).status_code == 404
+    expired = owner.post(path, json={"role": "analyst"}).json()
+    with platform_session() as db:
+        db.get(OrganizationInvitation, expired["id"]).expires_at = utc_now() - timedelta(seconds=1)
+    assert foreign.post(accept, json={"token": expired["token"]}).status_code == 404
+    assert owner.get(path).json() == {"invitations": []}
 
 
 def test_oidc_pkce_and_verified_jwt(platform):
@@ -116,6 +158,7 @@ def test_oidc_pkce_and_verified_jwt(platform):
         assert not token_requests
         callback = client.get("/api/platform/auth/callback", params={"code": "verified", "state": state})
         assert callback.status_code == 303
+        assert callback.headers["location"] == "/dashboard"
         assert "SameSite=strict" in callback.headers["set-cookie"]
         assert client.get("/api/platform/auth/me").json()["display_name"] == "signed-user"
         session = client.cookies.get(identity.SESSION_COOKIE)
@@ -170,8 +213,8 @@ def test_project_access_and_role_changes(platform):
     foreign_project = foreign_owner.post(f"{orgs}/{other}/projects", json={"name": "Foreign"}).json()["id"]
     grants = f"/api/platform/projects/{project}/grants"
 
-    for account, role in ((viewer_id, "viewer"), (analyst_id, "analyst"), (admin_id, "admin")):
-        assert owner.post(organization + "/members", json={"user_id": account, "role": role}).status_code == 200
+    for account, role in ((viewer, "viewer"), (analyst, "analyst"), (admin, "admin")):
+        invite_member(owner, account, org, role)
     assert viewer.get("/api/platform/projects").json() == {"projects": []}
     assert len(admin.get("/api/platform/projects").json()["projects"]) == 2
     for account in (viewer_id, analyst_id):
@@ -189,7 +232,7 @@ def test_project_access_and_role_changes(platform):
     assert foreign_owner.get(grants).status_code == 404
     assert owner.delete(f"{organization}/members/{viewer_id}").status_code == 204
     assert viewer.get(f"/api/platform/fixture/{project}/read").status_code == 404
-    assert owner.post(organization + "/members", json={"user_id": viewer_id, "role": "viewer"}).status_code == 200
+    invite_member(owner, viewer, org, "viewer")
     assert viewer.get(f"/api/platform/fixture/{project}/read").status_code == 404
     assert admin.delete(f"{grants}/{analyst_id}").status_code == 204
     assert analyst.get(f"/api/platform/fixture/{project}/scan").status_code == 404

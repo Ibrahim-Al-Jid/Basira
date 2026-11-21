@@ -8,6 +8,14 @@ x-app: &app
 x-platform: &platform
   MARSAD_PLATFORM_DATABASE_URL: postgresql+psycopg://marsad_app:${MARSAD_DB_PASSWORD:?Set MARSAD_DB_PASSWORD}@db/marsad
   MARSAD_REDIS_URL: redis://broker:6379/0
+  MARSAD_SOURCE_ADAPTERS: ${MARSAD_SOURCE_ADAPTERS-gitleaks,osv-scanner}
+
+x-model-client: &model-client
+  MARSAD_OPENROUTER_MODEL: ${MARSAD_OPENROUTER_MODEL:-}
+  MARSAD_PROJECT_MODEL_ENABLED: ${MARSAD_PROJECT_MODEL_ENABLED:-0}
+  MARSAD_GATEWAY_URL: ${MARSAD_GATEWAY_URL:-}
+  MARSAD_GATEWAY_TOKEN: ${MARSAD_GATEWAY_TOKEN:-}
+  MARSAD_OPERATOR_MODEL_ORGS: ${MARSAD_OPERATOR_MODEL_ORGS:-}
 
 services:
   db:
@@ -43,9 +51,10 @@ services:
   migrate:
     <<: *app
     restart: "no"
-    command: ["alembic", "upgrade", "head"]
+    command: ["python", "ops/migrate-platform.py"]
     environment:
       MARSAD_PLATFORM_MIGRATION_URL: postgresql+psycopg://postgres:${MARSAD_MIGRATION_PASSWORD:?Set MARSAD_MIGRATION_PASSWORD}@db/marsad
+      MARSAD_MODEL_DB_PASSWORD: ${MARSAD_MODEL_DB_PASSWORD:-}
     depends_on:
       db: {condition: service_healthy}
     networks: [internal]
@@ -53,11 +62,7 @@ services:
   app:
     <<: *app
     environment:
-      <<: *platform
-      MARSAD_OPENROUTER_MODEL: ${MARSAD_OPENROUTER_MODEL:-}
-      MARSAD_PROJECT_MODEL_ENABLED: ${MARSAD_PROJECT_MODEL_ENABLED:-0}
-      MARSAD_GATEWAY_URL: ${MARSAD_GATEWAY_URL:-}
-      MARSAD_GATEWAY_TOKEN: ${MARSAD_GATEWAY_TOKEN:-}
+      <<: [*platform, *model-client]
       MARSAD_OIDC_ISSUER: ${MARSAD_OIDC_ISSUER:-}
       MARSAD_OIDC_CLIENT_ID: ${MARSAD_OIDC_CLIENT_ID:-}
       MARSAD_OIDC_CLIENT_SECRET: ${MARSAD_OIDC_CLIENT_SECRET:-}
@@ -86,12 +91,8 @@ services:
     <<: *app
     command: ["celery", "-A", "backend.platform_jobs:celery_app", "worker", "--concurrency", "2", "--loglevel", "WARNING"]
     environment:
-      <<: *platform
+      <<: [*platform, *model-client]
       MARSAD_ANALYSIS_SPOOL: /srv/marsad/spool
-      MARSAD_OPENROUTER_MODEL: ${MARSAD_OPENROUTER_MODEL:-}
-      MARSAD_PROJECT_MODEL_ENABLED: ${MARSAD_PROJECT_MODEL_ENABLED:-0}
-      MARSAD_GATEWAY_URL: ${MARSAD_GATEWAY_URL:-}
-      MARSAD_GATEWAY_TOKEN: ${MARSAD_GATEWAY_TOKEN:-}
     volumes: [spool:/srv/marsad/spool]
     depends_on:
       migrate: {condition: service_completed_successfully}
@@ -104,25 +105,38 @@ services:
     command: ["python", "-m", "backend.offline_worker"]
     environment:
       MARSAD_ANALYSIS_SPOOL: /srv/marsad/spool
+      MARSAD_SOURCE_ADAPTERS: ${MARSAD_SOURCE_ADAPTERS-gitleaks,osv-scanner}
       PYTHONDONTWRITEBYTECODE: "1"
     volumes: [spool:/srv/marsad/spool]
     network_mode: none
     read_only: true
-    tmpfs: ["/tmp:size=32m,noexec,nosuid"]
+    tmpfs: ["/tmp:size=64m,noexec,nosuid,nodev"]
     mem_limit: 400m
     cpus: 1
     pids_limit: 64
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
 
+  model-secrets:
+    <<: *app
+    profiles: [model]
+    restart: "no"
+    command: ["python", "ops/init-model-vault.py"]
+    volumes: [model-secrets:/srv/marsad/model-secrets]
+    network_mode: none
+
   model-gateway:
     <<: *app
     profiles: [model]
-    command: ["python", "-m", "uvicorn", "backend.model_gateway:app", "--host", "0.0.0.0", "--port", "8001"]
+    command: ["python", "-m", "uvicorn", "backend.model_gateway:app", "--no-access-log", "--host", "0.0.0.0", "--port", "8001"]
     environment:
-      MARSAD_OPENROUTER_KEY: ${MARSAD_OPENROUTER_KEY:-}
-      MARSAD_OPENROUTER_MODEL: ${MARSAD_OPENROUTER_MODEL:-}
-      MARSAD_GATEWAY_TOKEN: ${MARSAD_GATEWAY_TOKEN:-}
+      <<: *model-client
+      MARSAD_PLATFORM_DATABASE_URL: postgresql+psycopg://marsad_model_gateway:${MARSAD_MODEL_DB_PASSWORD:-}@db/marsad
+      MARSAD_MODEL_MASTER_KEY_FILE: /srv/marsad/model-secrets/master.key
+    volumes: [model-secrets:/srv/marsad/model-secrets:ro]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      model-secrets: {condition: service_completed_successfully}
     networks: [internal, egress]
 
 networks:
@@ -133,3 +147,4 @@ volumes:
   anonymous: {}
   redis: {}
   spool: {}
+  model-secrets: {}

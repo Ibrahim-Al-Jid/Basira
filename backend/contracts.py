@@ -1,8 +1,9 @@
 """Versioned review contracts shared by storage, streaming, and report downloads."""
 import re
+from datetime import date
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .phase9_contracts import ArtifactKind, CoverageStatus
 
@@ -12,10 +13,6 @@ SourceKind = Literal["sample", "paste", "file"]
 Severity = Literal["high", "medium", "low"]
 Enrichment = Literal["model", "fallback", "disabled"]
 DecisionSource = Literal["model", "system"]
-
-
-class Connect(BaseModel):
-    key: SecretStr = Field(min_length=8, max_length=512)
 
 
 class SourceInput(BaseModel):
@@ -35,11 +32,10 @@ class SourceInput(BaseModel):
 
 
 class Run(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     source: str = Field(min_length=1, max_length=MAX_SOURCE_CHARS, description="Untrusted HTML text")
     source_info: SourceInput | None = None
-    model: str | None = Field(default=None, min_length=1, max_length=200)
-    key: SecretStr | None = Field(default=None, min_length=8, max_length=512)
-    allow_paid: bool = False
     profile: Literal["baseline", "extended"] = "baseline"
 
     @field_validator("source")
@@ -52,17 +48,25 @@ class Run(BaseModel):
             raise ValueError("Source must include an HTML element")
         return value
 
-    @model_validator(mode="after")
-    def require_credential_pair(self):
-        if (self.key is None) != (self.model is None):
-            raise ValueError("Model and credential must be supplied together")
-        return self
-
-
 class SourceInfo(SourceInput):
     bytes: int = Field(ge=1, le=MAX_SOURCE_BYTES)
     lines: int = Field(ge=1)
     encoding: Literal["utf-8"] = "utf-8"
+
+
+class FindingOrigin(BaseModel):
+    tool: str = Field(max_length=64)
+    version: str = Field(max_length=64)
+    rule: str = Field(max_length=80)
+
+
+class AdvisoryEvidence(BaseModel):
+    id: str = Field(max_length=80)
+    aliases: list[str] = Field(default_factory=list, max_length=30)
+    ecosystem: Literal["PyPI"]
+    package: str = Field(max_length=150)
+    version: str = Field(max_length=100)
+    database_date: date
 
 
 class Finding(BaseModel):
@@ -78,6 +82,9 @@ class Finding(BaseModel):
     confidence: str | None = None
     assessment: Literal["observed", "review_required"] | None = None
     path: str | None = None
+    fingerprint: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+    origins: list[FindingOrigin] = Field(default_factory=list)
+    advisory: AdvisoryEvidence | None = None
 
 
 class RuleCoverage(BaseModel):
@@ -134,6 +141,33 @@ class TaskRun(BaseModel):
     coverage: list[str] = Field(default_factory=list)
     duration_ms: int = Field(ge=0)
     version: str | None = None
+    database_date: date | None = None
+    reason: str | None = None
+
+
+class APIInventory(BaseModel):
+    version: str
+    operations: int = Field(ge=0)
+    declared_auth: int = Field(ge=0)
+    anonymous_operations: int = Field(ge=0)
+    local_references: int = Field(ge=0)
+    unresolved_references: int = Field(ge=0)
+    security_schemes: dict[Literal["apiKey", "http", "oauth2", "openIdConnect", "mutualTLS", "unresolved"],
+                           Annotated[int, Field(ge=0)]] | None = None
+    unresolved_security_requirements: int | None = Field(default=None, ge=0)
+
+
+class InputManifestEntry(BaseModel):
+    path: str = Field(max_length=240)
+    status: Literal["included", "skipped"]
+    reason: Literal["unsupported_extension"] | None = None
+
+
+class ImportedEvidence(BaseModel):
+    source: Literal["zap-passive-report"]
+    status: Literal["imported"]
+    accepted_alerts: int = Field(ge=0, le=500)
+    skipped_alerts: int = Field(ge=0, le=500)
 
 
 class Report(BaseModel):
@@ -144,10 +178,13 @@ class Report(BaseModel):
     status: Literal["completed", "partial"] = "completed"
     source: SourceInfo | None = None
     input_artifact: ArtifactInfo | None = None
+    api_inventory: APIInventory | None = None
     policy_version: int | None = None
     ruleset_version: str | None = None
     priority: list[str] | None = None
     input_paths: list[str] | None = None
+    input_manifest: list[InputManifestEntry] | None = Field(default=None, max_length=200)
+    imported_evidence: ImportedEvidence | None = None
     task_runs: list[TaskRun] = Field(default_factory=list)
     enrichment: Enrichment | None = None
     summary_source: DecisionSource | None = None

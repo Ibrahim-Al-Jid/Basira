@@ -17,7 +17,7 @@ from .artifact_review import EXTENDED_IDS, MAX_ARTIFACT, InputError, RULESET_VER
 from .contracts import History, HistoryItem, Report, history_item
 from .identity import ROLE_ACTIONS, require_project
 from .phase9_contracts import (
-    ArtifactKind, FindingObservation, ModelConnection, ScanProfile, ScanProvenance,
+    ArtifactKind, DEFAULT_INPUTS, FindingObservation, ModelConnection, ScanProfile, ScanProvenance,
     TechnicalRegistry, analyzer_plan, manifests,
 )
 from .rules import RULES
@@ -37,11 +37,12 @@ class Submission(BaseModel):
     scope_version: int | None = Field(default=None, ge=0)
     acknowledge_scope: bool = False
     model_connection: ModelConnection | None = None
+    target_reference: str | None = Field(default=None, max_length=250)
 
     @model_validator(mode="after")
     def extension(self):
         expected = {"html": (".html", ".htm"), "repository": (".zip",),
-                    "har": (".har",), "config": (".json",)}
+                    "har": (".har",), "config": (".json",), "openapi": (".json",), "zap": (".json",)}
         if "/" in self.name or not self.name.lower().endswith(expected[self.kind]):
             raise ValueError("Invalid artifact extension")
         safe_path(self.name)
@@ -49,11 +50,18 @@ class Submission(BaseModel):
             raise ValueError("The reviewed scope must be acknowledged")
         if self.model_connection is not None and self.scope_version is None:
             raise ValueError("A model connection requires a reviewed scope version")
+        if self.target_reference is not None:
+            if self.kind not in {"har", "openapi", "zap"} or self.scope_version is None:
+                raise ValueError("A reference requires a reviewed web or API artifact")
+            self.target_reference = store.web_origin(self.target_reference)
+            if not self.target_reference:
+                raise ValueError("Invalid website reference")
         return self
 
 
 class Policy(BaseModel):
-    allowed_kinds: list[ArtifactKind] = Field(min_length=1, max_length=4)
+    model_config = ConfigDict(extra="forbid")
+    allowed_kinds: list[ArtifactKind] = Field(min_length=1, max_length=len(DEFAULT_INPUTS))
     base_url: str | None = Field(default=None, max_length=250)
     rules: dict = Field(default_factory=dict, max_length=30)
     expected_version: int | None = Field(default=None, ge=0)
@@ -69,7 +77,7 @@ class Policy(BaseModel):
                 raise ValueError("Target URL must be a URL without credentials, query, or fragment")
         if len(json.dumps(self.rules, ensure_ascii=True, allow_nan=False)) > 12_000:
             raise ValueError("Policy exceeds the allowed size")
-        if {"allowed_kinds", "base_url", "version", "model_connection", "_analysis_plan", "_ruleset_version"} & self.rules.keys():
+        if {"allowed_kinds", "base_url", "version", "model_connection", "model_grant_id", "_analysis_plan", "_ruleset_version"} & self.rules.keys():
             raise ValueError("Reserved policy key")
         return self
 
@@ -100,7 +108,8 @@ def submit(project_id: str, body: Submission, request: Request,
         raw = decode_payload(body.content)
         return store.create_scan(ctx, {"kind": body.kind, "name": redact_label(body.name), "bytes": len(raw),
                                        "enrich": body.enrich}, raw, key,
-                                 scope_version=body.scope_version, model_connection=body.model_connection)
+                                 scope_version=body.scope_version, model_connection=body.model_connection,
+                                 target_reference=body.target_reference)
     except InputError as exc:
         raise HTTPException(422, str(exc)) from None
     except store.Conflict as exc:
@@ -153,14 +162,20 @@ def cancel_scan(project_id: str, scan_id: str, request: Request):
 @router.get("/policy")
 def read_policy(project_id: str, request: Request):
     ctx = project(request, project_id, "read")
-    version, policy = current_policy(ctx)
-    return {"version": version, "policy": policy}
+    from .model_connections import public_connection
 
-
-def current_policy(ctx):
     with store.platform_session() as db:
         store.bind_project(db, ctx.org_id, ctx.project_id)
-        return store.project_policy(db, ctx.org_id, ctx.project_id)
+        version, policy = store.project_policy(db, ctx.org_id, ctx.project_id)
+        connection = public_connection(db, ctx.org_id, policy)
+    return policy_view(version, policy, connection)
+
+
+def policy_view(version, policy, connection):
+    details = {key: value for key, value in policy.items() if key not in {"model_grant_id", "model_connection"}}
+    if connection:
+        details["model_connection"] = connection["id"]
+    return {"version": version, "policy": details}
 
 
 @router.get("/scan-profile", response_model=ScanProfile)
@@ -168,10 +183,12 @@ def scan_profile(project_id: str, request: Request):
     from .model_connections import connection_is_ready, public_connection
 
     ctx = project(request, project_id, "read")
-    version, policy = current_policy(ctx)
-    connection = public_connection(policy)
+    with store.platform_session() as db:
+        store.bind_project(db, ctx.org_id, ctx.project_id)
+        version, policy = store.project_policy(db, ctx.org_id, ctx.project_id)
+        connection = public_connection(db, ctx.org_id, policy)
     can_enrich = "scan" in ROLE_ACTIONS[ctx.role] and connection_is_ready(connection)
-    configured_tools = {kind: analyzer_plan(kind) for kind in policy.get("allowed_kinds", ["html"])}
+    configured_tools = {kind: analyzer_plan(kind) for kind in policy.get("allowed_kinds", DEFAULT_INPUTS)}
     return ScanProfile(scope_version=version, allowed_kinds=[kind for kind, plans in configured_tools.items() if plans],
                        max_bytes=MAX_ARTIFACT, asset_linked=bool(policy.get("base_url")),
                        enrichment_available=can_enrich, model_connection=connection if can_enrich else None,
@@ -182,10 +199,14 @@ def scan_profile(project_id: str, request: Request):
 def technical(project_id: str, request: Request):
     from .model_connections import connection_is_ready, public_connection
 
-    version, policy = current_policy(project(request, project_id, "manage"))
+    ctx = project(request, project_id, "manage")
+    with store.platform_session() as db:
+        store.bind_project(db, ctx.org_id, ctx.project_id)
+        version, policy = store.project_policy(db, ctx.org_id, ctx.project_id)
+        connection = public_connection(db, ctx.org_id, policy)
+        server = public_connection(db, ctx.org_id)
     tools, roles = manifests()
-    server = public_connection()
-    return TechnicalRegistry(scope_version=version, model_connection=policy.get("model_connection"),
+    return TechnicalRegistry(scope_version=version, model_connection=connection["id"] if connection else None,
                              server_connection=server, server_ready=connection_is_ready(server), tools=tools, roles=roles,
                              permissions={role: sorted(actions) for role, actions in ROLE_ACTIONS.items()})
 
@@ -203,18 +224,21 @@ def update_policy(project_id: str, request: Request, body: Policy):
         version, existing = store.project_policy(db, ctx.org_id, ctx.project_id)
         if body.expected_version is not None and body.expected_version != version:
             raise HTTPException(409, "سياسة المشروع اتغيّرت. ارجع حمّل الإعدادات.")
-        selected = body.model_connection if "model_connection" in body.model_fields_set else existing.get("model_connection")
-        if selected is not None:
-            connection = public_connection()
-            if selected != existing.get("model_connection") and (connection is None or selected != connection["id"]):
+        connection = None
+        if "model_connection" not in body.model_fields_set:
+            connection = public_connection(db, ctx.org_id, existing)
+        elif body.model_connection is not None:
+            connection = public_connection(db, ctx.org_id)
+            if connection is None:
                 raise HTTPException(409, "اتصال الموديل المطلوب غير متاح.")
-            policy["model_connection"] = selected
+        if connection:
+            policy.update(model_connection=connection["id"], model_grant_id=connection["grant_id"])
         if version == 0:
             db.execute(store.settings.insert().values(org_id=ctx.org_id, project_id=ctx.project_id,
                                                       version=1, policy=policy))
-            return {"version": 1, "policy": policy}
+            return policy_view(1, policy, connection)
         db.execute(store.settings.update().where(condition).values(version=version + 1, policy=policy))
-        return {"version": version + 1, "policy": policy}
+        return policy_view(version + 1, policy, connection)
 
 
 def load(ctx, report_id):
@@ -331,7 +355,7 @@ def memory(project_id: str, request: Request):
             "episodic": [{**item, "created_at": store.timestamp(item["created_at"])} for item in last],
             "semantic": [{**item, "created_at": store.timestamp(item["created_at"])} for item in knowledge],
             "procedural": {"version": RULESET_VERSION, "rules": list(RULES) + EXTENDED_IDS},
-            "project": dict(policy) if policy else {"version": 0, "policy": {"allowed_kinds": ["html"]}},
+            "project": dict(policy) if policy else {"version": 0, "policy": {"allowed_kinds": list(DEFAULT_INPUTS)}},
             "finding": [dict(item) for item in observations],
         }
 

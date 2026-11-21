@@ -7,7 +7,6 @@ import {
   ChevronLeft,
   CircleAlert,
   ClipboardList,
-  Cpu,
   Database,
   LoaderCircle,
   Play,
@@ -29,39 +28,38 @@ import {
   roleOf,
 } from "./data";
 import { Network, AgentIcon, networkLabel } from "./Network";
-import { Agent, Modal, Settings } from "./Dialogs";
+import { Agent, Modal } from "./Dialogs";
 import { emptySource, SourcePicker, sourceError } from "./Source";
 import { Reports } from "./Reports";
-import { Platform } from "./Platform";
-import { CheckCatalog } from "./CheckCatalog";
+import { Platform, usePlatformSession } from "./Platform";
 import { Landing } from "./Landing";
 import { SiteHeader, readPreference, savePreference } from "./SiteHeader";
 import "./style.css";
 import "./workspace.css";
 
 function currentLocation() {
-  return { pathname: window.location.pathname, search: window.location.search };
+  return { pathname: window.location.pathname, search: window.location.search, hash: window.location.hash };
 }
 
 function App() {
   const [location, setLocation] = useState(currentLocation);
-  const [lang, setLang] = useState(() => readPreference("language", "ar") === "en" ? "en" : "ar");
+  const [lang, setLang] = useState(() => {
+    const browserLanguage = (navigator.languages?.[0] || navigator.language || "").split("-")[0].toLowerCase();
+    return readPreference("language", browserLanguage === "ar" ? "ar" : "en") === "ar" ? "ar" : "en";
+  });
   const [theme, setTheme] = useState(() => readPreference("theme", "dark") === "light" ? "light" : "dark");
   const landingPage = location.pathname === "/";
-  const demoPage = location.pathname === "/demo";
+  const demoPage = /^\/demo\/?$/.test(location.pathname);
+  const session = usePlatformSession();
   const t = (ar, en) => lang === "en" ? en : ar;
   const mainContent = useRef(null);
   const initialPath = useRef(location.pathname);
-  const findingsPage = location.pathname === "/findings";
+  const findingsPage = /^\/findings\/?$/.test(location.pathname);
   const reportsPage = /^\/reports(?:\/|$)/.test(location.pathname);
-  const projectsPage = /^\/(?:projects(?:\/|$)|dashboard$|scans$|new-scan$|settings$|signin$)/.test(location.pathname);
-  const reportLocale = new URLSearchParams(location.search).get("lang");
-  const pageLanguage = (reportsPage || findingsPage) && ["ar", "en"].includes(reportLocale) ? reportLocale : lang;
-  const catalogPage = location.pathname === "/checks";
+  const projectsPage = /^\/(?:projects(?:\/|$)|dashboard\/?$|scans\/?$|new-scan\/?$|settings\/?$|signin\/?$)/.test(location.pathname);
   const [dialog, show] = useState(""),
     [source, setSource] = useState(emptySource),
     [sourceBusy, setSourceBusy] = useState(false),
-    [config, setConfig] = useState(null),
     [profile, setProfile] = useState("extended");
   const [events, setEvents] = useState([]),
     [busy, setBusy] = useState(false),
@@ -69,26 +67,16 @@ function App() {
     [runState, setRunState] = useState("idle");
   const [latest, setLatest] = useState(null),
     [agent, setAgent] = useState(null),
-    [expanded, setExpanded] = useState(false),
-    [runModel, setRunModel] = useState("");
+    [expanded, setExpanded] = useState(false);
   const lock = useRef(false),
     controller = useRef(null);
 
   function navigate(path, { replace = false } = {}) {
     const previousPath = window.location.pathname;
     const update = replace ? "replaceState" : "pushState";
-    if (path !== previousPath + window.location.search) window.history[update](null, "", path);
+    if (path !== previousPath + window.location.search + window.location.hash) window.history[update](null, "", path);
     setLocation(currentLocation());
     if (window.location.pathname !== previousPath) window.scrollTo(0, 0);
-  }
-
-  function changeLanguage(next) {
-    setLang(next);
-    if (reportsPage || findingsPage) {
-      const query = new URLSearchParams(location.search);
-      query.set("lang", next);
-      navigate(location.pathname + "?" + query, { replace: true });
-    }
   }
 
   function follow(event, path) {
@@ -100,8 +88,10 @@ function App() {
   useEffect(() => {
     const onPopState = () => setLocation(currentLocation());
     window.addEventListener("popstate", onPopState);
+    window.addEventListener("hashchange", onPopState);
     return () => {
       window.removeEventListener("popstate", onPopState);
+      window.removeEventListener("hashchange", onPopState);
       controller.current?.abort();
     };
   }, []);
@@ -114,13 +104,13 @@ function App() {
   }, []);
   useEffect(() => {
     const root = document.documentElement;
-    root.lang = pageLanguage;
-    root.dir = pageLanguage === "ar" ? "rtl" : "ltr";
+    root.lang = lang;
+    root.dir = lang === "ar" ? "rtl" : "ltr";
     root.dataset.theme = theme;
     savePreference("language", lang);
     savePreference("theme", theme);
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#0b0f12" : "#f5f7f4");
-  }, [lang, pageLanguage, theme]);
+  }, [lang, theme]);
   useEffect(() => {
     document.title = landingPage ? "MARSAD | Web Security Workspace"
       : demoPage ? "MARSAD | Demo" : "MARSAD | Workspace";
@@ -130,8 +120,17 @@ function App() {
       initialPath.current = location.pathname;
       if (!reportsPage && !findingsPage) mainContent.current?.focus({ preventScroll: true });
     }
-    if (demoPage && new URLSearchParams(location.search).get("settings") === "models") show("settings");
-  }, [demoPage, reportsPage, findingsPage, location.pathname, location.search]);
+  }, [reportsPage, findingsPage, location.pathname]);
+
+  useEffect(() => {
+    if (!findingsPage) return;
+    const params = new URLSearchParams(location.search);
+    const report = params.get("report");
+    params.delete("report");
+    const detail = /^[a-f0-9]{32}$/.test(report || "") && /^[a-f0-9]{32}$/.test(params.get("project") || "");
+    const query = params.size ? "?" + params : "";
+    navigate((detail ? "/reports/" + report : "/reports") + query + (detail ? "#report-findings" : ""), { replace: true });
+  }, [findingsPage, location.search]);
   async function start() {
     if (lock.current || sourceBusy) return;
     const invalidSource = sourceError(source.text, lang);
@@ -141,7 +140,6 @@ function App() {
     }
     lock.current = true;
     controller.current = new AbortController();
-    setRunModel(config?.model || "");
     setBusy(true);
     setRunState("running");
     setError("");
@@ -153,7 +151,6 @@ function App() {
           source: source.text,
           profile,
           source_info: { kind: source.kind, name: source.name },
-          ...(config && { key: config.key, model: config.model, allow_paid: config.paid }),
         },
         (e) => {
           if (e.type === "step") setEvents((prev) => [...prev, e]);
@@ -183,13 +180,14 @@ function App() {
     metrics = latest?.metrics;
   return (
     <>
-      <SiteHeader pathname={location.pathname} follow={follow} lang={pageLanguage} setLang={changeLanguage}
-        theme={theme} setTheme={setTheme} publicPage={landingPage || demoPage || catalogPage} />
+      <SiteHeader pathname={location.pathname} follow={follow} lang={lang} authenticated={Boolean(session.user)} showSignIn={!projectsPage && !reportsPage && !findingsPage} />
       <main ref={mainContent} id="main-content" tabIndex={-1} className={landingPage ? "site-landing-main" : "site-workspace-main"}>
-        {landingPage ? <Landing follow={follow} lang={lang} theme={theme} />
-          : reportsPage || findingsPage ? <Reports location={location} navigate={navigate} revision={latest?.id} lang={lang} />
-          : projectsPage ? <Platform location={location} navigate={navigate} lang={lang} />
-          : catalogPage ? <CheckCatalog lang={lang} /> : (
+        {landingPage ? <Landing follow={follow} lang={lang} theme={theme} authenticated={Boolean(session.user)} />
+          : reportsPage ? <Reports location={location} navigate={navigate} revision={latest?.id} lang={lang} session={session} />
+          : findingsPage ? <p role="status">{t("جاري فتح التقارير…", "Opening reports…")}</p>
+          : projectsPage ? <Platform location={location} navigate={navigate} lang={lang} session={session}
+            preferences={{ lang, setLang, theme, setTheme }} />
+          : demoPage ? (
           <>
             <div className="heading">
               <div>
@@ -197,15 +195,6 @@ function App() {
                 <h1>{t("مختبر الوكلاء", "Agent demo")}</h1>
                 <p>{t("شغّل مراجعة أمنية لكود HTML وتابع تنفيذ الوكلاء لحظة بلحظة.", "Review a supplied HTML file and follow each step.")}</p>
               </div>
-              <button
-                className={"connection " + (config ? "connected" : "")}
-                disabled={busy}
-                onClick={() => show("settings")}
-              >
-                <i />
-                {config ? t("الموديل متصل", "Model connected") : t("فحص محلي", "Local scan")}
-                <ChevronLeft size={14} />
-              </button>
             </div>
             <div className="desk">
               <section className="setup card">
@@ -215,32 +204,16 @@ function App() {
                   </div>
                   <h2>{t("إعداد الفحص", "Scan setup")}</h2>
                 </div>
-                <p className="card-intro">{t("اختار مصدر HTML للفحص. نموذج اللغة اختياري.", "Choose an HTML source. Model enrichment is optional.")}</p>
+                <p className="card-intro">{t("اختار مصدر HTML للفحص المحلي.", "Choose an HTML source for a local scan.")}</p>
                 <SourcePicker source={source} setSource={setSource} disabled={busy} onBusyChange={setSourceBusy} lang={lang} />
                 <div className="profile-setting">
                   <label htmlFor="scan-profile">{t("نطاق الفحص", "Scan profile")}</label>
                   <select id="scan-profile" value={profile} disabled={busy} onChange={(event) => setProfile(event.target.value)}>
-                    <option value="extended">{t("موسّع · ١٠٠ قاعدة في الكتالوج", "Extended · 100 rules in the catalog")}</option>
+                    <option value="extended">{t("موسّع · ١٠٠ قاعدة", "Extended · 100 rules")}</option>
                     <option value="baseline">{t("أساسي · ٣ قواعد HTML", "Baseline · 3 HTML rules")}</option>
                   </select>
-                  <a href="/checks" onClick={(event) => follow(event, "/checks")}>{t("شوف القواعد والأدوات", "Explore the rule catalog")}</a>
                   <small className="hint">{t("التغطية الفعلية بتتحدد حسب نوع الملف ومحتواه.", "Coverage depends on the evidence in your file.")}</small>
                 </div>
-                <div className="field-title">{t("إثراء التقرير بالموديل", "Model enrichment")}</div>
-                <button
-                  className="option"
-                  disabled={busy}
-                  onClick={() => show("settings")}
-                >
-                  <span className="tile lilac">
-                    <Cpu size={21} />
-                  </span>
-                  <span>
-                    <strong dir="auto">{config?.model || t("إضافة موديل اختياري", "Add an optional model")}</strong>
-                    <small dir="ltr">OpenRouter</small>
-                  </span>
-                  <ChevronLeft size={16} />
-                </button>
                 <button className="launch" disabled={busy || sourceBusy || !source.text.trim()} onClick={start}>
                   {busy ? (
                     <LoaderCircle size={17} className="spin" />
@@ -329,11 +302,11 @@ function App() {
               )}
             </div>
           </>
-        )}
+        ) : <section className="card project-panel">
+          <h1>{t("الصفحة غير موجودة", "Page not found")}</h1>
+          <a href="/" onClick={(event) => follow(event, "/")}>{t("الصفحة الرئيسية", "Back to home")}</a>
+        </section>}
       </main>
-      {dialog === "settings" && (
-        <Settings lang={lang} config={config} save={setConfig} close={() => show("")} />
-      )}
       {dialog === "agents" && (
         <Modal lang={lang} title={t("دليل الوكلاء", "Agent guide")} close={() => show("")}>
           <div className="agent-list">
@@ -406,7 +379,6 @@ function App() {
           lang={lang}
           node={agent}
           event={events.filter((e) => e.node === agent).at(-1)}
-          model={events.length ? runModel : config?.model}
           tasks={latest?.task_runs?.filter((task) => task.agent === roleOf(agent))}
           close={() => setAgent(null)}
         />

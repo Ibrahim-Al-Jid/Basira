@@ -11,6 +11,7 @@ import sqlalchemy as sa
 
 from .artifact_review import InputError, safe_path
 from .contracts import Report
+from .identity import member_name
 from .platform_db import User
 from . import platform_runtime as store
 
@@ -89,7 +90,7 @@ def compare(current, baseline, current_policy, baseline_policy):
         scope_key(current, current_policy) and scope_key(baseline, baseline_policy)
     ):
         return {**data, "reason": "coverage_unavailable"}
-    if current.input_artifact.kind == "har" or baseline.input_artifact.kind == "har":
+    if {current.input_artifact.kind, baseline.input_artifact.kind} & {"har", "zap"}:
         return {**data, "reason": "coverage_unavailable"}
     if scope_key(current, current_policy) != scope_key(baseline, baseline_policy):
         return {**data, "reason": "incompatible_scope"}
@@ -163,7 +164,7 @@ def review_items(db, ctx, fingerprints):
                                                        activities.c.fingerprint.in_(entries))
                           .order_by(activities.c.created_at.desc(), activities.c.id.desc())).mappings()
     for row in activity:
-        payload = {"id": row["id"], "author": row["author"], "created_at": store.timestamp(row["created_at"])}
+        payload = {"id": row["id"], "author": member_name(row["author"]), "created_at": store.timestamp(row["created_at"])}
         entry = entries[row["fingerprint"]]
         if row["action"] == "comment":
             entry["comments"].append({**payload, "body": row["body"]})
@@ -208,7 +209,7 @@ def change_review(ctx, report_id, action):
         if action.action == "status":
             db.execute(reviews.update().where(condition).values(status=action.status))
         db.execute(activities.insert().values(**scoped, id=uuid4().hex, author_id=ctx.user_id,
-                   author=who.display_name, created_at=store.now(), action=action.action,
+                   author=member_name(who.display_name), created_at=store.now(), action=action.action,
                    status=action.status, previous=status if action.status else None,
                    body=(action.body if action.action == "comment" else action.reason).strip()))
         return review_items(db, ctx, {action.fingerprint: point})[action.fingerprint]
@@ -232,10 +233,18 @@ def sarif(report, lang):
         rules.setdefault(item.rule, {"id": item.rule, "shortDescription": {"text": title},
                                      "help": {"text": remediation}})
         level = {"high": "error", "medium": "warning", "low": "note"}[item.severity]
+        properties = {"assessment": item.assessment} if item.assessment else {}
+        if item.origins:
+            properties["observedBy"] = [origin.model_dump(mode="json") for origin in item.origins]
+        if item.advisory:
+            properties["advisory"] = item.advisory.model_dump(mode="json")
+        physical = {"artifactLocation": {"uri": location}}
+        if item.domain != "api" and not (report.input_artifact and report.input_artifact.kind == "zap"):
+            physical["region"] = {"startLine": item.line}
         results.append({"ruleId": item.rule, "level": level, "message": {"text": title + " · " + item.evidence},
-                        "locations": [{"physicalLocation": {"artifactLocation": {"uri": location},
-                                                            "region": {"startLine": item.line}}}],
-                        **({"properties": {"assessment": item.assessment}} if item.assessment else {})})
+                        "locations": [{"physicalLocation": physical}],
+                        **({"properties": properties} if properties else {}),
+                        **({"partialFingerprints": {"marsadEvidence/v1": item.fingerprint}} if item.fingerprint else {})})
     return {"$schema": SARIF_SCHEMA, "version": "2.1.0", "runs": [{
         "tool": {"driver": {"name": "Marsad", "version": report.ruleset_version or "legacy",
                              "rules": list(rules.values())}},

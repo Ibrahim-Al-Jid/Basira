@@ -32,7 +32,6 @@ const content = {
       ["تابع الفحص", "تابع الأدلة وهي بتتحلل والقواعد اللي انطبقت على مدخلك."],
       ["راجع التقرير", "راجع أدلة النتائج وتوصيات الإصلاح، وصدّر التقرير أو قارنه بفحص سابق."],
     ],
-    closingTitle: "جاهز تراجع مشروعك؟", closingCopy: "ابدأ بملف من مشروعك واستلم تقرير قابل للمراجعة.",
   },
   en: {
     eyebrow: "Project security review",
@@ -50,7 +49,6 @@ const content = {
       ["Follow the scan", "See the stages of analysis and which checks applied to the source you chose."],
       ["Review the report", "Inspect evidence and suggested fixes, export a report, or compare it to an earlier scan."],
     ],
-    closingTitle: "Ready to review your project?", closingCopy: "Start with one file and get a report you can review.",
   },
 };
 
@@ -116,9 +114,10 @@ function CoverageTicker({ copy, language }) {
   );
 }
 
-export function Landing({ follow, lang, theme }) {
+export function Landing({ follow, lang, theme, authenticated }) {
   const language = lang === "en" ? 1 : 0;
   const copy = language ? content.en : content.ar;
+  const start = authenticated ? "/projects" : "/signin";
   const Arrow = language ? ArrowRight : ArrowLeft;
   return (
     <div className="marsad-landing" data-landing-theme={theme || "dark"}
@@ -129,7 +128,7 @@ export function Landing({ follow, lang, theme }) {
           <h1 id="landing-title">{copy.headline[0]}<br /><em>{copy.headline[1]}</em></h1>
           <p className="landing-lead">{copy.lead}</p>
           <div className="landing-actions">
-            <a className="landing-button landing-primary" href="/signin" onClick={(event) => follow(event, "/signin")}>
+            <a className="landing-button landing-primary" href={start} onClick={(event) => follow(event, start)}>
               {copy.start} <Arrow size={19} aria-hidden="true" />
             </a>
           </div>
@@ -154,12 +153,6 @@ export function Landing({ follow, lang, theme }) {
           })}
         </ol>
       </section>
-      <footer className="landing-inner landing-closing">
-        <div><h2>{copy.closingTitle}</h2><p>{copy.closingCopy}</p></div>
-        <a className="landing-button landing-primary" href="/signin" onClick={(event) => follow(event, "/signin")}>
-          {copy.start} <Arrow size={18} aria-hidden="true" />
-        </a>
-      </footer>
     </div>
   );
 }

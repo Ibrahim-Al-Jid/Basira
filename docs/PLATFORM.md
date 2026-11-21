@@ -9,7 +9,7 @@
 لتشغيل نفس البيئة المحلية بعد إيقافها، استخدم من مجلد المشروع:
 
 ```powershell
-docker compose -p marsad-local -f compose.yaml -f compose.local.yaml --env-file .env.local up -d
+docker compose -p marsad-local -f compose.yaml -f compose.local.yaml --env-file .env.local --profile model up -d
 ```
 
 جهّز `.env.local` من `ops/platform.env.example` على جذر المشروع، واستخدم كلمات مرور مختلفة لأدوار قاعدة البيانات. Git وDocker build بيستبعدوا الملف. [مرجع تخزين كلمات المرور من OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)
@@ -19,19 +19,19 @@ docker compose -p marsad-local -f compose.yaml -f compose.local.yaml --env-file 
 1. انسخ `ops/platform.env.example` إلى `.env`، وحط قيم عشوائية مختلفة لـ`MARSAD_DB_PASSWORD` و`MARSAD_DISPATCH_PASSWORD` و`MARSAD_MIGRATION_PASSWORD`. استخدم حروف وأرقام فقط لكلمات المرور دي لأنها جزء من رابط اتصال PostgreSQL. لو المختبر الحالي شغال على 8765، اختار 8775 مثلًا في `MARSAD_PORT`، وعدّل منفذ الـcallback بنفس القيمة.
 2. في مزوّد الهوية بتاعك سجّل عميل OIDC يقدر يستخدم Authorization Code مع PKCE S256. سجّل عنوان callback المطابق حرفيًا، واملأ `MARSAD_OIDC_ISSUER` و`MARSAD_OIDC_CLIENT_ID` و`MARSAD_OIDC_CLIENT_SECRET`. حط سر عشوائي ٣٢ حرفًا على الأقل في `MARSAD_OIDC_STATE_SECRET`. الـHTTP للـloopback المحلي، واستخدم HTTPS في التشغيل المستضاف.
 3. من مجلد `sentinel` شغّل `docker compose up --build -d`. خدمة `migrate` بتشغّل Alembic قبل التطبيق والعامل. استخدم `docker compose ps -a` للتحقق، وافتح `http://127.0.0.1:<port>/projects`.
-4. سجّل الدخول، وأنشئ مؤسسة ومشروع، وبعدها حدّد أنواع الملفات في سياسة المشروع. سلطات Owner وAdmin وAnalyst وViewer في [التصميم المعماري](ARCHITECTURE.md). هوية المستخدم ظاهرة في صفحة المشاريع لتمرير معرّف العضوية للمالك. Analyst وViewer يحتاجوا Grant صريح للمشروع.
+4. سجّل الدخول، وأنشئ مؤسسة ومشروع، وبعدها حدّد أنواع الملفات في سياسة المشروع. سلطات Owner وAdmin وAnalyst وViewer في [التصميم المعماري](ARCHITECTURE.md). المالك يشارك دعوة خاصة من إدارة وصول المشروع، والمستلم يقبلها من الحساب. Analyst وViewer يحتاجوا Grant صريح من قائمة أعضاء المؤسسة.
 
 قاعدة المشاريع تستخدم اتصال التطبيق `marsad_app` بدون superuser أو BYPASSRLS. ترحيل المخطط له عنوان اتصال منفصل. موزّع المهام يتصل بحساب `marsad_dispatch` بصلاحيات على الـoutbox فقط. المكوّن اللي بيحلّل الملفات معزول بشبكة `none` وبيقرأ من مساحة وسيطة للطلبات والردود. عامل Celery عنده وصول لـRedis وPostgreSQL وبيتعامل مع معرفات المهام، ومحاولته لها مهلة Lease. [PostgreSQL Row Security](https://www.postgresql.org/docs/current/ddl-rowsecurity.html) · [Celery Tasks](https://docs.celeryq.dev/en/stable/userguide/tasks.html)
 
 ### إضافة إثراء OpenRouter
 
-للمشاريع، اضبط `MARSAD_PROJECT_MODEL_ENABLED=1` و`MARSAD_OPENROUTER_MODEL` و`MARSAD_GATEWAY_URL=http://model-gateway:8001` و`MARSAD_GATEWAY_TOKEN` بقيمة مستقلة عشوائية. ضع المفتاح في ملف `openrouter.key` داخل مجلد مخصص وخاص خارج المستودع. احفظ مسار المجلد في `MARSAD_OPENROUTER_SECRET_DIR` داخل إعداد البيئة المحلي.
+اضبط `MARSAD_PROJECT_MODEL_ENABLED=1` و`MARSAD_GATEWAY_URL=http://model-gateway:8001`. أنشئ `MARSAD_GATEWAY_TOKEN` و`MARSAD_MODEL_DB_PASSWORD` بقيمتين عشوائيتين مستقلتين. كلمة مرور قاعدة البيانات تقبل ٢٤ إلى ١٢٨ حرفًا أو رقمًا (ASCII).
 
 ```powershell
-docker compose -p marsad-local -f compose.yaml -f compose.local.yaml -f compose.model.yaml --env-file .env.local --profile model up -d --build
+docker compose -p marsad-local -f compose.yaml -f compose.local.yaml --env-file .env.local --profile model up -d --build
 ```
 
-بعد التشغيل، المالك أو المدير يختار اتصال الموديل في إعدادات المشروع التقنية. البوابة بتقرأ الملف مع كل طلب، فاستبدال محتوى الملف أو حذفه يغيّر حالة الجاهزية. أعد تحميل إعدادات المشروع أو رحلة الفحص لقراءة الحالة. المفتاح محصور في البوابة. في بيئات بتزوّد أسرارها مباشرة عبر متغيرات البيئة، إعداد البوابة الأساسي يدعم `MARSAD_OPENROUTER_KEY`. فحوصات المشاريع تستخدم معرّف الاتصال وإقرار النطاق بدل الحقل القديم `enrich`. [عقود المرحلة التاسعة](PHASE9.md)
+بعد التشغيل، المالك أو المدير يفتح «الحساب ← اتصال الموديل»، يختار المؤسسة ويدخل مفتاح OpenRouter ومعرّف الموديل، ثم يسمح للمشروع في نفس المكان. التخزين مشفر بمفتاح خاص ببوابة الموديل. تفاصيل النسخ الاحتياطي والإعداد المشغّل القديم في [دليل Phase 10](PHASE10.md).
 
 ## المدخلات وتغطية الفحص
 
@@ -40,9 +40,10 @@ docker compose -p marsad-local -f compose.yaml -f compose.local.yaml -f compose.
 | HTML | ملف `.html` أو `.htm` بترميز UTF-8. |
 | Repository | ZIP محلي، يُقرأ من الذاكرة بدون فك إلى نظام الملفات. ٢٠٠ عنصر، وسقف ٨ ميجابايت بعد الفك ومليون بايت للملف. المسارات الخارجة والروابط الرمزية والتشفير والأرشيف المتداخل تُرفض. |
 | HAR | لقطة `.har` فيها `log.entries` وبحد أقصى ٢٠٠ استجابة. استخدم لقطة منقّحة من القيم السرية قبل الرفع، مع الحفاظ على رؤوس الأمان والسمات المطلوبة للقياس. فحوصات غياب الرؤوس تتطلب إثبات اكتمال اللقطة في السياسة. |
+| OpenAPI | ملف `.json` من إصدار 3.0 أو 3.1، فيه `info` و`paths`. يحصر عمليات المسارات والمصادقة المعلنة والمراجع، والتحليل يقتصر على نفس الوثيقة. |
 | Config | JSON فيه `files` من الاسم النسبي للنص بترميز UTF-8، ومعاه `advisories` اختيارية كسجلات OSV محلية. راجع [مصفوفة القواعد](CHECKS.md) لعائلات الإعدادات المدعومة. |
 
-الملف المرسل قبل الفك بحد أقصى ٢ ميجابايت. التقرير يسجّل ١٠٠ حالة تغطية حسب نوع المدخل. لو أداة فشلت، تظهر حالتها والنتائج اللي ثبتت من الأدوات اللي اشتغلت. بعض الحالات ذات السياق تُعرض كمطلوبة للمراجعة. عنوان الهدف في السياسة للربط وتفسير اللقطة. التحليل بياخد الملف اللي قدمته.
+الملف المرسل قبل الفك بحد أقصى ٢ ميجابايت. التقرير يحافظ على تغطية القواعد المئة. لقطة المصدر أو الإعدادات ممكن تضيف نتائج من Gitleaks وOSV-Scanner حسب نوع الملف والمحوّل المفعّل. لو أداة فشلت، تظهر حالتها والنتائج اللي ثبتت من الأدوات اللي اشتغلت. بعض الحالات ذات السياق تُعرض كمطلوبة للمراجعة. عنوان الهدف في السياسة للربط وتفسير اللقطة. التحليل بياخد الملف اللي قدمته.
 
 خيارات السياسة في واجهة المشاريع بتقبل JSON. أبرزها `har_headers_complete`، و`managed_hosts`، و`require_csp`، و`require_frame_protection`، و`session_cookie_names`، و`private_paths`، و`registry_allowlist`، و`application`، و`repository_complete`، و`snapshot_complete`، و`protected_branches`. اسمح باختبارات الغياب لما اللقطة تتضمن كل البيانات المطلوبة. فحوصات التبعيات تدعم npm package-lock v2/v3 وملفات OSV المقدمة، وTerraform المدعوم هو إعدادات JSON الثابتة.
 

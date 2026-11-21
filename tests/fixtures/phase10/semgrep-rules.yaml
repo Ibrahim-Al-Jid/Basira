@@ -1,0 +1,7 @@
+# Marsad-authored evaluation rule. This fixture does not use the Semgrep Registry.
+rules:
+  - id: marsad-yaml-loader-fixture
+    languages: [python]
+    severity: WARNING
+    message: Prefer the safe YAML parser when loading untrusted configuration.
+    pattern: yaml.load(..., Loader=yaml.Loader, ...)

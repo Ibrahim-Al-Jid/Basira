@@ -1,28 +1,22 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ArrowUpRight, Languages, Menu, Moon, Plus, Sun, X } from "lucide-react";
+import { Menu, UserRound, X } from "lucide-react";
 
 const labels = {
   ar: {
-    home: "الرئيسية", dashboard: "نظرة عامة",
-    projects: "المشاريع", scans: "الفحوصات", findings: "النتائج", reports: "التقارير",
-    settings: "الإعدادات", start: "ابدأ الآن", scan: "فحص جديد", open: "افتح القائمة",
-    close: "اقفل القائمة", nav: "التنقل الرئيسي", light: "الوضع الفاتح", dark: "الوضع الداكن",
-    language: "Switch to English", skip: "انتقل إلى المحتوى",
+    dashboard: "نظرة عامة", projects: "المشاريع", scans: "الفحوصات", reports: "التقارير",
+    account: "الحساب", signin: "تسجيل الدخول", open: "افتح القائمة", close: "اقفل القائمة",
+    nav: "التنقل الرئيسي", skip: "انتقل إلى المحتوى",
   },
   en: {
-    home: "Home", dashboard: "Overview",
-    projects: "Projects", scans: "Scans", findings: "Findings", reports: "Reports",
-    settings: "Settings", start: "Get started", scan: "New scan", open: "Open menu",
-    close: "Close menu", nav: "Main navigation", light: "Light theme", dark: "Dark theme",
-    language: "التبديل إلى العربية", skip: "Skip to content",
+    dashboard: "Overview", projects: "Projects", scans: "Scans", reports: "Reports",
+    account: "Account", signin: "Sign in", open: "Open menu", close: "Close menu",
+    nav: "Main navigation", skip: "Skip to content",
   },
 };
 
 const workspace = [
-  ["dashboard", "/dashboard"], ["projects", "/projects"], ["scans", "/scans"],
-  ["findings", "/findings"], ["reports", "/reports"], ["settings", "/settings"],
+  ["dashboard", "/dashboard"], ["projects", "/projects"], ["scans", "/scans"], ["reports", "/reports"],
 ];
-const publicNav = [["home", "/"]];
 export const readPreference = (key, fallback) => {
   try { return localStorage.getItem("marsad-" + key) ?? fallback; }
   catch { return fallback; }
@@ -32,18 +26,16 @@ export const savePreference = (key, value) => {
   catch { /* Preferences are optional when storage is unavailable. */ }
 };
 
-export function SiteHeader({ pathname, follow, lang, setLang, theme, setTheme, publicPage }) {
+export function SiteHeader({ pathname, follow, lang, authenticated, showSignIn }) {
   const t = labels[lang];
   const [open, setOpen] = useState(false);
   const menu = useRef(null);
   useEffect(() => setOpen(false), [pathname]);
-  const accountPage = pathname.replace(/\/$/, "") === "/signin";
-  const isPublic = publicPage || accountPage;
-  const launch = isPublic ? "/signin" : "/new-scan";
-  const links = isPublic ? publicNav : workspace;
-  const action = !accountPage && <a className="site-cta" href={launch} onClick={(event) => follow(event, launch)}>
-    {isPublic ? t.start : t.scan}{isPublic ? <ArrowUpRight size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
-  </a>;
+  const route = pathname.replace(/\/$/, "");
+  const activeRoute = route === "/new-scan" || /^\/projects\/[^/]+\/scans\//.test(route) ? "/scans" : route;
+  const destination = authenticated ? "/settings" : "/signin";
+  const brandDestination = authenticated ? "/dashboard" : "/";
+  const current = route === destination;
   return <>
     <a className="site-skip" href="#main-content">{t.skip}</a>
     <header className="site-header" onKeyDown={(event) => {
@@ -53,30 +45,26 @@ export function SiteHeader({ pathname, follow, lang, setLang, theme, setTheme, p
       }
     }}>
       <div className="site-header-inner">
-        <a className="site-brand" href="/" onClick={(event) => follow(event, "/")} aria-label={lang === "ar" ? "مرصد، الرئيسية" : "Marsad home"}>
+        <a className="site-brand" href={brandDestination} onClick={(event) => { follow(event, brandDestination); setOpen(false); }}
+          aria-label={authenticated ? (lang === "ar" ? "مرصد، نظرة عامة" : "Marsad overview") : (lang === "ar" ? "مرصد، الرئيسية" : "Marsad home")}>
           <span className="site-brand-mark" aria-hidden="true"><i /><i /><i /></span>
           <span dir="ltr">MARSAD</span>
         </a>
-        <button ref={menu} className="site-icon site-mobile-menu" type="button" aria-label={open ? t.close : t.open} aria-controls="site-navigation"
-          aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+        {authenticated && <button ref={menu} className="site-icon site-mobile-menu" type="button" aria-label={open ? t.close : t.open}
+          aria-controls="site-navigation" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
           {open ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
-        </button>
-        <nav id="site-navigation" className={"site-nav" + (open ? " is-open" : "")} aria-label={t.nav}>
-          {links.map(([key, path]) => {
-            const current = pathname === path || (path !== "/" && pathname.startsWith(path + "/"));
-            return <a key={path} href={path} onClick={(event) => { follow(event, path); setOpen(false); }}
-              aria-current={current ? "page" : undefined}>{t[key]}</a>;
-          })}
-          <span className="site-mobile-action">{action}</span>
-        </nav>
+        </button>}
+        {authenticated && <nav id="site-navigation" className={"site-nav" + (open ? " is-open" : "")} aria-label={t.nav}>
+          {workspace.map(([key, path]) => <a key={path} href={path} onClick={(event) => { follow(event, path); setOpen(false); }}
+            aria-current={activeRoute === path || activeRoute.startsWith(path + "/") ? "page" : undefined}>{t[key]}</a>)}
+        </nav>}
         <div className="site-controls">
-          <button className="site-icon site-language" type="button" aria-label={t.language} onClick={() => setLang(lang === "ar" ? "en" : "ar")}>
-            <Languages size={17} aria-hidden="true" /><span dir="ltr">{lang === "ar" ? "EN" : "AR"}</span>
-          </button>
-          <button className="site-icon" type="button" aria-label={theme === "dark" ? t.light : t.dark} onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-            {theme === "dark" ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
-          </button>
-          <span className="site-desktop-action">{action}</span>
+          {(authenticated || showSignIn) && <a className="site-icon site-account" href={destination}
+            aria-current={current ? "page" : undefined}
+            onClick={(event) => { follow(event, destination); setOpen(false); }}>
+            <UserRound size={17} aria-hidden="true" />
+            {authenticated ? t.account : t.signin}
+          </a>}
         </div>
       </div>
     </header>

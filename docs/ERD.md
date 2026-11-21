@@ -1,6 +1,6 @@
 # نموذج بيانات مرصد
 
-المختبر المجهول يستخدم SQLite لتخزين `sessions(owner)` و`reports(id, owner, created_at, model, finding_count, report_json)` و`report_index(id, summary_json)`. قاعدة PostgreSQL تخص المشاريع. المخطط المنفذ أدناه يغطي [Phase 4](../work/plan.md#phase-4) لحد [Phase 9](../work/plan.md#phase-9)، وبعده النموذج المنطقي للتوسعات.
+المختبر المجهول يستخدم SQLite لتخزين `sessions(owner)` و`reports(id, owner, created_at, model, finding_count, report_json)` و`report_index(id, summary_json)`. قاعدة PostgreSQL تخص المشاريع. المخطط المنفذ أدناه يغطي [Phase 4](../work/plan.md#phase-4) لحد [Phase 10](../work/plan.md#phase-10)، وبعده النموذج المنطقي للتوسعات.
 
 ## مخطط PostgreSQL المنفذ
 
@@ -8,6 +8,11 @@
 |---|---|
 | الهوية | `users` و`auth_sessions` و`organizations` و`memberships` و`projects` و`project_grants`، في `platform_identity_0001`. |
 | الحساب المحلي | `password_credentials` يربط المستخدم ببصمة Argon2id، و`password_attempt_limits` يفرض سقفًا للمحاولات. الاتنين بيضافوا في `platform_password_0005`. |
+| البروفايل | `platform_profiles_0009` يضيف `first_name` و`last_name` و`username` على `users`. اسم المستخدم الاختياري فريد، وتاريخ الإنشاء من `created_at` الحالي. |
+| استيراد GitHub | `project_github_sources` في `platform_github_0010` يربط مشروعًا بتثبيت ومستودع. معرّف الاتصال والـSHA مثبتين في بيانات الفحص. |
+| ربط الأدلة | `project_evidence_links` في `platform_evidence_links_0011` يربط سجلّي منشأ في نفس المشروع. الثنائية فريدة، و`created_by` يحدد مالك إجراء الربط. |
+| الدعوات | `organization_invitations` تحفظ بصمة رمز فريد ودورًا وتاريخ انتهاء وإغلاقًا. الترحيل `platform_invitations_0007`. |
+| اتصال الموديل | `organization_model_connections` و`organization_model_attempts` لكل مؤسسة. الترحيل `platform_models_0008` يضيف لحظة بدء استدعاء الموديل في `project_scans`. |
 | تشغيل الفحص | `project_scans` يخزن المدخل مؤقتًا ورقم المحاولة والـlease والنسخة النهائية والفهرس المختصر. `project_scan_events` يسجل تسلسل الأحداث، و`scan_dispatch_outbox` يسجل عناوين التسليم. |
 | السياسة والذاكرة | `project_review_settings` للإعدادات الحالية، ونسخة السياسة بتتثبت في كل فحص. `project_knowledge` للمراجع المنقّحة، و`project_finding_observations` لتكرار الأدلة. |
 | تتبع المصادر والأدلة | `project_assets` مرجع معلن، `project_scan_provenance` بصمة لقطة ونسخة نطاق وقواعد وأدوات، و`project_evidence_records` مواضع أدلة منقّحة وبصماتها. `platform_provenance_0006` يضيف مهلة المدخل الخام. |
@@ -22,6 +27,9 @@ erDiagram
     USERS ||--o{ MEMBERSHIPS : joins
     ORGANIZATIONS ||--o{ MEMBERSHIPS : includes
     ORGANIZATIONS ||--o{ PROJECTS : owns
+    ORGANIZATIONS ||--o{ ORGANIZATION_INVITATIONS : issues
+    ORGANIZATIONS ||--o| ORGANIZATION_MODEL_CONNECTIONS : configures
+    ORGANIZATIONS ||--o| ORGANIZATION_MODEL_ATTEMPTS : rate_limits
     MEMBERSHIPS ||--o{ PROJECT_GRANTS : authorizes
     PROJECTS ||--o{ PROJECT_GRANTS : restricts
     PROJECTS ||--o| PROJECT_REVIEW_SETTINGS : configures
@@ -30,9 +38,11 @@ erDiagram
     PROJECTS ||--o{ PROJECT_KNOWLEDGE : stores
     PROJECTS ||--o{ FINDING_REVIEWS : tracks
     PROJECTS ||--o{ PROJECT_ASSETS : declares
+    PROJECTS ||--o| PROJECT_GITHUB_SOURCES : configures
     PROJECT_ASSETS |o--o{ PROJECT_SCAN_PROVENANCE : labels
     PROJECT_SCANS ||--o| PROJECT_SCAN_PROVENANCE : records
     PROJECT_SCAN_PROVENANCE ||--o{ PROJECT_EVIDENCE_RECORDS : lists
+    PROJECT_SCAN_PROVENANCE ||--o{ PROJECT_EVIDENCE_LINKS : relates
     PROJECT_SCANS ||--o{ PROJECT_SCAN_EVENTS : streams
     PROJECT_SCANS ||--o{ SCAN_DISPATCH_OUTBOX : dispatches
     PROJECT_SCANS ||--o{ PROJECT_FINDING_OBSERVATIONS : records
@@ -41,6 +51,10 @@ erDiagram
         string id PK
         string issuer UK "unique with subject"
         string subject UK "unique with issuer"
+        string first_name
+        string last_name
+        string username UK
+        datetime created_at
     }
     AUTH_SESSIONS {
         string token_digest PK
@@ -52,6 +66,27 @@ erDiagram
         string user_id PK, FK
         string password_hash
     }
+    ORGANIZATION_INVITATIONS {
+        string id PK
+        string org_id FK
+        string token_digest UK
+        string role
+        datetime expires_at
+        datetime closed_at
+    }
+    ORGANIZATION_MODEL_CONNECTIONS {
+        string org_id PK, FK
+        string generation
+        string grant_id
+        string model
+        bytes ciphertext
+        datetime verified_at
+    }
+    ORGANIZATION_MODEL_ATTEMPTS {
+        string org_id PK, FK
+        bigint window
+        int attempts
+    }
     PASSWORD_ATTEMPT_LIMITS {
         string scope PK
         bigint window PK
@@ -60,6 +95,8 @@ erDiagram
 ```
 
 `password_attempt_limits` يعتمد على مفتاح مشتق من الإجراء والإيميل أو عنوان الطرف، وعلى نافذة ١٥ دقيقة. مفيش FK للمستخدم لأن المحاولات بتتحسب كمان لما الحساب غير موجود. `auth_sessions` يخزن بصمة رمز الجلسة ويمنع استخدامها بعد الإلغاء أو الانتهاء.
+
+الدعوة فريدة بالبصمة، ومعاها فهرس مؤسسة وانتهاء. قفل صف المؤسسة بيمنع استهلاك نفس الدعوة مرتين وبيسلسل الإبطال والقبول. جداول الاتصال والمحاولات متعزلة بـRLS مرتبطة بمعاملة المؤسسة. قيمة المفتاح مشفرة بـAES-GCM ومربوطة بهوية المؤسسة وجيل الاتصال. منح المشروع محفوظ في السياسة بمعرّف منح مستقل عن جيل التدوير. بوابة الموديل تستخدم دور قاعدة بيانات محدود بتنفيذ دالتين فقط.
 
 ## النموذج المنطقي للتوسعات
 

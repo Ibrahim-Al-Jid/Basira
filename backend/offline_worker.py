@@ -11,7 +11,12 @@ from uuid import uuid4
 from langgraph.graph import END, START, StateGraph
 
 from .artifact_review import EXTENDED_IDS, InputError, decode_payload, prepare, review_prepared, tool_record
+from .checks import openapi_contract, zap_passive
+from .phase9_contracts import ALL_INPUTS
 from .rules import RULES
+from .source_adapters import SOURCE_KINDS, SOURCE_TOOLS, configured_tools
+
+DOCUMENT_RULES = {"openapi": tuple(openapi_contract.RULES), "zap": tuple(zap_passive.RULES)}
 
 
 def write_json(path, content):
@@ -35,7 +40,7 @@ class Review(TypedDict, total=False):
     rules: tuple
 
 
-def scan_payload(data):
+def scan_payload(data, *, external=False):
     steps = []
     tasks = []
 
@@ -57,7 +62,12 @@ def scan_payload(data):
         report = state["result"]
         counts = Counter(item["rule"] for item in report["findings"])
         coverage = {row["rule"]: row["match_count"] for row in report["coverage"]}
-        if (set(coverage) != set(RULES) | set(EXTENDED_IDS)
+        ran = {row["tool"] for row in report["task_runs"]}
+        document_rules = DOCUMENT_RULES.get(state["kind"])
+        expected = set(document_rules) if document_rules else {
+            *RULES, *EXTENDED_IDS, *(tool.rule for tool in SOURCE_TOOLS if tool.id in ran)
+        }
+        if (set(coverage) != expected or not set(counts) <= expected
                 or any(coverage[rule] != counts[rule] for rule in coverage)):
             raise InputError("تعذّر مطابقة النتائج مع تغطية القواعد.")
         return {}
@@ -72,7 +82,7 @@ def scan_payload(data):
         raw = task("orchestrator-input-limit", "orchestrator", "base64-envelope",
                    lambda item: decode_payload(item["content"]), state)
         def route(item):
-            if item["kind"] not in {"html", "repository", "har", "config"}:
+            if item["kind"] not in ALL_INPUTS:
                 raise InputError("نوع المدخل غير مدعوم.")
         task("orchestrator-kind", "orchestrator", "artifact-router", route, state)
         return {"raw": raw}
@@ -83,7 +93,17 @@ def scan_payload(data):
         def rule_plan(item):
             if not isinstance(item["policy"], dict):
                 raise InputError("صيغة سياسة المشروع غير صالحة.")
-            return (*RULES, *EXTENDED_IDS)
+            if item["kind"] in DOCUMENT_RULES:
+                return DOCUMENT_RULES[item["kind"]]
+            pins = item["policy"].get("_analysis_plan")
+            if item["kind"] not in SOURCE_KINDS:
+                source_rules = ()
+            elif pins is None:
+                source_rules = tuple(tool.rule for tool in configured_tools()) if external else ()
+            else:
+                scheduled = {tool["id"] for tool in pins}
+                source_rules = tuple(tool.rule for tool in SOURCE_TOOLS if tool.id in scheduled)
+            return (*RULES, *EXTENDED_IDS, *source_rules)
         return {"prepared": prepared, "rules": task("planning-rules", "planning", "rule-registry", rule_plan, state)}
 
     def review(state):
@@ -111,7 +131,9 @@ def scan_payload(data):
             ("planning", "تجهيز المدخل والقواعد", "Prepare the artifact and checks",
              plan),
             ("analysis", "تنفيذ الفحوصات الدفاعية", "Run offline defensive checks",
-             lambda state: {"result": review_prepared(state["prepared"], state["policy"], kind=state["kind"])}),
+             lambda state: {"result": review_prepared(
+                 state["prepared"], state["policy"], kind=state["kind"], external=external,
+             )}),
             ("validation", "مطابقة الأدلة مع التغطية", "Verify evidence counts against coverage", review),
             ("reporting", "تجهيز التقرير", "Assemble the report", report),
         ]
@@ -157,7 +179,7 @@ def run():
                 continue
             try:
                 data = json.loads(claimed.read_text(encoding="utf-8"))
-                result = scan_payload(data)
+                result = scan_payload(data, external=True)
                 if claimed.exists():
                     write_json(item.with_suffix(".result"), result)
             except (OSError, ValueError, RecursionError):

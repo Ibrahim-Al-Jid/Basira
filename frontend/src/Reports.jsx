@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ArrowDownToLine, ArrowLeft, ArrowRight, ChevronDown, FileCheck2, FileDown, FileText, GitCompareArrows, ListChecks, MessageSquareText, Search, Settings2 } from "lucide-react";
+import { ArrowDownToLine, ArrowLeft, ArrowRight, FileCheck2, FileText, Search } from "lucide-react";
 import { agents, fetchJson } from "./data";
-import { FindingReview, ReportComparison, ToolRuns } from "./ReportAdvanced";
+import { FindingReview, ReportComparison, ReportDialog, ToolRuns } from "./ReportAdvanced";
+import { FileManifest, ImportedEvidence, LinkedEvidence } from "./ReportEvidence";
 import "./reports.css";
 
 const PAGE_SIZE = 10;
@@ -23,6 +24,23 @@ const copy = {
     domain: "المجال",
     enrichment: "إثراء الموديل",
     results: "النتائج",
+    sections: "أقسام التقرير",
+    viewEvidence: "عرض الدليل",
+    api: "عقد واجهة API",
+    document: "المستند",
+    apiVersion: "إصدار OpenAPI",
+    apiOperations: "العمليات المعلنة",
+    apiAuth: "عمليات تتطلب المصادقة في الوثيقة",
+    apiAnonymous: "عمليات بلا هوية معلنة",
+    apiReferences: "المراجع المحلية",
+    apiUnresolved: "المراجع غير المحلولة",
+    apiSchemes: "أنواع المصادقة",
+    apiUnresolvedSecurity: "متطلبات مصادقة غير مرتبطة بتعريف",
+    importedZap: "ملاحظة مستوردة من ZAP",
+    noImportedZap: "التقرير المحفوظ مفيهوش ملاحظات اتقبلت للاستيراد.",
+    linkedEvidence: "الأدلة المرتبطة",
+    linkedRepository: "مستودع GitHub",
+    linkedCommit: "معرّف النسخة",
     occurrences: "المواضع",
     source: "المصدر",
     sourceDetails: "تفاصيل المصدر",
@@ -33,6 +51,7 @@ const copy = {
     status: "الحالة",
     model: "الموديل",
     modelCalls: "استدعاءات الموديل",
+    modelOrder: "ترتيب الأولويات المقترح من الموديل",
     seconds: "ثانية",
     duration: "مدة الفحص",
     loading: "جاري تحميل التقارير…",
@@ -55,6 +74,7 @@ const copy = {
     remediation: "الإصلاح",
     executive: "ملخص الفحص",
     pdf: "تحميل PDF",
+    alternatePdf: "تحميل PDF بالإنجليزي",
     findingTypes: "أنواع النتائج",
     rulesApplied: "قواعد اتنفذت",
     incompleteCoverage: "بعض القواعد ما اكتملتش. راجع تغطية الفحص للتفاصيل.",
@@ -68,12 +88,13 @@ const copy = {
     policyHash: "بصمة السياسة",
     rawExpiry: "انتهاء الاحتفاظ بالملف",
     profile: "ملف الفحص",
-    asset: "الأصل المرتبط",
+    asset: "مرجع الأصل المعلن",
     records: "سجل الأدلة",
     provenanceLoading: "جاري تحميل مصدر الفحص…",
     provenanceUnavailable: "بيانات مصدر الفحص غير متاحة للتقرير ده.",
     provenanceError: "تعذّر تحميل مصدر الفحص.",
     coverage: "تغطية الفحص",
+    rule: "القاعدة",
     steps: "أحداث الوكلاء",
     summarySource: "مصدر الملخص",
     modelSummary: "قالب مرصد بترتيب الموديل",
@@ -138,6 +159,23 @@ const copy = {
     domain: "Domain",
     enrichment: "Model enrichment",
     results: "Findings",
+    sections: "Report sections",
+    viewEvidence: "View evidence",
+    api: "API contract",
+    document: "Document",
+    apiVersion: "OpenAPI version",
+    apiOperations: "Declared operations",
+    apiAuth: "Operations declaring required authentication",
+    apiAnonymous: "Operations without declared authentication",
+    apiReferences: "Local references",
+    apiUnresolved: "Unresolved references",
+    apiSchemes: "Authentication scheme types",
+    apiUnresolvedSecurity: "Unresolved security requirements",
+    importedZap: "Imported ZAP observation",
+    noImportedZap: "The saved report contained no observations accepted for import.",
+    linkedEvidence: "Linked evidence",
+    linkedRepository: "GitHub repository",
+    linkedCommit: "Commit SHA",
     occurrences: "Occurrences",
     source: "Source",
     sourceDetails: "Source details",
@@ -148,6 +186,7 @@ const copy = {
     status: "Status",
     model: "Model",
     modelCalls: "Model calls",
+    modelOrder: "Order suggested by the model",
     seconds: "s",
     duration: "Duration",
     loading: "Loading reports…",
@@ -170,6 +209,7 @@ const copy = {
     remediation: "Remediation",
     executive: "Scan summary",
     pdf: "Download PDF",
+    alternatePdf: "Download Arabic PDF",
     findingTypes: "Finding types",
     rulesApplied: "Rules run",
     incompleteCoverage: "Some checks did not finish. Open scan coverage for details.",
@@ -183,12 +223,13 @@ const copy = {
     policyHash: "Policy digest",
     rawExpiry: "Raw file expiry",
     profile: "Scan profile",
-    asset: "Linked asset",
+    asset: "Declared asset reference",
     records: "Evidence records",
     provenanceLoading: "Loading scan provenance…",
     provenanceUnavailable: "This report does not have scan provenance.",
     provenanceError: "Could not load scan provenance.",
     coverage: "Scan coverage",
+    rule: "Rule",
     steps: "Agent events",
     summarySource: "Summary source",
     modelSummary: "Marsad template with model prioritization",
@@ -243,6 +284,7 @@ const label = (t, value) => value ? (Object.hasOwn(t, value) ? t[value] : value)
 const enrichLabel = (t, value) => value === "model" ? t.modelEnrichment : label(t, value);
 const modelLabel = (t, report) => report.model || (report.enrichment === "disabled" ? t.none : t.unavailable);
 const sourceLabel = (t, source) => source?.name || label(t, source?.kind);
+const importedFromZap = (finding) => finding.origins?.some(({ tool }) => tool === "zap-passive-report");
 const lower = (value) => String(value ?? "").toLowerCase();
 const unique = (items) => [...new Set(items.filter(Boolean))];
 const fields = (value) => Array.isArray(value) ? value : Object.keys(value || {});
@@ -336,7 +378,6 @@ function Archive({ reports, t, lang, params, navigate }) {
       <div className="reports-panel reports-state">
         <FileText size={26} aria-hidden="true" />
         <p>{t.noReports}</p>
-        <Link className="reports-button reports-primary" navigate={navigate} href={params.has("project") ? reportPath("/new-scan", new URLSearchParams(), { project: params.get("project") }) : "/demo"}>{t.newScan}</Link>
       </div>
     );
   }
@@ -384,13 +425,15 @@ function Archive({ reports, t, lang, params, navigate }) {
   );
 }
 
-function FindingList({ findings, coverage, t, lang, params, pathname, navigate }) {
+function FindingList({ findings, coverage, imported, priority, t, lang, params, pathname, hash, navigate }) {
+  const [selected, select] = useState(null);
   const count = (value) => numberFormats[lang].format(value);
   const query = params.get("finding") ?? "";
   const severity = params.get("findingSeverity") ?? "";
   const domain = params.get("findingDomain") ?? "";
   const active = Boolean(query || severity || domain);
-  const update = (name, value) => navigate(reportPath(pathname, params, { [name]: value }), { replace: name === "finding" });
+  const findingsPath = (changes) => reportPath(pathname, params, changes) + hash;
+  const update = (name, value) => navigate(findingsPath({ [name]: value }), { replace: name === "finding" });
   const titleOf = (finding) => (lang === "ar" ? finding.title_ar : finding.title) || finding.title || finding.rule;
   const remediationOf = (finding) => (lang === "ar" ? finding.remediation_ar : finding.remediation) || finding.remediation;
   const grouped = new Map();
@@ -403,45 +446,53 @@ function FindingList({ findings, coverage, t, lang, params, pathname, navigate }
     grouped.get(finding.rule).push(finding);
   }
   const rank = { high: 0, medium: 1, low: 2 };
+  const suggested = new Map((priority || []).map((rule, index) => [rule, index]));
   const groups = [...grouped.values()].sort(([first], [second]) =>
-    (rank[first.severity] ?? 3) - (rank[second.severity] ?? 3) || first.rule.localeCompare(second.rule));
+    (suggested.get(first.rule) ?? suggested.size) - (suggested.get(second.rule) ?? suggested.size)
+    || (rank[first.severity] ?? 3) - (rank[second.severity] ?? 3) || first.rule.localeCompare(second.rule));
   return (
     <section className="reports-panel reports-section">
-      <h2>{t.results}</h2>
       {findings.length ? (
         <>
-          <Disclosure id="report-filters" icon={Search} title={t.filter} initiallyOpen={active}>
-            <div className="reports-filters" role="group" aria-label={t.filter}>
+          {suggested.size > 0 && <p className="reports-annotation">{t.modelOrder}</p>}
+            <div className="reports-filters" id="report-filters" role="group" aria-label={t.filter}>
               <SearchFilter name="finding" value={query} update={update} title={t.searchFindings} placeholder={t.filterHint} />
               <SelectFilter t={t} title={t.severity} name="findingSeverity" value={severity} options={findings.map((entry) => entry.severity)} update={update} />
               <SelectFilter t={t} title={t.domain} name="findingDomain" value={domain} options={findings.map((entry) => entry.domain)} update={update} />
-              {active && <button className="reports-button" onClick={() => navigate(reportPath(pathname, params, { finding: "", findingSeverity: "", findingDomain: "" }))}>{t.reset}</button>}
+              {active && <button className="reports-button" onClick={() => navigate(findingsPath({ finding: "", findingSeverity: "", findingDomain: "" }))}>{t.reset}</button>}
             </div>
-          </Disclosure>
           {active && <p className="reports-count" role="status">{count(groups.length)} {t.results}</p>}
           {!groups.length && <p className="reports-empty">{t.noFindingsMatches}</p>}
           {groups.map((group) => {
             const first = group[0];
             return (
-              <details className="reports-finding" key={first.rule}>
-                <summary data-rule={first.rule}>
+              <article className="reports-finding reports-finding-row" data-rule={first.rule} key={first.rule}>
+                <div className="reports-finding-context">
                   <span className="reports-finding-title"><strong>{titleOf(first)}</strong></span>
                   <span className="reports-tags">
                     <span className="reports-tag" data-severity={first.severity}>{label(t, first.severity)}</span>
+                    {importedFromZap(first) && <span className="reports-tag">{t.importedZap}</span>}
                     {group.length > 1 && <span className="reports-tag">{count(group.length)} {t.occurrences}</span>}
                   </span>
-                </summary>
+                </div>
+                <button type="button" className="reports-button" onClick={() => select(group)}
+                  aria-label={t.viewEvidence + " · " + titleOf(first)}>{t.viewEvidence}</button>
+              </article>
+            );
+          })}
+          {selected && <ReportDialog lang={lang} title={titleOf(selected[0])} onClose={() => select(null)}>
                 <div className="reports-finding-body">
                   <div className="reports-fix">
                     <h3>{t.remediation}</h3>
-                    <p dir="auto">{remediationOf(first) || t.unavailable}</p>
+                    <p dir="auto">{remediationOf(selected[0]) || t.unavailable}</p>
                   </div>
                   <h3>{t.evidence}</h3>
                   <ul>
-                    {group.map((occurrence, i) => (
+                    {selected.map((occurrence, i) => (
                       <li key={occurrence.line + "-" + i}>
                         <span>{occurrence.path && <><bdi>{occurrence.path}</bdi> · </>}
-                          {t.line} {occurrence.line == null ? t.unavailable : count(occurrence.line)}</span>
+                          {importedFromZap(occurrence) || occurrence.domain === "api" ? t.document
+                            : t.line + " " + (occurrence.line == null ? t.unavailable : count(occurrence.line))}</span>
                         <code dir="ltr">{occurrence.evidence || t.unavailable}</code>
                         <small className="reports-annotation">
                           {t.confidence} · {label(t, occurrence.confidence)}
@@ -451,16 +502,14 @@ function FindingList({ findings, coverage, t, lang, params, pathname, navigate }
                     ))}
                   </ul>
                   <p className="reports-annotation">
-                    <code dir="ltr">{first.rule}</code> · {label(t, first.domain)}
+                    <code dir="ltr">{selected[0].rule}</code> · {label(t, selected[0].domain)}
                   </p>
                 </div>
-              </details>
-            );
-          })}
+          </ReportDialog>}
         </>
       ) : (
         <p className="reports-empty">
-          {coverage?.length && coverage.every((rule) => rule.status === "not_applicable")
+          {imported ? t.noImportedZap : coverage?.length && coverage.every((rule) => rule.status === "not_applicable")
             ? t.noApplicable
             : coverage == null ? t.unavailable : t.zeroFindings}
         </p>
@@ -469,35 +518,24 @@ function FindingList({ findings, coverage, t, lang, params, pathname, navigate }
   );
 }
 
-function Disclosure({ id, icon: Icon, title, initiallyOpen = false, children }) {
-  const initial = useRef(initiallyOpen);
-  const [visited, setVisited] = useState(initiallyOpen);
-  return (
-    <details className="reports-disclosure" id={id} open={initial.current || undefined}
-      onToggle={(event) => { if (event.currentTarget.open) setVisited(true); }}>
-      <summary>
-        <Icon size={19} aria-hidden="true" />
-        <span>{title}</span>
-        <ChevronDown size={17} className="reports-chevron" aria-hidden="true" />
-      </summary>
-      {visited && <div className="reports-disclosure-body">{children}</div>}
-    </details>
-  );
-}
-
 function CoverageDetails({ coverage, t, count }) {
   if (!coverage?.length) return <p className="reports-empty">{t.legacyCoverage}</p>;
   return (
-    <ul className="reports-coverage">
-      {coverage.map((entry) => (
-        <li key={entry.rule}>
-          <code dir="ltr">{entry.rule}</code>
-          <span>{label(t, entry.domain)}</span>
-          <span className="reports-tag">{label(t, entry.status)}</span>
-          {entry.match_count > 0 && <span>{count(entry.match_count)} {t.occurrences}</span>}
-        </li>
-      ))}
-    </ul>
+    <div className="reports-table-wrap">
+      <table className="reports-coverage" aria-label={t.coverage}>
+        <thead><tr>{[t.rule, t.domain, t.status, t.occurrences].map((title) => <th key={title} scope="col">{title}</th>)}</tr></thead>
+        <tbody>
+          {coverage.map((entry) => (
+            <tr key={entry.rule}>
+              <th scope="row"><code dir="ltr">{entry.rule}</code></th>
+              <td>{label(t, entry.domain)}</td>
+              <td><span className="reports-tag">{label(t, entry.status)}</span></td>
+              <td>{count(entry.match_count)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -525,6 +563,8 @@ function Provenance({ projectApi, reportId, t, lang, count }) {
     [t.policyHash, data.scope?.sha256],
     [t.profile, data.scope?.profile],
     [t.asset, data.asset?.reference],
+    [t.linkedRepository, data.snapshot?.github?.repository],
+    [t.linkedCommit, data.snapshot?.github?.commit],
     [t.rawExpiry, data.snapshot?.raw_expires_at && dateText(lang, data.snapshot.raw_expires_at)],
     [t.records, Number.isInteger(data.evidence_count) && count(data.evidence_count)],
   ].filter(([, value]) => value !== undefined && value !== null && value !== false && value !== "");
@@ -559,11 +599,30 @@ function TechnicalDetails({ report, lang, t, count, projectApi }) {
     source?.encoding,
   ].filter(Boolean).join(" · ");
   if (sourceDetails) cards.push([t.sourceDetails, sourceDetails]);
+  const inventory = report.api_inventory;
+  const apiCounts = inventory && [
+    [t.apiVersion, inventory.version],
+    [t.apiOperations, inventory.operations],
+    [t.apiAuth, inventory.declared_auth],
+    [t.apiAnonymous, inventory.anonymous_operations],
+    [t.apiReferences, inventory.local_references],
+    [t.apiUnresolved, inventory.unresolved_references],
+    [t.apiUnresolvedSecurity, inventory.unresolved_security_requirements],
+    [t.apiSchemes, Object.entries(inventory.security_schemes || {}).map(([scheme, value]) => scheme + " · " + count(value)).join(" / ") || null],
+  ];
   return (
     <>
       <dl className="reports-metadata">
         {cards.map(([title, value]) => <div key={title}><dt>{title}</dt><dd dir="auto">{value}</dd></div>)}
       </dl>
+      {apiCounts && <section className="reports-section reports-advanced">
+        <h2>{t.api}</h2>
+        <dl className="reports-metadata">
+          {apiCounts.filter(([, value]) => value != null).map(([title, value]) => (
+            <div key={title}><dt>{title}</dt><dd dir="auto">{typeof value === "number" ? count(value) : value}</dd></div>
+          ))}
+        </dl>
+      </section>}
       {report.ruleset_version && <p className="reports-annotation">
         <bdi>{report.ruleset_version}</bdi> · {t.policyVersion} {report.policy_version}
       </p>}
@@ -602,17 +661,36 @@ function TechnicalDetails({ report, lang, t, count, projectApi }) {
   );
 }
 
-function ReportDetails({ report, t, lang, params, pathname, navigate, reportApi, projectApi }) {
+function ReportDetails({ report, t, lang, params, pathname, hash, navigate, reportApi, projectApi }) {
   const count = (value) => numberFormats[lang].format(value);
   const findings = report.findings || [];
   const coverage = report.coverage || [];
-  const applied = coverage.filter(({ status }) => status === "matched" || status === "clear").length;
+  const applied = report.imported_evidence ? report.metrics?.checksRun ?? 0
+    : coverage.filter(({ status }) => status === "matched" || status === "clear").length;
   const coverageGaps = coverage.some(({ status }) => status === "skipped" || status === "error");
   const source = report.source || report.input_artifact;
   const summary = lang === "ar" ? report.summary_ar : report.summary_en;
-  const downloads = [["lang=ar", t.downloadAr], ["lang=en", t.downloadEn], ["format=json", t.json]];
+  const downloads = [
+    [`format=pdf&lang=${lang === "ar" ? "en" : "ar"}`, t.alternatePdf],
+    ["lang=ar", t.downloadAr],
+    ["lang=en", t.downloadEn],
+    ["format=json", t.json],
+  ];
   if (projectApi) downloads.push([`format=sarif&lang=${lang}`, t.sarif]);
   const baseline = params.get("baseline");
+  const linkable = projectApi && ["repository", "har", "zap", "openapi"].includes(source?.kind);
+  const sections = [
+    ["findings", t.results],
+    ["coverage", t.coverage],
+    ...(projectApi ? [["compare", t.compareTitle], ["review", t.reviewTitle]] : []),
+    ...(linkable ? [["links", t.linkedEvidence]] : []),
+    ["technical", t.technical],
+    ["export", t.moreFormats],
+  ];
+  const requestedSection = hash.startsWith("#report-") ? hash.slice("#report-".length) : "";
+  const section = sections.some(([id]) => id === requestedSection)
+    ? requestedSection : projectApi && baseline && baseline !== report.id ? "compare" : "findings";
+  const sectionPath = (id, changes = {}) => reportPath(pathname, params, changes) + "#report-" + id;
   const stats = [
     [t.findingTypes, count(new Set(findings.map(({ rule }) => rule)).size)],
     [t.occurrences, count(findings.length)],
@@ -643,27 +721,33 @@ function ReportDetails({ report, t, lang, params, pathname, navigate, reportApi,
         {!!coverageGaps && <p className="reports-caution">{t.incompleteCoverage}</p>}
         {!coverage.length && summary && <p className="reports-copy" dir="auto">{summary}</p>}
       </section>
-      <div id="report-findings">
-        <FindingList findings={findings} coverage={report.coverage} t={t} lang={lang} params={params} pathname={pathname} navigate={navigate} />
-      </div>
-      <div className="reports-extras">
-        <Disclosure id="report-coverage" icon={ListChecks} title={t.coverage}>
+      <nav className="reports-section-nav" aria-label={t.sections}>
+        {sections.map(([id, title]) => (
+          <Link key={id} href={sectionPath(id)} navigate={navigate} aria-current={id === section ? "location" : undefined}
+            data-report-section={id}>{title}</Link>
+        ))}
+      </nav>
+      <section className="reports-section-page" id={"report-" + section} tabIndex={-1} aria-label={sections.find(([id]) => id === section)[1]}>
+        {section === "findings" && <>
+          <ImportedEvidence evidence={report.imported_evidence} lang={lang} count={count} />
+          <FindingList findings={findings} coverage={report.coverage} imported={report.imported_evidence}
+            priority={report.enrichment === "model" ? report.priority : null} t={t} lang={lang}
+            params={params} pathname={pathname} hash={hash} navigate={navigate} />
+        </>}
+        {section === "coverage" && <div className="reports-panel reports-section">
+          <FileManifest entries={report.input_manifest} lang={lang} />
           <CoverageDetails coverage={coverage} t={t} count={count} />
-        </Disclosure>
-        {projectApi && (
-          <>
-            <Disclosure id="report-compare" icon={GitCompareArrows} title={t.compareTitle} initiallyOpen={Boolean(baseline && baseline !== report.id)}>
-              <ReportComparison report={report} reportApi={reportApi} archiveApi={projectApi}
-                baseline={baseline !== report.id ? baseline : null}
-                onBaselineChange={(value) => navigate(reportPath(pathname, params, { baseline: value }))}
-                lang={lang} t={t} count={count} dateText={dateText} sourceLabel={sourceLabel} />
-            </Disclosure>
-            <Disclosure id="report-review" icon={MessageSquareText} title={t.reviewTitle}>
-              <FindingReview reportApi={reportApi} findings={findings} lang={lang} t={t} dateText={dateText} />
-            </Disclosure>
-          </>
-        )}
-        <Disclosure id="report-export" icon={FileDown} title={t.moreFormats}>
+        </div>}
+        {section === "compare" && <ReportComparison report={report} reportApi={reportApi} archiveApi={projectApi}
+          baseline={baseline !== report.id ? baseline : null}
+          onBaselineChange={(value) => navigate(sectionPath("compare", { baseline: value }))}
+          lang={lang} t={t} count={count} dateText={dateText} sourceLabel={sourceLabel} />}
+        {section === "review" && <FindingReview reportApi={reportApi} findings={findings} lang={lang} t={t} dateText={dateText} />}
+        {section === "links" && <LinkedEvidence reportApi={reportApi} lang={lang} count={count}
+          formatDate={(value) => dateText(lang, value)}
+          hrefFor={(id) => reportPath("/reports/" + encodeURIComponent(id), new URLSearchParams(), { project: params.get("project"), lang })}
+          follow={(event, href) => routeLink(event, href, navigate)} />}
+        {section === "export" && <div className="reports-panel reports-section">
           <div className="reports-downloads">
             {downloads.map(([query, title]) => (
               <a className="reports-button" key={query} href={`${reportApi}/download?${query}`} download>
@@ -671,11 +755,11 @@ function ReportDetails({ report, t, lang, params, pathname, navigate, reportApi,
               </a>
             ))}
           </div>
-        </Disclosure>
-        <Disclosure id="report-technical" icon={Settings2} title={t.technical}>
+        </div>}
+        {section === "technical" && <div className="reports-panel reports-section">
           <TechnicalDetails report={report} lang={lang} t={t} count={count} projectApi={projectApi} />
-        </Disclosure>
-      </div>
+        </div>}
+      </section>
     </>
   );
 }
@@ -702,68 +786,58 @@ function useReportProjects(enabled) {
   return [state, () => { setState(null); setRetry((value) => value + 1); }];
 }
 
-function ReportContext({ location, navigate, lang, active, projectApi, archive, findings, state, retry }) {
+function ReportContext({ location, navigate, lang, active, state, retry }) {
   const params = new URLSearchParams(location.search);
   const project = params.get("project") || "";
-  const report = params.get("report") || "";
   const ar = lang === "ar";
   const t = copy[lang];
-  const select = (changes) => navigate(reportPath(location.pathname, new URLSearchParams(), {
-    lang: params.get("lang") || "", ...changes,
+  const select = (value) => navigate(reportPath(location.pathname, new URLSearchParams(), {
+    lang: params.get("lang") || "", project: value,
   }));
   if (!state) return <p role="status" className="reports-panel reports-state">{ar ? "جاري تحميل المشاريع…" : "Loading projects…"}</p>;
   if (state.error) return <div className="reports-panel reports-state">
     <p role="alert">{ar ? "تعذّر تحميل المشاريع." : "Could not load projects."}</p>
     <button className="reports-button" onClick={retry}>{t.retry}</button>
   </div>;
-  if (state.guest) return findings || active ? <div className="reports-panel reports-state">
-    <p>{ar ? "سجّل الدخول لعرض تقارير المشاريع ونتائجها." : "Sign in to see project reports and findings."}</p>
-    <Link className="reports-button reports-primary" href="/signin" navigate={navigate}>{ar ? "تسجيل الدخول" : "Sign in"}</Link>
+  if (state.guest) return active ? <div className="reports-panel reports-state">
+    <p>{ar ? "سجّل الدخول لعرض تقارير المشاريع." : "Sign in to see project reports."}</p>
+    <Link className="reports-button reports-primary" href={"/signin?next=" + encodeURIComponent(location.pathname + location.search)} navigate={navigate}>{ar ? "تسجيل الدخول" : "Sign in"}</Link>
   </div> : null;
   return <section className="reports-panel reports-section report-context" aria-label={ar ? "مصدر التقارير" : "Report source"}>
     <label>{ar ? "المشروع" : "Project"}
-      <select value={project} onChange={(event) => select({ project: event.target.value })}>
+      <select value={project} onChange={(event) => select(event.target.value)}>
         <option value="">{ar ? "اختار مشروعًا" : "Choose a project"}</option>
         {!state.projects.some((item) => item.id === project) && project && <option value={project} disabled>{ar ? "مشروع غير متاح" : "Unavailable project"}</option>}
         {state.projects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
       </select>
     </label>
-    {findings && projectApi && Array.isArray(archive?.reports) && <label>{ar ? "الفحص" : "Scan report"}
-      <select value={report} onChange={(event) => select({ project, report: event.target.value })}>
-        <option value="">{ar ? "اختار تقريرًا" : "Choose a report"}</option>
-        {archive.reports.map((item) => <option key={item.id} value={item.id}>
-          {sourceLabel(t, item.source || item.input_artifact)} · {dateText(lang, item.created_at)}
-        </option>)}
-      </select>
-    </label>}
     {state.projects.length === 0 && <Link className="reports-button" href="/projects" navigate={navigate}>{ar ? "إنشاء مشروع" : "Create a project"}</Link>}
   </section>;
 }
 
-export function Reports({ location, navigate, revision, lang: preferredLanguage = "ar" }) {
-  const { pathname, search } = location;
+export function Reports({ location, navigate, revision, lang: preferredLanguage = "ar", session }) {
+  const { pathname, search, hash } = location;
   const params = new URLSearchParams(search);
   const locale = params.get("lang");
   const lang = locale === "ar" || locale === "en" ? locale : preferredLanguage;
   const t = copy[lang];
-  const findings = pathname === "/findings";
-  const id = findings ? (/^[a-f0-9]{32}$/.test(params.get("report") || "") ? params.get("report") : null)
-    : /^\/reports\/([^/]+)\/?$/.exec(pathname)?.[1];
+  const id = /^\/reports\/([^/]+)\/?$/.exec(pathname)?.[1];
   const project = params.get("project");
   const projectApi = /^[a-f0-9]{32}$/.test(project ?? "") ? `/api/platform/projects/${project}/reports` : null;
   const explicitDemo = params.get("scope") === "demo";
-  const [projects, retryProjects] = useReportProjects(findings || !id);
+  const [projects, retryProjects] = useReportProjects(!id);
   const demoArchive = explicitDemo || projects?.guest;
   const badProject = Boolean(project && !projectApi);
-  const defaultArchive = projectApi || (demoArchive && !badProject && !findings ? "/api/history" : null);
-  const url = id ? ((findings && !projectApi) || badProject ? null : (projectApi || "/api/reports") + "/" + encodeURIComponent(id))
-    : defaultArchive;
-  const [archive, setArchive] = useState(null);
+  const guestProject = Boolean(projectApi && (session.user === null || projects?.guest));
+  const archive = projectApi || (demoArchive && !badProject ? "/api/history" : null);
+  const url = guestProject || badProject ? null : id ? (projectApi || "/api/reports") + "/" + encodeURIComponent(id) : archive;
   const archiveRevision = id ? null : revision;
   const [state, setState] = useState(null);
   const [retry, reload] = useState(0);
   const heading = useRef(null);
   const current = state?.url === url && state.retry === retry && state.archiveRevision === archiveRevision ? state : null;
+  const scanProject = projects?.projects?.find((item) => item.id === project && item.role !== "viewer");
+  const showNewScan = !id && !demoArchive && !guestProject && (scanProject || (!project && projects?.projects?.some((item) => item.role !== "viewer")));
 
   useEffect(() => {
     if (!url) return;
@@ -774,45 +848,34 @@ export function Reports({ location, navigate, revision, lang: preferredLanguage 
     );
     return () => controller.abort();
   }, [url, retry, archiveRevision]);
+  useEffect(() => { if (!hash.startsWith("#report-")) heading.current?.focus(); }, [pathname]);
   useEffect(() => {
-    if (!findings || !projectApi || !id) return;
-    const controller = new AbortController();
-    fetchJson(projectApi, { signal: controller.signal }).then((data) => {
-      if (!controller.signal.aborted) setArchive({ projectApi, data });
-    }, (error) => {
-      if (!controller.signal.aborted) setArchive({ projectApi, error: error.message });
-    });
-    return () => controller.abort();
-  }, [findings, projectApi, retry, id]);
-  useEffect(() => { heading.current?.focus(); }, [pathname]);
+    if (current?.data && hash.startsWith("#report-") && document.activeElement === document.body) {
+      document.getElementById(hash.slice(1))?.focus();
+    }
+  }, [current, hash]);
 
   const back = reportPath("/reports", params, { finding: "", findingSeverity: "", findingDomain: "", baseline: "" });
   return (
     <section className="reports-workspace" lang={lang} dir={lang === "ar" ? "rtl" : "ltr"}>
-      {id && !findings && <Link className="reports-back" href={back} navigate={navigate}>{lang === "ar" ? <ArrowRight size={17} aria-hidden="true" /> : <ArrowLeft size={17} aria-hidden="true" />}{t.back}</Link>}
+      {id && <Link className="reports-back" href={back} navigate={navigate}>{lang === "ar" ? <ArrowRight size={17} aria-hidden="true" /> : <ArrowLeft size={17} aria-hidden="true" />}{t.back}</Link>}
       <div className="reports-heading">
         <div>
-          <h1 tabIndex={-1} ref={heading}>{findings ? t.results : id ? (projectApi ? t.projectReport : t.report) : t.reports}</h1>
-          {!id && <p>{findings ? (lang === "ar" ? "اختار المشروع والفحص لمراجعة الأدلة." : "Choose a project and scan to review its evidence.") : demoArchive && !projectApi ? t.archiveIntro : lang === "ar" ? "اختار مشروعًا لعرض تقاريره." : "Choose a project to see its reports."}</p>}
+          <h1 tabIndex={-1} ref={heading}>{id ? (projectApi ? t.projectReport : t.report) : t.reports}</h1>
+          {!id && <p>{demoArchive && !projectApi ? t.archiveIntro : lang === "ar" ? "اختار مشروعًا لعرض تقاريره." : "Choose a project to see its reports."}</p>}
         </div>
-        <div className="reports-switch" aria-label={lang === "ar" ? "لغة التقرير" : "Report language"} role="group">
-          {["ar", "en"].map((locale) => (
-            <button key={locale} lang={locale} aria-pressed={lang === locale} onClick={() => navigate(reportPath(pathname, params, { lang: locale }))}>
-              {locale === "ar" ? "العربية" : "English"}
-            </button>
-          ))}
-        </div>
+        {showNewScan && <Link className="reports-button reports-primary" navigate={navigate}
+          href={scanProject ? reportPath("/new-scan", new URLSearchParams(), { project }) : "/new-scan"}>{t.newScan}</Link>}
       </div>
-      {(findings || !id) && !explicitDemo && <ReportContext location={location} navigate={navigate} lang={lang} active={Boolean(project)}
-        projectApi={projectApi} archive={id ? (archive?.projectApi === projectApi ? archive.data : null) : current?.data}
-        findings={findings} state={projects} retry={retryProjects} />}
+      {!id && !explicitDemo && <ReportContext location={location} navigate={navigate} lang={lang} active={Boolean(project)}
+        state={projects} retry={retryProjects} />}
+      {id && guestProject && <div className="reports-panel reports-state">
+        <p>{lang === "ar" ? "سجّل الدخول لعرض تقرير المشروع." : "Sign in to see this project report."}</p>
+        <Link className="reports-button reports-primary" href={"/signin?next=" + encodeURIComponent(location.pathname + location.search)} navigate={navigate}>{lang === "ar" ? "تسجيل الدخول" : "Sign in"}</Link>
+      </div>}
       {explicitDemo && !id && <Link className="reports-button" href="/reports" navigate={navigate}>
         {lang === "ar" ? "تقارير المشاريع" : "Project reports"}
       </Link>}
-      {findings && id && archive?.projectApi === projectApi && archive.error && <div className="reports-panel reports-state">
-        <p role="alert">{lang === "ar" ? "تعذّر تحميل قائمة الفحوصات." : "Could not load the scan list."}</p>
-        <button className="reports-button" onClick={() => reload((value) => value + 1)}>{t.retry}</button>
-      </div>}
       {badProject && <p role="alert">{lang === "ar" ? "المشروع المطلوب غير متاح." : "The requested project is unavailable."}</p>}
       {url && !current && <div className="reports-panel reports-state" role="status">{t.loading}</div>}
       {current?.error && (
@@ -821,18 +884,9 @@ export function Reports({ location, navigate, revision, lang: preferredLanguage 
           <button className="reports-button" onClick={() => reload((value) => value + 1)}>{t.retry}</button>
         </div>
       )}
-      {current?.data && (id ? (findings ? <>
-        <Link className="reports-button" href={reportPath("/reports/" + id, new URLSearchParams(), { project, lang })} navigate={navigate}>
-          {lang === "ar" ? "فتح التقرير الكامل" : "Open full report"}
-        </Link>
-        <FindingList findings={current.data.findings || []} coverage={current.data.coverage} t={t}
-          lang={lang} params={params} pathname={pathname} navigate={navigate} />
-        <Disclosure id="report-review" icon={MessageSquareText} title={t.reviewTitle}>
-          <FindingReview reportApi={url} findings={current.data.findings || []} lang={lang} t={t} dateText={dateText} />
-        </Disclosure>
-      </> : <ReportDetails key={id + ":" + (project || "")} report={current.data} t={t} lang={lang} params={params} pathname={pathname} navigate={navigate} reportApi={url} projectApi={projectApi} />)
-        : findings ? (current.data.reports?.length ? null : <p className="reports-panel reports-state">{t.noReports}</p>)
-          : <Archive reports={current.data.reports || []} t={t} lang={lang} params={params} navigate={navigate} />)}
+      {current?.data && (id
+        ? <ReportDetails key={id + ":" + (project || "")} report={current.data} t={t} lang={lang} params={params} pathname={pathname} hash={hash} navigate={navigate} reportApi={url} projectApi={projectApi} />
+        : <Archive reports={current.data.reports || []} t={t} lang={lang} params={params} navigate={navigate} />)}
     </section>
   );
 }

@@ -3,6 +3,7 @@ import json
 from . import platform_jobs as jobs
 from .advanced_reporting import compare, sarif
 from .contracts import Report
+from .test_platform_identity import invite_member
 from .test_platform_runtime import artifact, platform, submit  # noqa: F401
 
 
@@ -42,7 +43,7 @@ def test_compare_comments_status_memory_sarif_and_project_scope(platform):
     assert owner.post(old + "/review", json=comment).status_code == 404
     assert other.post(new + "/review", json=comment).status_code == 404
     other_id = other.get("/api/platform/auth/me").json()["id"]
-    owner.post(f"/api/platform/organizations/{ctx.org_id}/members", json={"user_id": other_id, "role": "viewer"})
+    invite_member(owner, other, ctx.org_id, "viewer")
     owner.post(path + "/grants", json={"user_id": other_id})
     assert other.get(new + "/review").json()["can_edit"] is False
     assert other.post(new + "/review", json=comment).status_code == 403

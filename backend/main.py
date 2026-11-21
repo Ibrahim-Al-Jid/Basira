@@ -1,10 +1,8 @@
 """Marsad's same-origin HTTP API and React frontend."""
 import asyncio
-from collections import Counter
 import base64
 from contextlib import closing, contextmanager
 from datetime import datetime, timezone
-from decimal import Decimal, InvalidOperation
 import hashlib
 import html
 import json
@@ -16,19 +14,17 @@ import time
 from typing import Literal
 from uuid import uuid4
 
-import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from .contracts import (
-    CompleteEvent, Connect, ErrorEvent, History, HistoryItem, Report, Run,
+    CompleteEvent, ErrorEvent, History, HistoryItem, Report, Run,
     RunEvent, SourceInfo, StepEvent, history_item,
 )
 from .graph import GraphError, run_graph
 from .artifact_review import RULESET_VERSION, catalog as rule_catalog, redact_label
-from .model_gateway import apply_order, provider_order
 from .offline_worker import scan_payload
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -67,7 +63,7 @@ async def validation_error(request, _error):
     elif request.url.path.startswith("/api/platform/"):
         detail = "راجع الحقول المطلوبة ونوع البيانات."
     else:
-        detail = "راجع نوع وحجم مصدر HTML. لو اخترت الإثراء، راجع الموديل والمفتاح."
+        detail = "راجع نوع وحجم مصدر HTML والحقول المدعومة."
     return JSONResponse({"detail": detail}, status_code=422)
 
 
@@ -76,7 +72,8 @@ async def protect_requests(request, call_next):
     if request.url.path.startswith("/api/"):
         origin = request.headers.get("origin")
         if request.method in {"POST", "PUT", "PATCH", "DELETE"} and origin and origin.rstrip("/") != str(request.base_url).rstrip("/"):
-            return JSONResponse({"detail": "مصدر الطلب غير مسموح."}, status_code=403)
+            return JSONResponse({"detail": "مصدر الطلب غير مسموح."}, status_code=403,
+                                headers={"Cache-Control": "no-store"})
         response = await call_next(request)
         response.headers["Cache-Control"] = "no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -149,61 +146,9 @@ def set_session(response, token, request):
     return response
 
 
-def zero_text_cost(pricing):
-    if not isinstance(pricing, dict) or not {"prompt", "completion"} <= pricing.keys():
-        return False
-    keys = ("prompt", "completion", "request", "internal_reasoning", "input_cache_read", "input_cache_write")
-    try:
-        return all(Decimal(str(pricing.get(k, 0))) == 0 for k in keys)
-    except (ValueError, InvalidOperation):
-        return False
-
-
-async def catalog(key):
-    if any(ord(ch) < 33 or ord(ch) > 126 for ch in key):
-        raise HTTPException(422, "صيغة مفتاح OpenRouter غير صالحة.")
-    try:
-        async with httpx.AsyncClient(base_url="https://openrouter.ai/api/v1/", timeout=15,
-                                     headers={"Authorization": f"Bearer {key}"}) as client:
-            auth = await client.get("key")
-            auth.raise_for_status()
-            response = await client.get("models/user")
-            response.raise_for_status()
-            rows = response.json()["data"]
-            models = [
-                {"id": row["id"], "name": row.get("name") or row["id"], "free": zero_text_cost(row.get("pricing"))}
-                for row in rows
-                if isinstance(row.get("id"), str)
-                and "text" in (row.get("architecture") or {}).get("output_modalities", ["text"])
-                and "text" in (row.get("architecture") or {}).get("input_modalities", ["text"])
-                and (not row.get("endpoints") or "/api/v1/chat/completions" in row["endpoints"])
-            ]
-            return sorted(models, key=lambda m: (not m["free"], m["name"].casefold()))
-    except httpx.HTTPStatusError as exc:
-        status = exc.response.status_code
-        errors = {401: "مفتاح OpenRouter غير صالح.", 403: "OpenRouter رفض الوصول بهذا المفتاح.",
-                  429: "وصل الحساب لحد طلبات OpenRouter. حاول لاحقًا."}
-        raise HTTPException(status if status in errors else 502,
-                            errors.get(status, "تعذّر تحميل قائمة الموديلات من OpenRouter.")) from None
-    except (httpx.HTTPError, ValueError, KeyError, TypeError, AttributeError):
-        raise HTTPException(502, "تعذّر الاتصال بـOpenRouter أو قراءة قائمة الموديلات.") from None
-
-
-@app.post("/api/models")
-async def models(body: Connect):
-    return {"models": await catalog(body.key.get_secret_value())}
-
-
 @app.get("/api/catalog")
 def security_catalog():
     return rule_catalog()
-
-
-def previous_finding_count(owner):
-    with database() as db:
-        row = db.execute("SELECT finding_count FROM reports WHERE owner=? "
-                         "ORDER BY created_at DESC, id DESC LIMIT 1", (owner,)).fetchone()
-    return {"findingsCount": row[0]} if row else None
 
 
 def summaries(owner):
@@ -248,28 +193,10 @@ def save_report(owner, report):
           "content": {"application/x-ndjson": {}}},
 })
 async def run(body: Run, request: Request):
-    key = body.key.get_secret_value() if body.key else None
-    catalog_unavailable = False
-    if key:
-        try:
-            options = await catalog(key)
-        except HTTPException as exc:
-            if exc.status_code not in (429, 502):
-                raise
-            catalog_unavailable = True
-        else:
-            selected = next((item for item in options if item["id"] == body.model), None)
-            if not selected:
-                raise HTTPException(422, "الموديل غير متاح حاليًا. حدّث القائمة.")
-            if not selected["free"] and not body.allow_paid:
-                raise HTTPException(409, "سعر الموديل غير مجاني. حدّث الاختيار قبل التشغيل.")
     owner, token = session(request)
-    previous = previous_finding_count(owner) if key and not catalog_unavailable else None
     scan_id = uuid4().hex
     source_info = body.source_info
     name = source_info.name if source_info else None
-    if name and key and key in name:
-        name = "[redacted].html"
     normalized = body.source.replace("\r\n", "\n").replace("\r", "\n")
     source = SourceInfo(kind=source_info.kind if source_info else "paste", name=name,
                         bytes=len(body.source.encode("utf-8")), lines=normalized.count("\n") + 1)
@@ -283,8 +210,6 @@ async def run(body: Run, request: Request):
                 **event, "role": event["node"].split(":")[0], "scan_id": scan_id,
                 "occurred_at": datetime.now(timezone.utc).isoformat(),
             })
-            if key and key in step.model_dump_json():
-                raise RuntimeError("Credential in event")
             steps.append(step.model_dump(exclude={"type"}))
             await queue.put(step)
 
@@ -293,7 +218,6 @@ async def run(body: Run, request: Request):
 
         async def execute():
             try:
-                provider_key = None if catalog_unavailable else key
                 async with asyncio.timeout(300):
                     if body.profile == "extended":
                         filename = redact_label(source.name) or ("marsad-sample.html" if source.kind == "sample" else "source.html")
@@ -305,40 +229,24 @@ async def run(body: Run, request: Request):
                         result = answer["result"]
                         for item in result.pop("steps"):
                             await emit(item)
-                        counts = Counter(item["rule"] for item in result["findings"])
-                        if provider_key and counts:
-                            result["metrics"]["modelCalls"] = 1
-                            result["enrichment"] = "fallback"
-                            try:
-                                prioritize = await asyncio.to_thread(provider_order, provider_key, body.model, counts)
-                                apply_order(result, prioritize, counts)
-                            except HTTPException:
-                                pass
                         result["ruleset_version"] = RULESET_VERSION
                         result["status"] = "partial" if any(row["status"] == "error" for row in result["coverage"]) else "completed"
                     else:
-                        result = await run_graph(body.source, body.model if provider_key else None, provider_key,
-                                                 emit, previous=previous)
+                        result = await run_graph(body.source, None, None, emit)
                 report = Report.model_validate({
                     **result, "id": scan_id, "schema_version": 2,
-                    "created_at": datetime.now(timezone.utc).isoformat(), "model": body.model,
+                    "created_at": datetime.now(timezone.utc).isoformat(), "model": None,
                     "steps": steps, "source": source,
-                    "enrichment": "fallback" if catalog_unavailable else result.get("enrichment"),
+                    "enrichment": result.get("enrichment"),
                 })
-                if key and key in report.model_dump_json():
-                    raise RuntimeError("Credential in report")
                 save_report(owner, report.model_dump(mode="json"))
                 await queue.put(CompleteEvent(report=report))
             except TimeoutError:
                 await fail("انتهت مهلة التشغيل. حاول تاني أو شغّل الفحص المحلي.")
             except GraphError as exc:
-                message = str(exc)
-                await fail("تعذّر إكمال التشغيل." if key and key in message else message)
-            except Exception as exc:
-                status = getattr(exc, "status_code", None)
-                reason = {401: "OpenRouter رفض المفتاح.", 402: "رصيد OpenRouter غير كافٍ.",
-                          429: "وصل الموديل لحد الاستخدام. اختار موديل تاني أو حاول لاحقًا."}
-                await fail(reason.get(status, "تعذّر استكمال التشغيل. راجع المدخل وحاول تاني."))
+                await fail(str(exc))
+            except Exception:
+                await fail("تعذّر استكمال التشغيل. راجع المدخل وحاول تاني.")
 
         task = asyncio.create_task(execute())
         try:
@@ -489,7 +397,6 @@ def download(report_id: str, request: Request, lang: Literal["en", "ar"] = "en",
 @app.get("/findings", include_in_schema=False)
 @app.get("/settings", include_in_schema=False)
 @app.get("/new-scan", include_in_schema=False)
-@app.get("/checks", include_in_schema=False)
 def frontend_page(request: Request):
     _, token = session(request)
     page = FileResponse(ROOT / "frontend" / "dist" / "index.html", headers={"Cache-Control": "no-store"})
@@ -498,7 +405,13 @@ def frontend_page(request: Request):
 
 from .identity import install_identity
 from .platform_api import router as platform_router
+from .evidence_links import router as evidence_links_router
+from .github_import import router as github_import_router
+from .model_connections import router as model_connection_router
 
 install_identity(app)
 app.include_router(platform_router)
+app.include_router(evidence_links_router)
+app.include_router(github_import_router)
+app.include_router(model_connection_router)
 app.mount("/", StaticFiles(directory=ROOT / "frontend" / "dist", html=True, check_dir=False), name="frontend")

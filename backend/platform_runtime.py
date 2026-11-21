@@ -11,7 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from .platform_db import Base, bind_project, platform_session
 from .contracts import Report, history_item
 from .phase9_contracts import (
-    PROFILE, RAW_RETENTION_MINUTES, Asset, FindingObservation, ScanProvenance,
+    DEFAULT_INPUTS, PROFILE, RAW_RETENTION_MINUTES, Asset, FindingObservation, ScanProvenance,
     ScopeVersion, SourceSnapshot, analyzer_plan, json_digest,
 )
 
@@ -45,6 +45,7 @@ scans = sa.Table(
     sa.Column("lease", sa.String(32)),
     sa.Column("lease_until", sa.DateTime),
     sa.Column("enrichment_reserved_at", sa.DateTime),
+    sa.Column("enrichment_started_at", sa.DateTime),
     sa.Column("created_at", sa.DateTime, nullable=False, default=now),
     sa.Column("updated_at", sa.DateTime, nullable=False, default=now),
     sa.Column("cursor", sa.Integer, nullable=False, default=0),
@@ -201,7 +202,7 @@ def record(db, row, kind, detail):
 
 def project_policy(db, org_id, project_id):
     row = db.execute(sa.select(settings).where(scope(settings, org_id, project_id))).mappings().first()
-    return (row["version"], row["policy"]) if row else (0, {"allowed_kinds": ["html"]})
+    return (row["version"], row["policy"]) if row else (0, {"allowed_kinds": list(DEFAULT_INPUTS)})
 
 
 def lock_project(db, org_id, project_id):
@@ -210,8 +211,8 @@ def lock_project(db, org_id, project_id):
                                                projects.c.id == project_id).with_for_update()).one()
 
 
-def declared_asset(db, ids, ref, clock):
-    if not ref:
+def web_origin(ref):
+    if not ref or any(ord(char) <= 32 or ord(char) == 127 or char == "\\" for char in ref):
         return None
     try:
         url = urlsplit(ref)
@@ -225,6 +226,14 @@ def declared_asset(db, ids, ref, clock):
         return None
     if port is not None and (url.scheme, port) not in {("http", 80), ("https", 443)}:
         origin += f":{port}"
+    return origin
+
+
+def declared_asset(db, ids, ref, clock):
+    origin = web_origin(ref)
+    if not origin:
+        return None
+    url = urlsplit(ref)
     fingerprint = json_digest([origin, url.path.rstrip("/")])
     existing = db.execute(sa.select(assets.c.id).where(scope(assets, **ids),
                                                        assets.c.reference_digest == fingerprint)).scalar_one_or_none()
@@ -237,11 +246,14 @@ def declared_asset(db, ids, ref, clock):
     return asset_id
 
 
-def create_scan(ctx, envelope, raw, idempotency_key, *, scope_version=None, model_connection=None):
+def create_scan(ctx, envelope, raw, idempotency_key, *, scope_version=None, model_connection=None,
+                target_reference=None, before_create=None):
     from .artifact_review import RULESET_VERSION
     from .model_connections import public_connection
 
     request = {**envelope, "scope_version": scope_version, "model_connection": model_connection} if scope_version is not None else envelope
+    if target_reference:
+        request = {**request, "target_reference": target_reference}
     digest = hashlib.sha256(json.dumps(request, sort_keys=True).encode() + b"\x00" + raw).hexdigest()
     ids = {"org_id": ctx.org_id, "project_id": ctx.project_id}
     with platform_session() as db:
@@ -261,6 +273,8 @@ def create_scan(ctx, envelope, raw, idempotency_key, *, scope_version=None, mode
             if found["request_digest"] != digest:
                 raise Conflict("المفتاح ده مرتبط بطلب مختلف.")
             return scan_view(found)
+        if before_create:
+            before_create(db)
         pending = db.execute(sa.select(sa.func.count()).select_from(scans).where(
             scope(scans, **ids), scans.c.state.in_(["queued", "running"]),
         )).scalar_one()
@@ -273,9 +287,17 @@ def create_scan(ctx, envelope, raw, idempotency_key, *, scope_version=None, mode
         version, policy = project_policy(db, **ids)
         if scope_version is not None and scope_version != version:
             raise Conflict("سياسة المشروع اتغيّرت. راجع النطاق مرة تانية قبل الفحص.")
-        if envelope["kind"] not in policy.get("allowed_kinds", ["html"]):
+        if envelope["kind"] not in policy.get("allowed_kinds", DEFAULT_INPUTS):
             raise Conflict("نوع المدخل خارج السياسة الحالية للمشروع.")
-        connection = public_connection(policy) if model_connection else None
+        if target_reference:
+            configured_origin = web_origin(policy.get("base_url"))
+            if configured_origin and target_reference != configured_origin:
+                raise Conflict("عنوان الموقع لازم يطابق الأصل المحدد في سياسة المشروع.")
+            if not configured_origin:
+                policy = {**policy, "base_url": target_reference}
+        if envelope["kind"] == "zap" and not web_origin(policy.get("base_url")):
+            raise Conflict("تقرير ZAP يحتاج عنوان موقع مطابق للأدلة المحفوظة.")
+        connection = public_connection(db, ctx.org_id, policy) if model_connection else None
         if model_connection and (not connection or model_connection != connection["id"]):
             raise Conflict("اتصال الموديل مش متاح في سياسة المشروع.")
         tools = analyzer_plan(envelope["kind"])
@@ -285,7 +307,8 @@ def create_scan(ctx, envelope, raw, idempotency_key, *, scope_version=None, mode
         scan_id = uuid4().hex
         artifact = {**envelope, "enrich": bool(connection)}
         if connection:
-            artifact.update(model_connection=connection["id"], connection_model=connection["model"])
+            artifact.update(model_connection=connection["id"], connection_model=connection["model"],
+                            connection_generation=connection["generation"])
         data = {
             **ids, "id": scan_id, "user_id": ctx.user_id, "state": "queued", "cursor": 0,
             "idempotency_key": idempotency_key, "request_digest": digest, "input_meta": artifact, "raw": raw,
@@ -298,7 +321,8 @@ def create_scan(ctx, envelope, raw, idempotency_key, *, scope_version=None, mode
                 asset_id = declared_asset(db, ids, policy.get("base_url"), clock)
                 db.execute(scans.insert().values(**data))
                 pinned_scope = ScopeVersion(version=version, sha256=json_digest({"version": version, **policy}),
-                                            asset_id=asset_id, ruleset_version=RULESET_VERSION)
+                                            asset_id=asset_id, ruleset_version=RULESET_VERSION,
+                                            asset_source="scan_reference" if target_reference else "project_policy")
                 db.execute(provenance.insert().values(**ids, scan_id=scan_id, asset_id=asset_id,
                            source_sha256=hashlib.sha256(raw).hexdigest(),
                            scope=pinned_scope.model_dump(mode="json"), tools=tools))
@@ -314,7 +338,7 @@ def create_scan(ctx, envelope, raw, idempotency_key, *, scope_version=None, mode
 
 
 def scan_view(row):
-    artifact = {key: value for key, value in row["input_meta"].items() if key not in {"connection_model", "model_connection"}}
+    artifact = {key: value for key, value in row["input_meta"].items() if key not in {"connection_generation", "connection_model", "model_connection"}}
     return {
         "id": row["id"], "state": row["state"], "artifact": artifact, "attempt": row["attempt"],
         "cursor": row["cursor"], "created_at": timestamp(row["created_at"]),
@@ -444,9 +468,10 @@ def reserve_model_connection(org_id, project_id, scan_id, lease):
         if not actor or actor.org_id != org_id or "scan" not in ROLE_ACTIONS[actor.role]:
             return None
         _, policy = project_policy(db, org_id, project_id)
-        connection = public_connection(policy)
+        connection = public_connection(db, org_id, policy)
         if (not connection or row["input_meta"].get("model_connection") != connection["id"] or
-                row["input_meta"].get("connection_model") != connection["model"]):
+                row["input_meta"].get("connection_model") != connection["model"] or
+                row["input_meta"].get("connection_generation") != connection["generation"]):
             return None
         db.execute(scans.update().where(scans.c.id == scan_id).values(enrichment_reserved_at=now()))
         return connection
@@ -481,14 +506,16 @@ def scan_provenance(ctx, scan_id):
             ref = db.execute(sa.select(assets.c.reference).where(
                 scope(assets, **ids), assets.c.id == sidecar["asset_id"],
             )).scalar_one()
-            asset = Asset(id=sidecar["asset_id"], reference=ref)
+            asset = Asset(id=sidecar["asset_id"], reference=ref,
+                          source=sidecar["scope"].get("asset_source", "project_policy"))
         count = db.execute(sa.select(sa.func.count()).select_from(evidence_records).where(
             scope(evidence_records, **ids), evidence_records.c.scan_id == scan_id,
         )).scalar_one()
         return ScanProvenance(
             snapshot=SourceSnapshot(id=scan_id, sha256=sidecar["source_sha256"], kind=row["input_meta"]["kind"],
                                     bytes=row["input_meta"]["bytes"], created_at=timestamp(row["created_at"]),
-                                    raw_expires_at=timestamp(row["source_expires_at"])),
+                                    raw_expires_at=timestamp(row["source_expires_at"]),
+                                    github=row["input_meta"].get("github")),
             scope=sidecar["scope"], asset=asset, tools=sidecar["tools"], evidence_count=count,
         )
 

@@ -1,14 +1,71 @@
-"""Server-side project model capability. Public configuration never includes credentials."""
-import os
+"""Scoped OpenRouter configuration. Credentials never leave the provider gateway in cleartext."""
+from base64 import b64decode
 from pathlib import Path
 import re
+import os
+from typing import Annotated, Literal
+from uuid import uuid4
 
+from cryptography.exceptions import InvalidTag
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from fastapi import APIRouter, HTTPException, Request, Response
 import httpx
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
+import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+from .identity import LOCAL_HOSTS, MANAGERS, require_membership, require_user
+from .platform_db import Base, Membership, Organization, User, platform_session, utc_now
 
 CONNECTION_ID = "openrouter-default"
 MAX_MODEL_CALLS = 1
 MAX_OUTPUT_TOKENS = 1200
-MODEL_ID = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.:-]+$")
+WINDOW_SECONDS = 600
+MAX_ATTEMPTS = 6
+OPERATOR_GENERATION = "operator"
+MODEL_PATTERN = r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.:-]+$"
+MODEL_ID = re.compile(MODEL_PATTERN)
+Identifier = Annotated[str, Field(pattern=r"^[a-f0-9]{32}$")]
+Generation = Identifier | Literal["operator"]
+ModelName = Annotated[str, Field(min_length=3, max_length=160, pattern=MODEL_PATTERN)]
+router = APIRouter(prefix="/api/platform/organizations/{org_id}/model-connection",
+                   tags=["Organization model connection"])
+
+connections = sa.Table(
+    "organization_model_connections", Base.metadata,
+    sa.Column("org_id", sa.String(32), sa.ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True),
+    sa.Column("generation", sa.String(32), nullable=False),
+    sa.Column("grant_id", sa.String(32), nullable=False),
+    sa.Column("model", sa.String(160), nullable=False),
+    sa.Column("ciphertext", sa.LargeBinary, nullable=False),
+    sa.Column("verified_at", sa.DateTime(timezone=True), nullable=False),
+)
+limits = sa.Table(
+    "organization_model_attempts", Base.metadata,
+    sa.Column("org_id", sa.String(32), sa.ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True),
+    sa.Column("window", sa.BigInteger, nullable=False),
+    sa.Column("attempts", sa.Integer, nullable=False),
+)
+
+
+class ConnectionWrite(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    model: ModelName
+    api_key: SecretStr | None = Field(None, min_length=8, max_length=256)
+
+    @field_validator("api_key")
+    @classmethod
+    def validate_key(cls, key):
+        if key is not None and not re.fullmatch(r"[A-Za-z0-9_.-]+", key.get_secret_value()):
+            raise ValueError("Invalid API key")
+        return key
+
+
+class VerifyRequest(ConnectionWrite):
+    org_id: Identifier
+    previous_generation: Identifier | None
+    generation: Identifier
 
 
 def configured_model():
@@ -16,18 +73,14 @@ def configured_model():
     return model if len(model) <= 160 and MODEL_ID.fullmatch(model) else None
 
 
-def public_connection(policy=None):
+def operator_enabled(org_id):
+    allowed = {value.strip() for value in os.environ.get("MARSAD_OPERATOR_MODEL_ORGS", "").split(",") if value.strip()}
     model = configured_model()
-    if not model or os.environ.get("MARSAD_PROJECT_MODEL_ENABLED") != "1":
-        return None
-    if policy is not None and policy.get("model_connection") != CONNECTION_ID:
-        return None
-    return {"id": CONNECTION_ID, "provider": "openrouter", "model": model,
-            "max_calls": MAX_MODEL_CALLS, "max_output_tokens": MAX_OUTPUT_TOKENS}
+    return model if org_id in allowed and os.environ.get("MARSAD_PROJECT_MODEL_ENABLED") == "1" else None
 
 
 def openrouter_secret():
-    """Resolve a gateway-only file each time so replacement and removal take effect."""
+    """Resolve the operator file in the gateway so replacement and removal take effect."""
     path = os.environ.get("MARSAD_OPENROUTER_KEY_FILE")
     try:
         if path:
@@ -43,16 +96,206 @@ def openrouter_secret():
     return None
 
 
-def connection_is_ready(connection):
+def vault():
+    path = os.environ.get("MARSAD_MODEL_MASTER_KEY_FILE")
+    if path:
+        try:
+            with Path(path).open("rb") as source:
+                encoded = source.read(128).strip()
+            key = b64decode(encoded, altchars=b"-_", validate=True)
+            return AESGCM(key) if len(key) == 32 else None
+        except (OSError, ValueError):
+            pass
+    return None
+
+
+def associated_data(org_id, generation):
+    return f"marsad:openrouter:v1:{org_id}:{generation}".encode("ascii")
+
+
+def encrypt_key(encryptor, key, org_id, generation):
+    nonce = os.urandom(12)
+    return nonce + encryptor.encrypt(nonce, key.encode("ascii"), associated_data(org_id, generation))
+
+
+def decrypt_key(encryptor, ciphertext, org_id, generation):
+    if encryptor and ciphertext and 36 <= len(ciphertext) <= 284:
+        try:
+            return encryptor.decrypt(ciphertext[:12], ciphertext[12:], associated_data(org_id, generation)).decode("ascii")
+        except (InvalidTag, ValueError):
+            pass
+    return None
+
+
+def bind_organization(db, org_id):
+    if db.bind.dialect.name == "postgresql":
+        db.execute(sa.text("SELECT set_config('marsad.model_org_id', :org_id, true)"), {"org_id": org_id})
+
+
+def org_connection(db, org_id):
+    bind_organization(db, org_id)
+    return db.execute(sa.select(connections.c.generation, connections.c.grant_id, connections.c.model, connections.c.verified_at)
+                      .where(connections.c.org_id == org_id)).mappings().first()
+
+
+def public_connection(db, org_id, policy=None):
+    if policy is not None and policy.get("model_connection") != CONNECTION_ID:
+        return None
+    row = org_connection(db, org_id)
+    model = row["model"] if row else operator_enabled(org_id)
+    grant_id = row["grant_id"] if row else OPERATOR_GENERATION
+    if not model or (policy is not None and policy.get("model_grant_id", OPERATOR_GENERATION) != grant_id):
+        return None
+    verified = row["verified_at"] if row else None
+    if verified and verified.tzinfo is None:
+        verified = verified.replace(tzinfo=utc_now().tzinfo)
+    return {"id": CONNECTION_ID, "provider": "openrouter", "model": model,
+            "max_calls": MAX_MODEL_CALLS, "max_output_tokens": MAX_OUTPUT_TOKENS,
+            "generation": row["generation"] if row else OPERATOR_GENERATION, "grant_id": grant_id,
+            "verified_at": verified, "source": "organization" if row else "operator"}
+
+
+def gateway_config():
     url = os.environ.get("MARSAD_GATEWAY_URL")
     token = os.environ.get("MARSAD_GATEWAY_TOKEN")
-    if not connection or not url or not token:
-        return False
+    return (url.rstrip("/"), {"Authorization": "Bearer " + token}) if url and token else (None, None)
+
+
+def gateway_status(*, managed=False):
+    url, headers = gateway_config()
+    if not url:
+        return {}
     try:
-        response = httpx.get(url.rstrip("/") + "/health", timeout=1.5, trust_env=False,
-                             headers={"Authorization": "Bearer " + token})
+        response = httpx.get(url + ("/managed-health" if managed else "/health"),
+                             timeout=1.5, trust_env=False, headers=headers)
         response.raise_for_status()
-        status = response.json()
-        return status.get("ready") is True and status.get("model") == connection["model"]
-    except (httpx.HTTPError, ValueError, AttributeError):
+        payload = response.json()
+        return payload if isinstance(payload, dict) else {}
+    except (httpx.HTTPError, ValueError):
+        return {}
+
+
+def connection_is_ready(connection):
+    if not connection:
         return False
+    managed = connection["generation"] != OPERATOR_GENERATION
+    status = gateway_status(managed=managed)
+    return status.get("ready") is True and (managed or status.get("model") == connection["model"])
+
+
+def transport_guard(request, response):
+    response.headers["Cache-Control"] = "no-store"
+    if request.url.scheme != "https" and not (
+        request.url.scheme == "http" and request.url.hostname in LOCAL_HOSTS
+    ):
+        raise HTTPException(403, "استخدم HTTPS أو عنوان التشغيل المحلي.")
+    if request.method != "GET" and request.headers.get("origin") != str(request.base_url).rstrip("/"):
+        raise HTTPException(403, "مصدر الطلب غير مسموح.")
+
+
+def require_manager(db, org_id, user_id, *, lock=False):
+    if lock:
+        db.execute(sa.select(Organization.id).where(Organization.id == org_id).with_for_update()).first()
+        member = db.scalar(sa.select(Membership).join(User, User.id == Membership.user_id).where(
+            Membership.org_id == org_id, Membership.user_id == user_id,
+            Membership.revoked_at.is_(None), User.disabled_at.is_(None),
+        ).with_for_update())
+        if member is None:
+            raise HTTPException(404, "المؤسسة غير متاحة.")
+    else:
+        member = require_membership(db, org_id, user_id)
+    if member.role not in MANAGERS:
+        raise HTTPException(403, "إدارة اتصال الموديل متاحة لمالك المؤسسة أو مديرها.")
+    bind_organization(db, org_id)
+
+
+def reserve_verification(db, org_id):
+    window = int(utc_now().timestamp()) // WINDOW_SECONDS
+    insert = pg_insert if db.bind.dialect.name == "postgresql" else sqlite_insert
+    query = insert(limits).values(org_id=org_id, window=window, attempts=1)
+    return db.execute(query.on_conflict_do_update(
+        index_elements=[limits.c.org_id],
+        set_={"attempts": sa.case((limits.c.window == window, limits.c.attempts + 1), else_=1),
+              "window": window},
+        where=sa.or_(limits.c.window != window, limits.c.attempts < MAX_ATTEMPTS),
+    ).returning(limits.c.attempts)).scalar_one_or_none() is not None
+
+
+def connection_view(current, available):
+    fields = ("id", "provider", "model", "verified_at", "source")
+    return {"available": available, "connection": {key: current[key] for key in fields} if current else None}
+
+
+def verify_at_gateway(org_id, body, previous_generation, generation):
+    url, headers = gateway_config()
+    if not url:
+        raise HTTPException(503, "خدمة إدارة اتصال الموديل غير متاحة.")
+    payload = {"org_id": org_id, "model": body.model, "generation": generation,
+               "previous_generation": previous_generation}
+    if body.api_key is not None:
+        payload["api_key"] = body.api_key.get_secret_value()
+    try:
+        reply = httpx.post(url + "/verify", headers=headers, json=payload, timeout=15, trust_env=False)
+        if reply.status_code == 422:
+            raise HTTPException(422, "OpenRouter رفض المفتاح أو الموديل المطلوب.")
+        if reply.status_code == 409:
+            raise HTTPException(409, "الاتصال اتغيّر. حدّث الصفحة وجرّب تاني.")
+        reply.raise_for_status()
+        ciphertext = b64decode(reply.json()["ciphertext"], validate=True)
+        if not 36 <= len(ciphertext) <= 284:
+            raise ValueError("Invalid encrypted credential")
+        return ciphertext
+    except (httpx.HTTPError, ValueError, TypeError, KeyError):
+        raise HTTPException(503, "تعذّر التحقق من اتصال الموديل. جرّب مرة تانية.") from None
+
+
+@router.get("")
+def read_connection(org_id: Identifier, request: Request, response: Response):
+    transport_guard(request, response)
+    user = require_user(request)
+    with platform_session() as db:
+        require_manager(db, org_id, user.id)
+        current = public_connection(db, org_id)
+    return connection_view(current, gateway_status(managed=True).get("ready") is True)
+
+
+@router.put("")
+def write_connection(org_id: Identifier, body: ConnectionWrite, request: Request, response: Response):
+    transport_guard(request, response)
+    user = require_user(request)
+    with platform_session() as db:
+        require_manager(db, org_id, user.id, lock=True)
+        current = org_connection(db, org_id)
+        if current is None and body.api_key is None:
+            raise HTTPException(422, "أدخل مفتاح OpenRouter لإعداد الاتصال.")
+        allowed = reserve_verification(db, org_id)
+    if not allowed:
+        raise HTTPException(429, "عدد محاولات التحقق وصل للحد المؤقت.",
+                            headers={"Retry-After": str(WINDOW_SECONDS)})
+    old_generation = current["generation"] if current else None
+    new_generation = old_generation if current and body.api_key is None and body.model == current["model"] else uuid4().hex
+    ciphertext = verify_at_gateway(org_id, body, old_generation, new_generation)
+    with platform_session() as db:
+        require_manager(db, org_id, user.id, lock=True)
+        existing = org_connection(db, org_id)
+        if (existing["generation"] if existing else None) != old_generation:
+            raise HTTPException(409, "الاتصال اتغيّر. حدّث الصفحة وجرّب تاني.")
+        values = {"generation": new_generation, "model": body.model,
+                  "grant_id": existing["grant_id"] if existing else new_generation,
+                  "ciphertext": ciphertext, "verified_at": utc_now()}
+        if existing:
+            db.execute(connections.update().where(connections.c.org_id == org_id).values(**values))
+        else:
+            db.execute(connections.insert().values(org_id=org_id, **values))
+        return connection_view(public_connection(db, org_id), True)
+
+
+@router.delete("")
+def delete_connection(org_id: Identifier, request: Request, response: Response):
+    transport_guard(request, response)
+    user = require_user(request)
+    with platform_session() as db:
+        require_manager(db, org_id, user.id, lock=True)
+        db.execute(connections.delete().where(connections.c.org_id == org_id))
+        current = public_connection(db, org_id)
+    return connection_view(current, gateway_status(managed=True).get("ready") is True)

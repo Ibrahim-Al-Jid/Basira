@@ -1,0 +1,14 @@
+# Enable GitHub App archive import for installations assigned by the operator.
+services:
+  app:
+    environment:
+      MARSAD_GITHUB_APP_ID: ${MARSAD_GITHUB_APP_ID:?Set the GitHub App ID}
+      MARSAD_GITHUB_INSTALLATIONS: ${MARSAD_GITHUB_INSTALLATIONS:?Set the organization installation map}
+      MARSAD_GITHUB_APP_KEY_FILE: /run/marsad-source/github-app.pem
+    volumes:
+      - type: bind
+        source: ${MARSAD_GITHUB_APP_KEY_PATH:?Set the private GitHub App key file path}
+        target: /run/marsad-source/github-app.pem
+        read_only: true
+        bind:
+          create_host_path: false

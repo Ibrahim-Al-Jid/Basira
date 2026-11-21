@@ -12,9 +12,13 @@ import stat
 import time
 from zipfile import BadZipFile, ZipFile
 
+from .checks import openapi_contract, zap_passive
 from .contracts import Finding, RuleCoverage
-from .phase9_contracts import ANALYZER_INPUTS, TOOL_PROTOCOL_VERSION
+from .phase9_contracts import ANALYZER_INPUTS, TOOL_PROTOCOL_VERSION, json_digest
 from .rules import RULES, SourceIndex
+from .source_adapters import (
+    GITLEAKS, GITLEAKS_PROVIDERS, SOURCE_KINDS, SOURCE_TOOLS, configured_tools, review_source,
+)
 
 MAX_ARTIFACT = 2_000_000
 MAX_EXPANDED = 8_000_000
@@ -47,7 +51,7 @@ ADAPTERS = (
 )
 EXTENDED_IDS = [rule for adapter in ADAPTERS for rule in adapter.rules]
 TEXT_SUFFIXES = {
-    ".html", ".htm", ".json", ".yaml", ".yml", ".env", ".properties", ".ini", ".conf",
+    ".html", ".htm", ".css", ".json", ".yaml", ".yml", ".env", ".properties", ".ini", ".conf",
     ".cfg", ".py", ".sql", ".lock", ".toml", ".pem", ".key", ".txt", ".tf", ".xml",
     ".js", ".ts", ".jsx", ".tsx", ".sh", ".rb", ".php", ".java", ".cs", ".go", ".rs",
 }
@@ -61,7 +65,8 @@ class InputError(ValueError):
 def redact_label(label):
     if not label:
         return label
-    return re.sub(r"(?:gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,}|AKIA[A-Z0-9]{16})",
+    return re.sub(r"(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,}|"
+                  r"(?:sk|rk)_(?:live|prod|test)_[A-Za-z0-9]{10,}|AKIA[A-Z0-9]{16}|xoxb-[A-Za-z0-9-]{32,})",
                   "[redacted]", label)
 
 
@@ -84,11 +89,25 @@ def plain_text(raw):
     return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
-def read_object(raw, *, limit=MAX_FILE):
+def unique_keys(pairs):
+    value = {}
+    for key, entry in pairs:
+        if key in value:
+            raise ValueError("duplicate key")
+        value[key] = entry
+    return value
+
+
+def reject_json_constant(_name):
+    raise ValueError("invalid JSON constant")
+
+
+def read_object(raw, *, limit=MAX_FILE, strict=False):
     if len(raw) > limit:
         raise InputError("ملف JSON تجاوز الحد.")
     try:
-        result = json.loads(raw.decode("utf-8-sig"))
+        options = {"object_pairs_hook": unique_keys, "parse_constant": reject_json_constant} if strict else {}
+        result = json.loads(raw.decode("utf-8-sig"), **options)
     except (ValueError, RecursionError):
         raise InputError("ملف JSON غير صالح.") from None
     if not isinstance(result, dict):
@@ -96,7 +115,7 @@ def read_object(raw, *, limit=MAX_FILE):
     return result
 
 
-def zip_texts(raw):
+def zip_texts(raw, *, manifest=None):
     files = {}
     seen = set()
     total = 0
@@ -123,10 +142,14 @@ def zip_texts(raw):
                 total += entry.file_size
                 if total > MAX_EXPANDED or entry.file_size > MAX_FILE:
                     raise InputError("حجم ملفات ZIP بعد الفك تجاوز الحد.")
-                if (parsed.suffix.lower() in TEXT_SUFFIXES or parsed.name.lower() == ".npmrc"
-                        or parsed.name.lower().startswith(("dockerfile", ".env"))):
+                supported = (parsed.suffix.lower() in TEXT_SUFFIXES or parsed.name.lower() == ".npmrc"
+                             or parsed.name.lower().startswith(("dockerfile", ".env")))
+                if supported:
                     with archive.open(entry) as stream:
                         files[path] = plain_text(stream.read(MAX_FILE + 1))
+                if manifest is not None:
+                    manifest.append({"path": redact_label(path), "status": "included" if supported else "skipped",
+                                     "reason": None if supported else "unsupported_extension"})
     except (BadZipFile, NotImplementedError, RuntimeError, OSError):
         raise InputError("لقطة المستودع لازم تكون ZIP صالح.") from None
     if not files:
@@ -146,7 +169,17 @@ def decode_payload(content):
 
 def prepare(kind, name, raw):
     if kind == "repository":
-        return zip_texts(raw), None, []
+        manifest = []
+        return zip_texts(raw, manifest=manifest), None, [], sorted(manifest, key=lambda row: row["path"])
+    if kind == "openapi":
+        document = read_object(raw, limit=MAX_ARTIFACT, strict=True)
+        try:
+            summary = openapi_contract.inspect_document(document)
+        except ValueError:
+            raise InputError("ملف OpenAPI لازم يكون JSON بإصدار 3.0 أو 3.1 وفيه info وpaths صالحين.") from None
+        return {safe_path(name): ""}, summary, [], None
+    if kind == "zap":
+        return {safe_path(name): ""}, read_object(raw, limit=MAX_ARTIFACT, strict=True), [], None
     if kind == "har":
         har = read_object(raw, limit=MAX_ARTIFACT)
         log = har.get("log")
@@ -156,7 +189,7 @@ def prepare(kind, name, raw):
             and isinstance(row.get("response"), dict) for row in entries
         ):
             raise InputError("ملف HAR لازم يحتوي على ١–٢٠٠ استجابة محفوظة.")
-        return {}, har, []
+        return {}, har, [], None
     if kind == "config":
         package = read_object(raw, limit=MAX_ARTIFACT)
         entries = package.get("files")
@@ -172,11 +205,11 @@ def prepare(kind, name, raw):
             files = {safe_path(path): plain_text(text.encode("utf-8")) for path, text in entries.items()}
         except UnicodeError:
             raise InputError("لقطة الإعدادات فيها نص غير صالح.") from None
-        return files, None, advisories
+        return files, None, advisories, None
     text = plain_text(raw)
     if len(text) > 250_000 or not SourceIndex(text).tags:
         raise InputError("مدخل HTML محتاج عنصر واحد على الأقل، بحد ٢٥٠ ألف حرف.")
-    return {safe_path(name): text}, None, []
+    return {safe_path(name): text}, None, [], None
 
 
 def defensive_review(kind, name, raw, policy):
@@ -213,19 +246,65 @@ def catalog():
     return {"version": RULESET_VERSION, "rules": rules, "tools": tools}
 
 
-def review_prepared(prepared, policy, *, kind=None):
+def source_observations(observations, findings):
+    builtin_secrets = {
+        (item["rule"], item.get("path"), item["line"], item["evidence"]): item
+        for item in findings if item["rule"] in {"APP-01", "APP-02"}
+    }
+    supplemental = []
+    for item in observations:
+        item["path"] = redact_label(item["path"])
+        origin = item["origins"][0]
+        provider = GITLEAKS_PROVIDERS.get(origin["rule"]) if origin["tool"] == GITLEAKS.id else None
+        existing = None
+        if provider:
+            existing = builtin_secrets.get(("APP-02", item["path"], item["line"],
+                                            f"{provider} token signature is present."))
+        elif origin["tool"] == GITLEAKS.id and origin["rule"] == "private-key":
+            existing = builtin_secrets.get(("APP-01", item["path"], item["line"], "PEM private-key marker is present."))
+        if existing is not None:
+            if origin not in existing["origins"]:
+                existing["origins"].append(origin)
+        else:
+            supplemental.append(item)
+    return supplemental
+
+
+def unique_observations(findings):
+    by_fingerprint = {}
+    for item in findings:
+        identity = [item["rule"], item.get("path"), item["line"], item["evidence"]]
+        fingerprint = json_digest(identity)
+        previous = by_fingerprint.get(fingerprint)
+        if previous is None:
+            by_fingerprint[fingerprint] = {**item, "fingerprint": fingerprint}
+        else:
+            for origin in item["origins"]:
+                if origin not in previous["origins"]:
+                    previous["origins"].append(origin)
+    return list(by_fingerprint.values())
+
+
+def review_prepared(prepared, policy, *, kind=None, external=False):
     # Adapters are statically registered. Uploaded data cannot select executable commands.
     started = time.monotonic()
-    files, har, advisories = prepared
+    files, har, advisories, input_manifest = prepared
     findings = []
     coverage = []
+    api_inventory = None
+    imported_evidence = None
+    document_kinds = {"openapi": "openapi-contract", "zap": zap_passive.TOOL}
     pinned = policy.get("_analysis_plan")
+    enabled = configured_tools() if kind in SOURCE_KINDS and external else ()
     if pinned is None:
-        planned = set(ANALYZER_INPUTS)  # Compatibility for the anonymous lab and queued historical jobs.
+        planned = {document_kinds[kind]} if kind in document_kinds else set(ANALYZER_INPUTS)
+        source_plan = enabled
     else:
         planned = {item["id"] for item in pinned}
+        source_plan = tuple(tool for tool in SOURCE_TOOLS if kind in SOURCE_KINDS and tool.id in planned)
         expected = [{"id": tool, "version": RULESET_VERSION} for tool, inputs in ANALYZER_INPUTS.items()
                     if kind in inputs and tool in planned]
+        expected.extend(tool.pin for tool in source_plan)
         if policy.get("_ruleset_version") != RULESET_VERSION or not expected or expected != pinned:
             raise InputError("نسخة خطة الفحص غير متوافقة. قدّم الملف من جديد.")
     local_status = {rule_id: "not_applicable" for rule_id in RULES}
@@ -233,18 +312,20 @@ def review_prepared(prepared, policy, *, kind=None):
         if PurePosixPath(path).suffix.lower() not in {".html", ".htm"}:
             continue
         index = SourceIndex(html)
-        findings.extend({**item, "path": redact_label(path)} for item in index.evidence)
+        findings.extend({**item, "path": redact_label(path), "origins": [{
+            "tool": "html-attributes", "version": RULESET_VERSION, "rule": item["rule"],
+        }]} for item in index.evidence)
         if len(findings) > 5000:
             raise InputError("عدد مواضع الأدلة تجاوز الحد. قسّم اللقطة إلى ملفات أصغر.")
         for row in index.coverage():
             if row["status"] == "matched" or local_status[row["rule"]] == "not_applicable":
                 local_status[row["rule"]] = row["status"]
     counts = Counter(item["rule"] for item in findings)
-    for rule in RULES.values():
+    for rule in RULES.values() if kind not in document_kinds else ():
         coverage.append(RuleCoverage(rule=rule.id, domain=rule.domain, match_count=counts[rule.id],
                                      status=local_status[rule.id]))
     task_runs = [tool_record("analysis-html", "analysis", "html-attributes", started, coverage)] if "html-attributes" in planned else []
-    for adapter in ADAPTERS:
+    for adapter in ADAPTERS if kind not in document_kinds else ():
         tool_started = time.monotonic()
         expected = adapter.rules
         if adapter.id not in planned:
@@ -274,7 +355,9 @@ def review_prepared(prepared, policy, *, kind=None):
                         "rule": rule_id, "domain": domain, "severity": "medium", "confidence": "medium",
                         "assessment": "review_required", "title": rule_id,
                         "remediation": "Review the indicated setting against the project policy.",
-                        **item, "path": redact_label(item.get("path")),
+                        **item, "path": redact_label(item.get("path")), "origins": [{
+                            "tool": adapter.id, "version": RULESET_VERSION, "rule": rule_id,
+                        }],
                     }).model_dump(mode="json"))
             findings.extend(adapter_findings)
             coverage.extend(adapter_coverage)
@@ -286,19 +369,94 @@ def review_prepared(prepared, policy, *, kind=None):
                                 for rule in expected]
             coverage.extend(adapter_coverage)
         task_runs.append(tool_record("analysis-" + adapter.id, "analysis", adapter.id, tool_started, adapter_coverage))
-    applied = sum(row.status in ("matched", "clear") for row in coverage)
+    if kind == "openapi":
+        api_inventory, counts = har
+        path = redact_label(next(iter(files)))
+        for rule, count in counts.items():
+            coverage.append(RuleCoverage(rule=rule, domain="api", match_count=int(bool(count)),
+                                         status="matched" if count else "clear"))
+            if count:
+                title, title_ar, remediation, remediation_ar = openapi_contract.RULES[rule]
+                findings.append(Finding(
+                    rule=rule, severity="medium" if rule == "API-01" else "low",
+                    line=1, path=path, evidence=f"{count} matching declarations in the document.",
+                    title=title, title_ar=title_ar, remediation=remediation, remediation_ar=remediation_ar,
+                    domain="api", confidence="high", assessment="review_required",
+                    origins=[{"tool": "openapi-contract", "version": RULESET_VERSION, "rule": rule}],
+                ).model_dump(mode="json"))
+        task_runs.append(tool_record("analysis-openapi-contract", "analysis", "openapi-contract", started, coverage))
+    if kind == "zap":
+        try:
+            imported_evidence, imported_counts = zap_passive.inspect_document(har, policy.get("base_url"))
+        except ValueError as exc:
+            if str(exc) == "scope":
+                raise InputError("أصل الموقع في تقرير ZAP لازم يطابق مرجع الفحص.") from None
+            raise InputError("ملف ZAP محتاج تقرير Traditional JSON صالح ضمن حدود الاستيراد.") from None
+        path = redact_label(next(iter(files)))
+        for rule, (severity, title, title_ar, remediation, remediation_ar) in zap_passive.RULES.items():
+            count = imported_counts[rule]
+            coverage.append(RuleCoverage(rule=rule, domain="web", match_count=int(bool(count)),
+                                         status="matched" if count else "not_applicable",
+                                         reason="imported_observation" if count else "alert_not_present_in_export"))
+            if count:
+                findings.append(Finding(
+                    rule=rule, severity=severity, line=1, path=path,
+                    evidence=f"Saved ZAP report contains {count} observation(s) for this rule.",
+                    title=title, title_ar=title_ar, remediation=remediation, remediation_ar=remediation_ar,
+                    domain="web", assessment="review_required",
+                    origins=[{"tool": zap_passive.TOOL, "version": RULESET_VERSION, "rule": rule}],
+                ).model_dump(mode="json"))
+        run = tool_record("analysis-zap-import", "analysis", zap_passive.TOOL, started, coverage)
+        task_runs.append({**run, "checks": 0, "reason": "imported_observations"})
+    for tool in source_plan:
+        tool_started = time.monotonic()
+        result = review_source(tool, files) if tool in enabled else None
+        status = result.status if result else "skipped"
+        reason = result.reason if result else "adapter_unavailable"
+        observations = []
+        if result and len(findings) + len(result.observations) <= 5000:
+            observations = source_observations(result.observations, findings)
+        elif result and result.observations:
+            status, reason = "error", "adapter_output_limit"
+        if status == "matched" and not observations:
+            status, reason = "clear", "merged_observations"
+        findings.extend(Finding.model_validate(item).model_dump(mode="json") for item in observations)
+        row = RuleCoverage(rule=tool.rule, domain=tool.domain, status=status, match_count=len(observations), reason=reason)
+        coverage.append(row)
+        task = tool_record("analysis-" + tool.id, "analysis", tool.id, tool_started, [row])
+        task.update(version=tool.version, reason=reason, database_date=(
+            result.database_date.isoformat() if result and result.database_date else None
+        ))
+        if status == "skipped" or (status == "error" and observations):
+            task["status"] = "partial"
+        task_runs.append(task)
+    findings = unique_observations(findings)
+    counts = Counter(item["rule"] for item in findings)
+    for row in coverage:
+        row.match_count = counts[row.rule]
+    applied = 0 if imported_evidence else sum(row.status in ("matched", "clear") for row in coverage)
     unique = len({finding["rule"] for finding in findings})
     errors = sum(row.status in {"error", "skipped"} for row in coverage)
-    return {
-        "summary_ar": f"انطبقت {applied} قاعدة على الملفات المقدّمة. ظهرت {unique} أنواع نتائج في "
-                      f"{len(findings)} مواضع، وتعذّر تنفيذ {errors} قاعدة.",
-        "summary_en": f"{applied} {'rule' if applied == 1 else 'rules'} applied to the submitted artifacts. "
+    if imported_evidence:
+        summary_ar = f"استوردنا مجموعات ملاحظات من تقرير ZAP محفوظ تغطي {unique} أنواع."
+        summary_en = f"Imported {unique} observation type(s) from the saved ZAP report."
+    else:
+        summary_ar = (f"انطبقت {applied} قاعدة على الملفات المقدّمة. ظهرت {unique} أنواع نتائج في "
+                      f"{len(findings)} مواضع، وتعذّر تنفيذ {errors} قاعدة.")
+        summary_en = (f"{applied} {'rule' if applied == 1 else 'rules'} applied to the submitted artifacts. "
                       f"Found {unique} {'finding type' if unique == 1 else 'finding types'} "
                       f"at {len(findings)} {'location' if len(findings) == 1 else 'locations'}. "
-                      f"{errors} {'rule' if errors == 1 else 'rules'} could not run.",
+                      f"{errors} {'rule' if errors == 1 else 'rules'} could not run.")
+    return {
+        "summary_ar": summary_ar,
+        "summary_en": summary_en,
         "summary_source": "system",
+        "status": "partial" if errors else "completed",
         "enrichment": "disabled",
         "findings": findings,
+        "api_inventory": api_inventory,
+        "imported_evidence": imported_evidence,
+        "input_manifest": input_manifest,
         "coverage": [row.model_dump(mode="json") for row in coverage],
         "input_paths": sorted(redact_label(path) for path in files),
         "task_runs": task_runs,

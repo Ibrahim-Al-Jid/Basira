@@ -114,7 +114,6 @@ def test_cancel_invalid_input_policy_and_six_memory_types(platform):
     bundle = artifact("config", "settings.json", json.dumps({
         "files": {"Dockerfile": "FROM python:3\nUSER root\n"},
     }).encode())
-    assert submit(owner, ctx, bundle).status_code == 409
     assert owner.put(root + "/policy", json={"allowed_kinds": ["config"],
                                             "base_url": "https://authorized.test"}).status_code == 200
     assert submit(owner, ctx).status_code == 409
@@ -249,8 +248,13 @@ def test_gateway_keeps_raw_input_and_memory_out_of_provider(monkeypatch, tmp_pat
     monkeypatch.setenv("MARSAD_OPENROUTER_KEY_FILE", str(key))
     monkeypatch.setenv("MARSAD_OPENROUTER_KEY", "fallback-key-must-not-be-used")
     monkeypatch.setenv("MARSAD_OPENROUTER_MODEL", "test/model")
+    org_id = "a" * 32
+    monkeypatch.setenv("MARSAD_OPERATOR_MODEL_ORGS", org_id)
+    monkeypatch.setenv("MARSAD_PROJECT_MODEL_ENABLED", "1")
+    monkeypatch.setattr(model_gateway, "start_model_call", lambda _body: (None,))
     seen = []
-    def provider(url, *, headers, timeout, json):
+    def provider(url, *, headers, timeout, json, trust_env):
+        assert not trust_env
         assert json["max_tokens"] == 1200
         assert json["provider"]["data_collection"] == "deny"
         seen.append((url, json["messages"][-1]["content"], headers["Authorization"]))
@@ -260,13 +264,15 @@ def test_gateway_keeps_raw_input_and_memory_out_of_provider(monkeypatch, tmp_pat
     monkeypatch.setattr(model_gateway.httpx, "post", provider)
     with TestClient(model_gateway.app) as service:
         headers = {"Authorization": "Bearer token-for-testing"}
-        facts = {"connection": "openrouter-default", "model": "test/model", "counts": {"http-form": 1}}
+        facts = {"connection": "openrouter-default", "model": "test/model", "counts": {"http-form": 1},
+                 "org_id": org_id, "project_id": "b" * 32, "scan_id": "c" * 32,
+                 "lease": "d" * 32, "generation": "operator"}
         assert service.get("/health").status_code == 401
         assert service.get("/health", headers=headers).json() == {"ready": True, "model": "test/model"}
         assert service.post("/priority", json=facts).status_code == 401
         invalid = service.post("/priority", headers=headers, json={**facts, "memory": "secret user content"})
         assert invalid.status_code == 422 and "secret user content" not in invalid.text
-        assert service.post("/priority", headers=headers, json={**facts, "model": "other/model"}).status_code == 503
+        assert service.post("/priority", headers=headers, json={**facts, "model": "other/model"}).status_code == 409
         for label in ("first-fake-key", "rotated-fake-key"):
             key.write_text(label, encoding="utf-8")
             assert service.post("/priority", headers=headers, json=facts).json() == {"priority": ["http-form"]}
