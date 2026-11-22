@@ -1,3 +1,4 @@
+from base64 import b64encode
 import json
 
 import pytest
@@ -10,6 +11,10 @@ ACTION_PIN = "b" * 40
 SYNTHETIC_TOKEN = "ghp_" + "d" * 36
 SYNTHETIC_PASSWORD = "discard-this-test-password"
 APP_PATH = "config/prod/settings.env"
+SYNTHETIC_PEM_BODY = b64encode(b"Fictional payload with no cryptographic key material").decode("ascii")
+SYNTHETIC_PEM_BEGIN = "-----BEGIN " + "PRIVATE KEY-----"
+SYNTHETIC_PEM_END = "-----END " + "PRIVATE KEY-----"
+SYNTHETIC_PEM = "\n".join((SYNTHETIC_PEM_BEGIN, SYNTHETIC_PEM_BODY, SYNTHETIC_PEM_END))
 
 
 def kubernetes(unsafe):
@@ -99,7 +104,7 @@ def app_settings(unsafe):
         f"TLS_KEYSTORE_PASSWORD={SYNTHETIC_PASSWORD if unsafe else '${STORE_PASSWORD}'}",
         f"DATABASE_URL=postgresql://db_user:{SYNTHETIC_PASSWORD if unsafe else '${DB_PASSWORD}'}@db.invalid/test",
         f"PROVIDER_TOKEN={SYNTHETIC_TOKEN if unsafe else '${TOKEN}'}",
-        "-----BEGIN PRIVATE KEY-----" if unsafe else "-----BEGIN CERTIFICATE-----",
+        SYNTHETIC_PEM if unsafe else "-----BEGIN CERTIFICATE-----",
     ])
 
 
@@ -151,6 +156,24 @@ def test_config_catalog_outcomes(rule, snapshots, policy):
     else:
         assert actual == []
     assert config.check({"README.md": "Offline catalog"}, None, policy, [])[rule] is None
+
+
+def test_app_private_key_needs_a_complete_plausible_pem_block():
+    inputs = {
+        "backend/test_example.py": f'head = "{SYNTHETIC_PEM_BEGIN}"',
+        "app/truncated.pem": f"{SYNTHETIC_PEM_BEGIN}\n{SYNTHETIC_PEM_BODY}\n",
+        "app/empty.key": f"{SYNTHETIC_PEM_BEGIN}\n{SYNTHETIC_PEM_END}\n",
+        "app/bad-encoding.pem": f"{SYNTHETIC_PEM_BEGIN}\n{SYNTHETIC_PEM_BODY}!\n{SYNTHETIC_PEM_END}",
+        "app/wrong-label.pem": SYNTHETIC_PEM.removesuffix(SYNTHETIC_PEM_END) + "-----END CERTIFICATE-----",
+        "app/match.pem": SYNTHETIC_PEM,
+        "app/match.py": f'# First line\nKEY = """{SYNTHETIC_PEM}"""',
+        "app/match.json": json.dumps({"key": SYNTHETIC_PEM}),
+    }
+    hits = config.check(inputs, None, {}, [])["APP-01"]
+    assert {(hit["path"], hit["line"]) for hit in hits} == {
+        ("app/match.pem", 1), ("app/match.py", 2), ("app/match.json", 1),
+    }
+    assert SYNTHETIC_PEM_BODY not in str(hits)
 
 
 def test_absence_rules_require_policy_and_complete_input(policy):

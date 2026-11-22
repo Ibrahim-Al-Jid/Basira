@@ -99,6 +99,27 @@ def main():
         expect(sidebar.get_by_role("link", name="Renamed personal QA", exact=True)).to_be_visible()
         sidebar.get_by_role("link", name="GitHub Connection").click()
         expect(page.get_by_text("The server needs a GitHub App configuration.", exact=False)).to_be_visible()
+        page.route("**/api/platform/github/connection", lambda route: route.fulfill(
+            json={"connect_available": True, "connected": True}))
+        page.route("**/api/platform/github/repositories", lambda route: route.fulfill(json={
+            "account": {"login": "fixture-user"},
+            "repositories": [
+                {"installation_id": "12", "repository_id": "28",
+                 "repository": "Example/Fixture", "default_branch": "main", "private": True},
+                {"installation_id": "12", "repository_id": "29",
+                 "repository": "Example/Other", "default_branch": "dev", "private": False},
+            ],
+        }))
+        page.reload()
+        expect(page.get_by_text("Connected", exact=True)).to_be_visible()
+        expect(page.get_by_text("@fixture-user", exact=True)).to_be_visible()
+        expect(page.get_by_text("Example/Fixture", exact=True)).to_be_visible()
+        expect(page.get_by_text("Private", exact=True)).to_be_visible()
+        page.get_by_role("searchbox", name="Find a repository").fill("Other")
+        expect(page.get_by_text("Example/Fixture", exact=True)).to_have_count(0)
+        expect(page.get_by_text("Example/Other", exact=True)).to_be_visible()
+        expect(page.get_by_role("button", name="Refresh repositories")).to_be_enabled()
+        page.unroute_all()
         assert owner.request.get(origin + "/demo").status == 404
         sidebar.get_by_role("button", name="Logout", exact=True).click()
         page.wait_for_url(origin + "/")

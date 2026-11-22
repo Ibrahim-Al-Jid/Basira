@@ -2,10 +2,12 @@ import hashlib
 from datetime import timedelta
 
 import httpx
+import pytest
 import sqlalchemy as sa
 
 from . import phase9_contracts, platform_jobs as jobs, platform_runtime as store
 from .artifact_review import RULESET_VERSION, catalog
+from .offline_worker import scan_payload
 from .platform_db import platform_session
 from .test_platform_identity import invite_member
 from .test_platform_runtime import artifact, platform, submit  # noqa: F401
@@ -17,6 +19,32 @@ def root(ctx):
 
 def reviewed(version, **extra):
     return {**artifact(), "scope_version": version, "acknowledge_scope": True, **extra}
+
+
+@pytest.mark.parametrize("tool_id,version", [
+    ("semgrep", "1.186.0"), ("unregistered-scanner", "1"), ("gitleaks", "0"),
+])
+def test_offline_worker_rejects_tools_outside_approved_plan(monkeypatch, tool_id, version):
+    monkeypatch.setenv("MARSAD_SOURCE_ADAPTERS", "gitleaks")
+    pins = phase9_contracts.analyzer_plan("config")
+    result = scan_payload({
+        "kind": "config", "name": "review.json", "content": "eyJmaWxlcyI6eyJhLnR4dCI6InNhZmUifX0=",
+        "policy": {"_ruleset_version": RULESET_VERSION, "_analysis_plan": [
+            *pins, {"id": tool_id, "version": version},
+        ]},
+    }, external=True)
+    assert result == {"error": "نسخة خطة الفحص غير متوافقة. قدّم الملف من جديد."}
+
+
+def test_analyzer_registry_keeps_shadow_and_offline_decisions(monkeypatch):
+    monkeypatch.setenv("MARSAD_SOURCE_ADAPTERS", "gitleaks,semgrep")
+    pins = phase9_contracts.analyzer_plan("config")
+    decisions = {row.id: row for row in phase9_contracts.resolve_analyzers("config", pinned=pins, external=False)}
+    assert decisions["gitleaks"].reason == "offline_runner_required"
+    assert decisions["osv-scanner"].reason == "not_in_pinned_plan"
+    assert decisions["semgrep"].reason == decisions["trivy"].reason == "shadow_only"
+    assert decisions["openapi-contract"].reason == "unsupported_input"
+    assert decisions["deployment-config"].status == "selected"
 
 
 def test_scoped_snapshot_pins_policy_and_tool_versions(platform):

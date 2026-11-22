@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+from dataclasses import replace
 
 import pytest
 
@@ -131,6 +132,89 @@ def test_unavailable_osv_database_is_partial(monkeypatch, tmp_path):
     report = scan(POSITIVE)
     [osv] = [run for run in report["task_runs"] if run["tool"] == "osv-scanner"]
     assert report["status"] == "partial" and osv["reason"] == "database_unavailable"
+
+
+@pytest.mark.parametrize("lockfile_version", [2, 3])
+def test_osv_npm_scans_sanitized_lockfile_and_preserves_evidence_line(monkeypatch, tmp_path, lockfile_version):
+    monkeypatch.setenv("MARSAD_SOURCE_ADAPTERS", "osv-scanner")
+    monkeypatch.setenv("MARSAD_OSV_DB_DIRECTORY", str(tmp_path))
+    cache = tmp_path / "osv-scalibr" / "npm" / "all.zip"
+    cache.parent.mkdir(parents=True)
+    cache.touch()
+    (tmp_path / "npm-database-date").write_text("2026-11-22", encoding="ascii")
+    lock = json.dumps({
+        "lockfileVersion": lockfile_version,
+        "packages": {
+            "": {"name": "separate-root", "version": "1.0.0"},
+            "node_modules/@demo/example": {
+                "version": "1.2.3", "resolved": "https://registry.npmjs.org/@demo/example/-/example-1.2.3.tgz",
+                "install": "discard this field", "integrity": "discard this too",
+            },
+            "node_modules/example/node_modules/@demo/example": {"version": "1.2.3"},
+            "node_modules/local": {"link": True, "resolved": "../other"},
+            "node_modules/internal": {"version": "2.0.0", "resolved": "https://example.invalid/internal.tgz"},
+        },
+        "dependencies": {"legacy": {"version": "0.0.0"}},
+    }, indent=2)
+    expected_line = next(index for index, line in enumerate(lock.splitlines(), 1)
+                         if '"node_modules/@demo/example":' in line)
+
+    def cli(tool, args, _directory, _report, **_options):
+        assert tool is adapters.OSV and "--offline" in args and "--no-resolve" in args
+        path = Path(args[args.index("--lockfile") + 1])
+        clean = json.loads(path.read_text(encoding="ascii"))
+        assert clean == {"lockfileVersion": 3, "packages": {"node_modules/@demo/example": {"version": "1.2.3"}}}
+        return {"results": [{"source": {"path": str(path)}, "packages": [{
+            "package": {"ecosystem": "npm", "name": "@demo/example", "version": "1.2.3"},
+            "vulnerabilities": [{"id": "GHSA-FIXT-URES-0001"}],
+        }]}]}, 1
+
+    monkeypatch.setattr(adapters, "run_cli", cli)
+    report = projected_report(scan({"frontend/package-lock.json": lock}))
+    [finding] = report.findings
+    assert (finding.path, finding.line) == ("frontend/package-lock.json", expected_line)
+    assert finding.advisory.ecosystem == "npm" and finding.advisory.database_date.isoformat() == "2026-11-22"
+    assert report.status == "partial"
+
+
+def test_duplicate_npm_json_keys_remain_partial_and_never_run_cli(monkeypatch):
+    monkeypatch.setattr(adapters, "run_cli", lambda *_args, **_kwargs: pytest.fail("Invalid lockfile reached OSV"))
+    lock = '{"lockfileVersion":3,"packages":{"node_modules/example":{"version":"1.0.0","version":"2.0.0"}}}'
+    assert adapters.review_source(adapters.OSV, {"package-lock.json": lock}).reason == "unsupported_dependency_pin"
+
+
+def test_missing_npm_database_retains_pypi_results(monkeypatch, tmp_path):
+    monkeypatch.setenv("MARSAD_OSV_DB_DIRECTORY", str(tmp_path))
+    cache = tmp_path / "osv-scalibr" / "PyPI" / "all.zip"
+    cache.parent.mkdir(parents=True)
+    cache.touch()
+    (tmp_path / "database-date").write_text("2026-11-21", encoding="ascii")
+
+    def cli(_tool, args, _directory, _report, **_options):
+        assert args.count("--lockfile") == 1
+        path = Path(args[args.index("--lockfile") + 1])
+        assert path.name == "requirements.txt"
+        return {"results": [{"source": {"path": str(path)}, "packages": [{
+            "package": {"ecosystem": "PyPI", "name": "demo", "version": "1.0.0"},
+            "vulnerabilities": [{"id": "GHSA-FIXT-URES-0002"}],
+        }]}]}, 1
+
+    monkeypatch.setattr(adapters, "run_cli", cli)
+    result = adapters.review_source(adapters.OSV, {
+        "requirements.txt": "demo==1.0.0\n",
+        "package-lock.json": '{"lockfileVersion":3,"packages":{"node_modules/demo":{"version":"1.0.0"}}}',
+    })
+    assert (result.status, result.reason) == ("error", "database_unavailable")
+    assert result.observations[0]["advisory"]["ecosystem"] == "PyPI"
+
+
+def test_adapter_broker_rejects_equal_copies_and_excess_runtime(tmp_path):
+    copied = replace(adapters.GITLEAKS)
+    assert adapters.review_source(copied, {}).reason == "adapter_not_registered"
+    with pytest.raises(adapters.AdapterError, match="adapter_not_registered"):
+        adapters.run_cli(copied, [], tmp_path, tmp_path / "report.json", timeout=1, success={0})
+    with pytest.raises(adapters.AdapterError, match="adapter_budget_exceeded"):
+        adapters.run_cli(adapters.GITLEAKS, [], tmp_path, tmp_path / "report.json", timeout=9, success={0})
 
 
 @pytest.mark.skipif(os.environ.get("MARSAD_REAL_ADAPTERS") != "1", reason="requires pinned tools and a read-only OSV snapshot")

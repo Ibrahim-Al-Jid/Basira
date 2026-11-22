@@ -119,8 +119,66 @@
 .personal-project-management { display: grid; gap: var(--section-gap); }
 .personal-project-management .project-form { max-inline-size: 38rem; }
 .project-panel .danger-action { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 42%, var(--line)); }
-.personal-github { inline-size: min(100%, 46rem); }
-.personal-github p { max-inline-size: 60ch; }
+.personal-github { inline-size: min(100%, 60rem); }
+.personal-github p { max-inline-size: 66ch; }
+.github-account-identity,
+.github-repositories-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .75rem;
+}
+.github-account-identity h2,
+.github-repositories-header h2 { margin: 0; font-size: 1.1rem; }
+.github-account-identity bdi { color: var(--muted); overflow-wrap: anywhere; }
+.github-account-identity > div { min-inline-size: 0; }
+.github-connection-state,
+.github-repository-count,
+.github-repository-visibility {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .26rem .62rem;
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: .8rem;
+}
+.github-connection-state { margin-inline-start: auto; }
+.github-connection-state[data-connected="true"] { background: var(--tint); color: var(--accent); }
+.github-repositories-header { justify-content: space-between; }
+.github-repositories-header h2 { display: inline-flex; align-items: center; gap: .5rem; }
+.github-repository-search {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  max-inline-size: 22rem;
+  color: var(--muted);
+}
+.github-repository-search input { flex: 1; min-inline-size: 0; inline-size: 100%; }
+.github-repository-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-block: 1px solid var(--line);
+}
+.github-repository-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .75rem;
+  padding: .85rem .25rem;
+}
+.github-repository-list li + li { border-block-start: 1px solid var(--line); }
+.github-repository-list li > svg { color: var(--accent); }
+.github-repository-name { display: grid; gap: .3rem; min-inline-size: 0; }
+.github-repository-name a,
+.github-repository-name small { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .35rem; }
+.github-repository-name a { inline-size: fit-content; font-weight: 700; }
+.github-repository-name bdi { overflow-wrap: anywhere; min-inline-size: 0; }
+.github-repository-name small { color: var(--muted); }
 
 @media (max-width: 760px) {
   .personal-shell { grid-template-columns: minmax(0, 1fr); }

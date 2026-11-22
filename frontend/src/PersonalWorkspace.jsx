@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Folder, FolderPlus, GitBranch, LogOut, Menu, Settings } from "lucide-react";
+import { ArrowUpRight, CheckCircle2, ChevronLeft, ChevronRight, Folder, FolderPlus, GitBranch, LogOut, Menu, RefreshCw, Search, Settings } from "lucide-react";
 import { post } from "./data";
 import { action, api, errorText, json, translate } from "./platformClient";
 import { DirectoryLink } from "./ProjectDirectory";
@@ -168,18 +168,64 @@ export function PersonalGitHub({ lang }) {
   const [failure, setFailure] = useState(null);
   const [busy, setBusy] = useState(false);
   const [setup, setSetup] = useState(null);
-  const [repositories, setRepositories] = useState(null);
+  const [listing, setListing] = useState(null);
   const [checking, setChecking] = useState(false);
+  const [repositoryRevision, setRepositoryRevision] = useState(0);
+  const [statusRevision, setStatusRevision] = useState(0);
+  const [query, setQuery] = useState("");
+  const connected = Boolean(view?.connected);
   const outcome = new URLSearchParams(window.location.search).get("github");
+  const callbackMessage = {
+    failed: t("تفويض GitHub ما اكتملش. اضغط «اربط GitHub» وكمّل التفويض من نفس المتصفح.",
+      "GitHub authorization did not complete. Connect again and finish it in the same browser."),
+    credentials: t("GitHub رفض بيانات التطبيق. راجع الـClient ID والـClient Secret في إعداد مرصد.",
+      "GitHub rejected the app credentials. Check the Client ID and Client Secret in Marsad’s setup."),
+    expiration: t("GitHub مرجّعش رمز مؤقت صالح. اتأكد إن انتهاء صلاحية الرموز مفعّل في إعداد التطبيق.",
+      "GitHub did not return a valid expiring token. Check token expiration in the app settings."),
+    unavailable: t("مرصد مقدرش يكمّل الاتصال بـGitHub دلوقتي. جرّب مرة تانية.",
+      "Marsad could not complete the GitHub connection. Try again."),
+  }[outcome];
+  const repositories = listing?.repositories;
+  const visible = repositories?.filter((repo) => repo.repository.toLowerCase().includes(query.trim().toLowerCase()));
+
   useEffect(() => {
     const controller = new AbortController();
+    setFailure(null);
     action(api + "/github/connection", { signal: controller.signal }).then(
       (value) => { if (!controller.signal.aborted) setView(value); },
       (error) => { if (!controller.signal.aborted) setFailure(error); },
     );
-    action(api + "/github/setup", { signal: controller.signal }).then(setSetup, () => {});
+    action(api + "/github/setup", { signal: controller.signal }).then(
+      (value) => { if (!controller.signal.aborted) setSetup(value); },
+      () => {},
+    );
     return () => controller.abort();
-  }, []);
+  }, [statusRevision]);
+
+  useEffect(() => {
+    if (!connected) return;
+    const controller = new AbortController();
+    setChecking(true);
+    setFailure(null);
+    action(api + "/github/repositories", { signal: controller.signal }).then(
+      (result) => {
+        if (!controller.signal.aborted) setListing(result);
+      },
+      async (error) => {
+        if (controller.signal.aborted) return;
+        setListing(null);
+        setFailure(error);
+        if (error.status === 409) {
+          const status = await action(api + "/github/connection", { signal: controller.signal }).catch(() => null);
+          if (status && !controller.signal.aborted) {
+            setChecking(false);
+            setView(status);
+          }
+        }
+      },
+    ).finally(() => { if (!controller.signal.aborted) setChecking(false); });
+    return () => controller.abort();
+  }, [connected, repositoryRevision]);
   async function changeConnection() {
     setFailure(null);
     setBusy(true);
@@ -187,7 +233,9 @@ export function PersonalGitHub({ lang }) {
       if (view.connected) {
         await action(api + "/github/connection", { method: "DELETE" });
         setView({ ...view, connected: false });
-        setRepositories(null);
+        setListing(null);
+        setQuery("");
+        setChecking(false);
         window.history.replaceState(null, "", "/settings?tab=github");
       } else {
         const { url } = await action(api + "/github/authorize", { method: "POST" });
@@ -199,71 +247,89 @@ export function PersonalGitHub({ lang }) {
       setBusy(false);
     }
   }
-  async function checkConnection() {
-    setChecking(true);
-    setFailure(null);
-    try {
-      const result = await action(api + "/github/repositories");
-      setRepositories(result.repositories);
-    } catch (error) {
-      setRepositories(null);
-      setFailure(error);
-    } finally {
-      setChecking(false);
-    }
-  }
-  const registration = setup && "https://github.com/settings/apps/new?" + new URLSearchParams({
-    name: "Marsad Repository Review", url: "https://github.com/Ibrahim-Al-Jid/Marsad",
-    "callback_urls[]": setup.callback_url, contents: "read", public: "false",
-    webhook_active: "false", request_oauth_on_install: "false",
-  });
-  return <div className="project-workspace">
+
+  return <div className="project-workspace personal-github">
     <header className="project-header"><h1>{t("اتصال GitHub", "GitHub Connection")}</h1></header>
-    <section className="card project-panel personal-github">
-      <span className="personal-project-marker"><GitBranch size={22} aria-hidden="true" /></span>
-      {failure && <p role="alert">{errorText(failure, t)}</p>}
-      {outcome === "failed" && !view?.connected && <p role="alert">
-        {t("ربط GitHub ما اكتملش. راجعي الإذن وحاولي تاني.", "GitHub authorization did not complete. Check permissions and try again.")}
-      </p>}
+    <section className="card project-panel github-account">
       {view ? <>
-        <p>{view.connected ? t("الحساب متصل بـGitHub.", "GitHub is connected.")
-          : view.connect_available ? t("ثبّتي GitHub App على المستودعات المختارة، ثم اربطي حسابك.",
-            "Install the GitHub App on selected repositories and authorize your account.")
-            : t("إعداد GitHub App مطلوب على السيرفر.", "The server needs a GitHub App configuration.")}</p>
+        <div className="github-account-identity">
+          <span className="personal-project-marker"><GitBranch size={22} aria-hidden="true" /></span>
+          <div>
+            <h2>{t("حساب GitHub", "GitHub account")}</h2>
+            {connected && listing?.account?.login && <bdi>@{listing.account.login}</bdi>}
+          </div>
+          <span className="github-connection-state" data-connected={connected} role="status">
+            {connected && <CheckCircle2 size={15} aria-hidden="true" />}
+            {connected ? t("متصل", "Connected")
+              : view.connect_available ? t("في انتظار التفويض", "Authorization needed") : t("الإعداد مطلوب", "Setup required")}
+          </span>
+        </div>
+        {!connected && <p>{view.connect_available
+          ? t("اربط حسابك عشان تظهر المستودعات اللي اخترتها عند تثبيت التطبيق على GitHub.",
+            "Connect your account to see the repositories selected in the GitHub App installation.")
+          : t("إعداد GitHub App مطلوب على السيرفر.", "The server needs a GitHub App configuration.")}</p>}
+        {failure && (!connected || !checking) && <p className="workspace-error" role="alert">{errorText(failure, t)}</p>}
+        {callbackMessage && view.connect_available && !connected && !failure && <p className="workspace-error" role="alert">
+          {callbackMessage}
+        </p>}
         <div className="workspace-actions">
-          {!view.connect_available && registration && <a className="btn primary" href={registration}
-            target="_blank" rel="noreferrer">{t("افتح إعداد GitHub App", "Open GitHub App setup")}</a>}
-          {view.connect_available && setup?.install_url && <a className="btn" href={setup.install_url}
-            target="_blank" rel="noreferrer">{t("اختاري المستودعات على GitHub", "Select repositories on GitHub")}</a>}
-          {view.connect_available && <button type="button" className="btn primary" disabled={busy} onClick={changeConnection}>
-            {view.connected ? t("افصلي اتصال GitHub", "Disconnect GitHub") : t("اربطي GitHub", "Connect GitHub")}
+          {view.connect_available && <button type="button" className={connected ? "btn" : "btn primary"}
+            disabled={busy} onClick={changeConnection}>
+            {connected ? t("افصل GitHub", "Disconnect GitHub") : t("اربط GitHub", "Connect GitHub")}
           </button>}
+          {view.connect_available && setup?.install_url && <a className="btn" href={setup.install_url}
+            target="_blank" rel="noreferrer">{t("اختار المستودعات على GitHub", "Select repositories on GitHub")}
+            <ArrowUpRight size={16} aria-hidden="true" /></a>}
           {view.connected && <a className="btn" href="https://github.com/settings/apps/authorizations">
             {t("إدارة إذن GitHub", "Manage GitHub authorization")}
           </a>}
-          {view.connected && <button type="button" className="btn" disabled={busy || checking} onClick={checkConnection}>
-            {checking ? t("بنجرب الاتصال…", "Testing connection…") : t("جرّبي الاتصال", "Test connection")}
+          {!view.connect_available && <button type="button" className="btn" onClick={() => setStatusRevision((value) => value + 1)}>
+            {t("إعادة التحقق", "Check again")}
           </button>}
         </div>
-        {!view.connect_available && setup && <div className="project-form">
-          <p>{t("استخدمي عنوان الرجوع ده في GitHub App، وحددي صلاحية قراءة Contents ومستودعات مختارة.",
-            "Use this callback in the GitHub App with Contents read access and selected repositories.")}</p>
-          <code dir="ltr">{setup.callback_url}</code>
-          <p>{t("على النسخة المحلية، احفظي إعداد التطبيق من الطرفية، وبعدها حدّثي الصفحة.",
-            "For local Windows, save the app settings from the terminal, then reload this page.")}</p>
-          <code dir="ltr">.venv\Scripts\python.exe ops/configure-local-github.py</code>
-        </div>}
-        {repositories && <div aria-live="polite">
-          <h2>{t("المستودعات المتاحة", "Available repositories")}</h2>
-          {repositories.length ? <>
-            <ul>{repositories.map((repo) => <li key={repo.installation_id + "/" + repo.repository_id}>
-              <bdi>{repo.repository}</bdi> · <bdi>{repo.default_branch}</bdi>
-            </li>)}</ul>
-            <a className="btn primary" href="/new-scan">{t("ابدئي فحص مستودع", "Start a repository scan")}</a>
-          </> : <p>{t("اختاري المستودع من إعداد التثبيت على GitHub وجرّبي الاتصال تاني.",
-            "Select a repository in the GitHub App installation and test again.")}</p>}
-        </div>}
-      </> : !failure && <p role="status">{t("بنحمّل حالة الاتصال…", "Loading connection status…")}</p>}
+      </> : failure ? <>
+        <p className="workspace-error" role="alert">{errorText(failure, t)}</p>
+        <button type="button" className="btn" onClick={() => setStatusRevision((value) => value + 1)}>{t("أعد المحاولة", "Retry")}</button>
+      </> : <p role="status">{t("بنحمّل حالة الاتصال…", "Loading connection status…")}</p>}
     </section>
+    {connected && <section className="card project-panel github-repositories">
+      <div className="github-repositories-header">
+        <h2>{t("المستودعات المتاحة", "Available repositories")}
+          {repositories && <span className="github-repository-count">{repositories.length.toLocaleString(lang === "ar" ? "ar-EG" : "en")}</span>}
+        </h2>
+        <button type="button" className="btn" disabled={busy || checking}
+          onClick={() => setRepositoryRevision((value) => value + 1)}>
+          <RefreshCw size={16} aria-hidden="true" />{t("حدّث المستودعات", "Refresh repositories")}
+        </button>
+      </div>
+      {checking && <p role="status">{t("بنحمّل المستودعات…", "Loading repositories…")}</p>}
+      {repositories?.length > 1 && <label className="github-repository-search">
+        <Search size={17} aria-hidden="true" />
+        <input type="search" value={query} onChange={(event) => setQuery(event.target.value)}
+          aria-label={t("ابحث عن مستودع", "Find a repository")} placeholder={t("ابحث عن مستودع", "Find a repository")} />
+      </label>}
+      {!!visible?.length && <ul className="github-repository-list">
+        {visible.map((repo) => <li key={repo.installation_id + "/" + repo.repository_id}>
+          <Folder size={19} aria-hidden="true" />
+          <div className="github-repository-name">
+            <a href={"https://github.com/" + repo.repository} target="_blank" rel="noreferrer">
+              <bdi>{repo.repository}</bdi><ArrowUpRight size={14} aria-hidden="true" />
+            </a>
+            {repo.default_branch && <small><GitBranch size={13} aria-hidden="true" />
+              {t("الفرع الافتراضي", "Default branch")} <bdi>{repo.default_branch}</bdi>
+            </small>}
+          </div>
+          {typeof repo.private === "boolean" && <span className="github-repository-visibility">
+            {repo.private ? t("خاص", "Private") : t("عام", "Public")}
+          </span>}
+        </li>)}
+      </ul>}
+      {repositories?.length === 0 && !checking && <p role="status">
+        {t("ربط الحساب تم. اختار المستودعات على GitHub، وبعدها حدّث القائمة.",
+          "Your account is connected. Select repositories on GitHub, then refresh this list.")}
+      </p>}
+      {!!repositories?.length && !visible.length && !checking && <p role="status">{t("مفيش مستودعات مطابقة للبحث.", "No repositories match your search.")}</p>}
+      {!!visible?.length && <div><a className="btn primary" href="/new-scan">{t("ابدأ فحص مستودع", "Start a repository scan")}</a></div>}
+    </section>}
   </div>;
 }

@@ -16,11 +16,9 @@ import zlib
 
 from .checks import openapi_contract, zap_passive
 from .contracts import Finding, RuleCoverage
-from .phase9_contracts import ANALYZER_INPUTS, TOOL_PROTOCOL_VERSION, json_digest
+from .phase9_contracts import ANALYZER_INPUTS, TOOL_PROTOCOL_VERSION, json_digest, resolve_analyzers
 from .rules import RULES, SourceIndex
-from .source_adapters import (
-    GITLEAKS, GITLEAKS_PROVIDERS, SOURCE_KINDS, SOURCE_TOOLS, configured_tools, review_source,
-)
+from .source_adapters import GITLEAKS, GITLEAKS_PROVIDERS, SOURCE_TOOLS, review_source
 
 MAX_ARTIFACT = 2_000_000
 MAX_EXPANDED = 8_000_000
@@ -313,18 +311,15 @@ def review_prepared(prepared, policy, *, kind=None, external=False):
     imported_evidence = None
     document_kinds = {"openapi": "openapi-contract", "zap": zap_passive.TOOL}
     pinned = policy.get("_analysis_plan")
-    enabled = configured_tools() if kind in SOURCE_KINDS and external else ()
-    if pinned is None:
-        planned = {document_kinds[kind]} if kind in document_kinds else set(ANALYZER_INPUTS)
-        source_plan = enabled
-    else:
-        planned = {item["id"] for item in pinned}
-        source_plan = tuple(tool for tool in SOURCE_TOOLS if kind in SOURCE_KINDS and tool.id in planned)
-        expected = [{"id": tool, "version": RULESET_VERSION} for tool, inputs in ANALYZER_INPUTS.items()
-                    if kind in inputs and tool in planned]
-        expected.extend(tool.pin for tool in source_plan)
-        if policy.get("_ruleset_version") != RULESET_VERSION or not expected or expected != pinned:
-            raise InputError("نسخة خطة الفحص غير متوافقة. قدّم الملف من جديد.")
+    try:
+        if pinned is not None and policy.get("_ruleset_version") != RULESET_VERSION:
+            raise ValueError("Incompatible ruleset")
+        decisions = resolve_analyzers(kind, pinned=pinned, external=external)
+    except ValueError:
+        raise InputError("نسخة خطة الفحص غير متوافقة. قدّم الملف من جديد.") from None
+    planned = {tool.id for tool in decisions if tool.status == "selected"}
+    source_ids = planned if pinned is None else {pin["id"] for pin in pinned}
+    source_plan = tuple(tool for tool in SOURCE_TOOLS if tool.id in source_ids)
     local_status = {rule_id: "not_applicable" for rule_id in RULES}
     for path, html in files.items() if "html-attributes" in planned else ():
         if PurePosixPath(path).suffix.lower() not in {".html", ".htm"}:
@@ -428,7 +423,7 @@ def review_prepared(prepared, policy, *, kind=None, external=False):
         task_runs.append({**run, "checks": 0, "reason": "imported_observations"})
     for tool in source_plan:
         tool_started = time.monotonic()
-        result = review_source(tool, files) if tool in enabled else None
+        result = review_source(tool, files) if tool.id in planned else None
         status = result.status if result else "skipped"
         reason = result.reason if result else "adapter_unavailable"
         observations = []
@@ -478,6 +473,7 @@ def review_prepared(prepared, policy, *, kind=None, external=False):
         "coverage": [row.model_dump(mode="json") for row in coverage],
         "input_paths": sorted(redact_label(path) for path in files),
         "task_runs": task_runs,
+        "tool_selection": [item.model_dump(mode="json") for item in decisions],
         "metrics": {"checksRun": applied, "findingsCount": len(findings), "validatedCount": len(findings),
                     "modelCalls": 0, "durationMs": round((time.monotonic() - started) * 1000)},
     }
