@@ -217,6 +217,26 @@ def test_adapter_broker_rejects_equal_copies_and_excess_runtime(tmp_path):
         adapters.run_cli(adapters.GITLEAKS, [], tmp_path, tmp_path / "report.json", timeout=9, success={0})
 
 
+def test_adapter_broker_rejects_unreviewed_flags_and_paths(tmp_path, monkeypatch):
+    monkeypatch.setattr(adapters.subprocess, "run", lambda *_a, **_k: pytest.fail("Unapproved command reached process runner"))
+    report = tmp_path / "osv.json"
+    lock = str(tmp_path / "package-lock.json")
+    offline = adapters.osv_command(tmp_path, report, [lock])
+    assert adapters.approved_cli(adapters.OSV, offline, tmp_path, report)
+    cases = [
+        (adapters.OSV, [flag for flag in offline if flag != "--offline"], report, None),
+        (adapters.OSV, [*offline, "--download-offline-databases"], report, None),
+        (adapters.OSV, adapters.osv_command(tmp_path, report, [str(tmp_path.parent / "package-lock.json")]), report, None),
+        (adapters.OSV, offline, report, {"HTTPS_PROXY": "http://example.invalid"}),
+    ]
+    leaks_report = tmp_path / "gitleaks.json"
+    redacted = adapters.gitleaks_command(tmp_path, leaks_report)
+    cases.append((adapters.GITLEAKS, [arg for arg in redacted if arg != "--redact=100"], leaks_report, None))
+    for tool, argv, output, env in cases:
+        with pytest.raises(adapters.AdapterError, match="adapter_execution_denied"):
+            adapters.run_cli(tool, argv, tmp_path, output, timeout=1, success={0}, env=env)
+
+
 @pytest.mark.skipif(os.environ.get("MARSAD_REAL_ADAPTERS") != "1", reason="requires pinned tools and a read-only OSV snapshot")
 def test_actual_tools_offline_against_fixed_positive_and_negative(monkeypatch):
     monkeypatch.setenv("MARSAD_SOURCE_ADAPTERS", "gitleaks,osv-scanner")

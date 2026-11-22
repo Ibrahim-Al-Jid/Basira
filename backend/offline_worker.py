@@ -10,9 +10,9 @@ from uuid import uuid4
 
 from langgraph.graph import END, START, StateGraph
 
-from .artifact_review import EXTENDED_IDS, InputError, decode_payload, prepare, review_prepared, tool_record
+from .artifact_review import EXTENDED_IDS, InputError, decode_payload, prepare, resolve_scan_tools, review_prepared, tool_record
 from .checks import openapi_contract, zap_passive
-from .phase9_contracts import ALL_INPUTS, resolve_analyzers
+from .phase9_contracts import ALL_INPUTS
 from .rules import RULES
 from .source_adapters import SOURCE_TOOLS
 
@@ -91,16 +91,10 @@ def scan_payload(data, *, external=False):
         prepared = task("planning-normalize", "planning", "artifact-normalizer",
                         lambda item: prepare(item["kind"], item["name"], item["raw"]), state)
         def rule_plan(item):
-            if not isinstance(item["policy"], dict):
-                raise InputError("صيغة سياسة المشروع غير صالحة.")
-            pins = item["policy"].get("_analysis_plan")
-            try:
-                choices = resolve_analyzers(item["kind"], pinned=pins, external=external)
-            except ValueError:
-                raise InputError("نسخة خطة الفحص غير متوافقة. قدّم الملف من جديد.") from None
+            choices = resolve_scan_tools(item["kind"], item["policy"], external=external)
             if item["kind"] in DOCUMENT_RULES:
                 return DOCUMENT_RULES[item["kind"]]
-            scheduled = {tool.id for tool in choices if tool.status == "selected"}
+            scheduled = {tool.id for tool in choices.values() if tool.status == "selected"}
             source_rules = tuple(tool.rule for tool in SOURCE_TOOLS if tool.id in scheduled)
             return (*RULES, *EXTENDED_IDS, *source_rules)
         return {"prepared": prepared, "rules": task("planning-rules", "planning", "rule-registry", rule_plan, state)}

@@ -240,7 +240,7 @@ def tool_record(identifier, agent, tool, started, rows=()):
         outcome = "not_applicable"
     else:
         outcome = "done"
-    return {"id": identifier, "agent": agent, "tool": tool, "status": outcome,
+    return {"id": identifier, "agent": agent, "tool": tool, "status": outcome, "contract": "marsad-tool-result-1",
             "checks": statuses["clear"] + statuses["matched"], "matched": statuses["matched"],
             "coverage": [row.rule for row in rows], "duration_ms": round((time.monotonic() - started) * 1000),
             "version": RULESET_VERSION if tool in ANALYZER_INPUTS else TOOL_PROTOCOL_VERSION}
@@ -301,6 +301,18 @@ def unique_observations(findings):
     return list(by_fingerprint.values())
 
 
+def resolve_scan_tools(kind, policy, *, external):
+    if not isinstance(policy, dict):
+        raise InputError("صيغة سياسة المشروع غير صالحة.")
+    pinned = policy.get("_analysis_plan")
+    try:
+        if "_analysis_plan" in policy and (pinned is None or policy.get("_ruleset_version") != RULESET_VERSION):
+            raise ValueError("Incompatible ruleset or empty execution plan")
+        return {item.id: item for item in resolve_analyzers(kind, pinned=pinned, external=external)}
+    except ValueError:
+        raise InputError("نسخة خطة الفحص غير متوافقة. قدّم الملف من جديد.") from None
+
+
 def review_prepared(prepared, policy, *, kind=None, external=False):
     # Adapters are statically registered. Uploaded data cannot select executable commands.
     started = time.monotonic()
@@ -310,14 +322,9 @@ def review_prepared(prepared, policy, *, kind=None, external=False):
     api_inventory = None
     imported_evidence = None
     document_kinds = {"openapi": "openapi-contract", "zap": zap_passive.TOOL}
+    decisions = resolve_scan_tools(kind, policy, external=external)
     pinned = policy.get("_analysis_plan")
-    try:
-        if pinned is not None and policy.get("_ruleset_version") != RULESET_VERSION:
-            raise ValueError("Incompatible ruleset")
-        decisions = resolve_analyzers(kind, pinned=pinned, external=external)
-    except ValueError:
-        raise InputError("نسخة خطة الفحص غير متوافقة. قدّم الملف من جديد.") from None
-    planned = {tool.id for tool in decisions if tool.status == "selected"}
+    planned = {tool.id for tool in decisions.values() if tool.status == "selected"}
     source_ids = planned if pinned is None else {pin["id"] for pin in pinned}
     source_plan = tuple(tool for tool in SOURCE_TOOLS if tool.id in source_ids)
     local_status = {rule_id: "not_applicable" for rule_id in RULES}
@@ -334,19 +341,23 @@ def review_prepared(prepared, policy, *, kind=None, external=False):
             if row["status"] == "matched" or local_status[row["rule"]] == "not_applicable":
                 local_status[row["rule"]] = row["status"]
     counts = Counter(item["rule"] for item in findings)
+    html_decision = decisions["html-attributes"]
+    html_skipped = html_decision.status == "skipped" and html_decision.reason != "unsupported_input"
     for rule in RULES.values() if kind not in document_kinds else ():
         coverage.append(RuleCoverage(rule=rule.id, domain=rule.domain, match_count=counts[rule.id],
-                                     status=local_status[rule.id]))
+                                     status="skipped" if html_skipped else local_status[rule.id],
+                                     reason=html_decision.reason if html_skipped else None))
     task_runs = [tool_record("analysis-html", "analysis", "html-attributes", started, coverage)] if "html-attributes" in planned else []
     for adapter in ADAPTERS if kind not in document_kinds else ():
         tool_started = time.monotonic()
         expected = adapter.rules
         if adapter.id not in planned:
-            eligible = kind in ANALYZER_INPUTS[adapter.id]
+            reason = decisions[adapter.id].reason
+            eligible = reason != "unsupported_input"
             coverage.extend(
                 RuleCoverage(rule=rule, domain=DOMAINS[rule.split("-")[0]],
                              status="skipped" if eligible else "not_applicable", match_count=0,
-                             reason="adapter_unavailable" if eligible else "unsupported_input") for rule in expected
+                             reason=reason) for rule in expected
             )
             continue
         try:
@@ -425,7 +436,7 @@ def review_prepared(prepared, policy, *, kind=None, external=False):
         tool_started = time.monotonic()
         result = review_source(tool, files) if tool.id in planned else None
         status = result.status if result else "skipped"
-        reason = result.reason if result else "adapter_unavailable"
+        reason = result.reason if result else decisions[tool.id].reason
         observations = []
         if result and len(findings) + len(result.observations) <= 5000:
             observations = source_observations(result.observations, findings)
@@ -473,7 +484,7 @@ def review_prepared(prepared, policy, *, kind=None, external=False):
         "coverage": [row.model_dump(mode="json") for row in coverage],
         "input_paths": sorted(redact_label(path) for path in files),
         "task_runs": task_runs,
-        "tool_selection": [item.model_dump(mode="json") for item in decisions],
+        "tool_selection": [item.model_dump(mode="json") for item in decisions.values()],
         "metrics": {"checksRun": applied, "findingsCount": len(findings), "validatedCount": len(findings),
                     "modelCalls": 0, "durationMs": round((time.monotonic() - started) * 1000)},
     }

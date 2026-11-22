@@ -138,6 +138,7 @@ class TaskRun(BaseModel):
     agent: str
     tool: str
     status: Literal["done", "partial", "error", "not_applicable"]
+    contract: Literal["marsad-tool-result-1"] | None = Field(default=None, exclude_if=lambda value: value is None)
     checks: int = Field(ge=0)
     matched: int = Field(ge=0)
     coverage: list[str] = Field(default_factory=list)
@@ -162,7 +163,7 @@ class APIInventory(BaseModel):
 class InputManifestEntry(BaseModel):
     path: str = Field(max_length=240)
     status: Literal["included", "skipped"]
-    reason: Literal["unsupported_extension"] | None = None
+    reason: Literal["unsupported_extension", "build_artifact"] | None = None
 
 
 class ImportedEvidence(BaseModel):
