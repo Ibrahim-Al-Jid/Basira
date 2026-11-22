@@ -80,7 +80,17 @@ def report_pdf(report, lang):
     except ValueError:
         date = printable(report.created_at, 45)
     pdf.write_line(f"{t('تاريخ الفحص', 'Scan date')}  {date}", color=MUTED)
-    pdf.write_line(t("النطاق: تحليل دفاعي للملفات المقدمة", "Scope: defensive review of the supplied files"), color=MUTED)
+    profile = report.input_artifact.profile if report.input_artifact else None
+    if profile and profile.mode == "website":
+        pdf.write_line(t(f"النطاق: أدلة سلبية من {profile.pages or 1} صفحة HTTPS معتمدة",
+                         f"Scope: passive evidence from {profile.pages or 1} approved HTTPS pages"), color=MUTED)
+        pdf.write_line(printable(profile.public_url or "", 180), color=MUTED, direction="ltr")
+    elif profile and profile.mode == "github" and report.input_artifact.github:
+        github = report.input_artifact.github
+        pdf.write_line(t("النطاق: الملفات النصية المدعومة في لقطة GitHub", "Scope: supported text files in the GitHub snapshot"), color=MUTED)
+        pdf.write_line(printable(github.repository + " @ " + github.commit, 180), color=MUTED, direction="ltr")
+    else:
+        pdf.write_line(t("النطاق: تحليل دفاعي للملفات المقدمة", "Scope: defensive review of the supplied files"), color=MUTED)
     if report.status == "partial":
         pdf.write_line(t("فحص جزئي: تعذر إكمال بعض خطوات التحليل.", "Partial scan: some checks could not finish."), bold=True)
     pdf.ln(4)

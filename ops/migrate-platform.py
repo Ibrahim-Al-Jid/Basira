@@ -36,5 +36,6 @@ if password:
         db.execute(sql.SQL("GRANT USAGE ON SCHEMA public TO {}").format(role))
         db.execute(sql.SQL(
             "GRANT EXECUTE ON FUNCTION public.marsad_model_credential(text,text), "
-            "public.marsad_start_model_call(text,text,text,text,text,text) TO {}"
+            "public.marsad_start_model_call(text,text,text,text,text,text), "
+            "public.marsad_start_account_model_call(text,text,text,text,text,text) TO {}"
         ).format(role))

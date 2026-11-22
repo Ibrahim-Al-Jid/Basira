@@ -1,8 +1,9 @@
 .account-settings-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-  gap: 1rem;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: var(--section-gap);
   align-items: start;
+  max-inline-size: 65rem;
 }
 
 .account-identity, .account-settings-preferences { min-inline-size: 0; }
@@ -64,3 +65,9 @@
   display: grid;
   gap: var(--space-4, 1rem);
 }
+.provider-settings { max-inline-size: 65rem; scroll-margin-block-start: 1rem; }
+.provider-settings h2 { display: flex; align-items: center; gap: .55rem; }
+.provider-settings h2 svg { color: var(--accent); }
+.provider-model-picker { display: grid; gap: .85rem; grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr)); }
+.provider-model-picker > div { display: grid; gap: .4rem; min-inline-size: 0; }
+.provider-settings bdi { overflow-wrap: anywhere; }

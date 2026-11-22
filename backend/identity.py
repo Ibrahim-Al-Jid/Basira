@@ -16,7 +16,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from joserfc.errors import JoseError
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import and_, or_, select, update
+from sqlalchemy import and_, literal, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.sessions import SessionMiddleware
@@ -28,7 +28,7 @@ except ImportError:
 
 from .platform_db import (
     AuthSession, Membership, Organization, PlatformUnavailable, Project, ProjectGrant,
-    User, platform_database_url, platform_session, utc_now,
+    User, personal_projects_enabled, platform_database_url, platform_session, utc_now,
 )
 
 router = APIRouter(prefix="/api/platform", tags=["Project identity"])
@@ -64,6 +64,7 @@ class ProjectContext:
     project_id: str
     user_id: str
     role: str
+    owner_user_id: str | None = None
 
 
 class NamedResource(BaseModel):
@@ -245,6 +246,11 @@ def require_membership(db, org_id, user_id):
 
 
 def project_access(db, project_id, user_id):
+    if personal_projects_enabled():
+        return db.execute(select(Project.org_id, literal("owner").label("role")).join(
+            User, User.id == Project.owner_user_id,
+        ).where(Project.id == project_id, Project.owner_user_id == user_id,
+                Project.deleted_at.is_(None), User.disabled_at.is_(None))).one_or_none()
     return db.execute(
         select(Project.org_id, Membership.role).join(
             Membership, and_(Membership.org_id == Project.org_id, Membership.user_id == user_id,
@@ -254,7 +260,7 @@ def project_access(db, project_id, user_id):
                 ProjectGrant.org_id == Project.org_id, ProjectGrant.project_id == Project.id,
                 ProjectGrant.user_id == user_id, ProjectGrant.revoked_at.is_(None),
             ),
-        ).where(Project.id == project_id,
+        ).where(Project.id == project_id, Project.deleted_at.is_(None),
                 or_(Membership.role.in_(MANAGERS), ProjectGrant.user_id.is_not(None)))
     ).one_or_none()
 
@@ -267,7 +273,8 @@ def require_project(request, project_id, action):
         raise HTTPException(404, "المشروع غير متاح.")
     if action not in ROLE_ACTIONS[result.role]:
         raise HTTPException(403, "صلاحيتك لا تسمح بالإجراء ده.")
-    return ProjectContext(result.org_id, project_id, user.id, result.role)
+    return ProjectContext(result.org_id, project_id, user.id, result.role,
+                          user.id if personal_projects_enabled() else None)
 
 
 def persist_login(settings, claims, old_digest):
@@ -450,6 +457,10 @@ def create_project(org_id: str, body: NamedResource, request: Request):
 @router.get("/projects")
 def list_projects(request: Request):
     user = require_user(request)
+    if personal_projects_enabled():
+        from .personal_projects import list_owned
+
+        return list_owned(user.id)
     with platform_session() as db:
         items = db.execute(select(Project.id, Project.org_id, Project.name, Membership.role).join(
             Membership, and_(Membership.org_id == Project.org_id, Membership.user_id == user.id,
@@ -457,7 +468,8 @@ def list_projects(request: Request):
         ).outerjoin(ProjectGrant, and_(
             ProjectGrant.org_id == Project.org_id, ProjectGrant.project_id == Project.id,
             ProjectGrant.user_id == user.id, ProjectGrant.revoked_at.is_(None),
-        )).where(or_(Membership.role.in_(MANAGERS), ProjectGrant.user_id.is_not(None)))
+        )).where(Project.deleted_at.is_(None),
+                 or_(Membership.role.in_(MANAGERS), ProjectGrant.user_id.is_not(None)))
             .order_by(Project.name, Project.id)).mappings()
         return {"projects": [dict(item) for item in items]}
 

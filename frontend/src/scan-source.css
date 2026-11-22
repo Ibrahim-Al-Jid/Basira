@@ -19,8 +19,21 @@
   border-radius: .85rem;
   cursor: pointer;
 }
-.scan-kind:has(:checked) { border-color: var(--accent); }
+.scan-kind:has(:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--tint) 75%, var(--surface)); }
+.scan-kind:has(:disabled) { cursor: default; background: var(--surface); }
+.scan-kind:has(:disabled) strong { color: var(--muted); }
 .scan-kind:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 .project-form .scan-kind input { width: auto; min-height: auto; margin-block: .25rem 0; accent-color: var(--accent); }
 .scan-kind span { display: grid; min-width: 0; gap: .25rem; }
 .scan-kind small { color: var(--muted); font-weight: normal; }
+
+.workspace-wizard .scan-source-picker { border: 0; padding: 0; margin: 0; }
+.workspace-wizard .scan-kind { min-block-size: 5.1rem; border-radius: var(--panel-radius); }
+.workspace-wizard .workspace-upload { min-block-size: 6.5rem; }
+
+@container (min-width: 41rem) {
+  .personal-shell .workspace-wizard .scan-source-options {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .85rem;
+  }
+}

@@ -134,7 +134,7 @@ def compare(current, baseline, current_policy, baseline_policy):
 
 def read_report(ctx, report_id):
     with store.platform_session() as db:
-        store.bind_project(db, ctx.org_id, ctx.project_id)
+        store.bind_project_context(db, ctx)
         row = db.execute(sa.select(store.scans.c.report, store.scans.c.policy).where(
             store.scope(store.scans, ctx.org_id, ctx.project_id), store.scans.c.id == report_id,
         )).mappings().first()
@@ -177,7 +177,7 @@ def review_items(db, ctx, fingerprints):
 def get_review(ctx, report_id):
     report, policy = read_report(ctx, report_id)
     with store.platform_session() as db:
-        store.bind_project(db, ctx.org_id, ctx.project_id)
+        store.bind_project_context(db, ctx)
         return {"items": list(review_items(db, ctx, points(report, policy)).values()),
                 "can_edit": ctx.role in {"owner", "admin", "analyst"}}
 
@@ -188,7 +188,7 @@ def change_review(ctx, report_id, action):
     if not point:
         raise HTTPException(404, "النتيجة غير متاحة في التقرير ده.")
     with store.platform_session() as db:
-        store.bind_project(db, ctx.org_id, ctx.project_id)
+        store.bind_project_context(db, ctx)
         projects = metadata.tables["projects"]
         db.execute(sa.select(projects.c.id).where(projects.c.org_id == ctx.org_id,
                                                   projects.c.id == ctx.project_id).with_for_update()).one()

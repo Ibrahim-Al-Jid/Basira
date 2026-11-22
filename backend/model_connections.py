@@ -16,7 +16,9 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from .identity import LOCAL_HOSTS, MANAGERS, require_membership, require_user
-from .platform_db import Base, Membership, Organization, User, platform_session, utc_now
+from .platform_db import (
+    Base, Membership, Organization, User, personal_namespace_id, personal_projects_enabled, platform_session, utc_now,
+)
 
 CONNECTION_ID = "openrouter-default"
 MAX_MODEL_CALLS = 1
@@ -31,6 +33,7 @@ Generation = Identifier | Literal["operator"]
 ModelName = Annotated[str, Field(min_length=3, max_length=160, pattern=MODEL_PATTERN)]
 router = APIRouter(prefix="/api/platform/organizations/{org_id}/model-connection",
                    tags=["Organization model connection"])
+account_router = APIRouter(prefix="/api/platform/account/model-connection", tags=["Account model connection"])
 
 connections = sa.Table(
     "organization_model_connections", Base.metadata,
@@ -49,9 +52,8 @@ limits = sa.Table(
 )
 
 
-class ConnectionWrite(BaseModel):
+class CatalogKey(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    model: ModelName
     api_key: SecretStr | None = Field(None, min_length=8, max_length=256)
 
     @field_validator("api_key")
@@ -62,10 +64,19 @@ class ConnectionWrite(BaseModel):
         return key
 
 
+class ConnectionWrite(CatalogKey):
+    model: ModelName
+
+
 class VerifyRequest(ConnectionWrite):
     org_id: Identifier
     previous_generation: Identifier | None
     generation: Identifier
+
+
+class CatalogRequest(CatalogKey):
+    org_id: Identifier
+    previous_generation: Identifier | None
 
 
 def configured_model():
@@ -138,13 +149,8 @@ def org_connection(db, org_id):
                       .where(connections.c.org_id == org_id)).mappings().first()
 
 
-def public_connection(db, org_id, policy=None):
-    if policy is not None and policy.get("model_connection") != CONNECTION_ID:
-        return None
-    row = org_connection(db, org_id)
-    model = row["model"] if row else operator_enabled(org_id)
-    grant_id = row["grant_id"] if row else OPERATOR_GENERATION
-    if not model or (policy is not None and policy.get("model_grant_id", OPERATOR_GENERATION) != grant_id):
+def connection_info(row, model, grant_id, source):
+    if not model:
         return None
     verified = row["verified_at"] if row else None
     if verified and verified.tzinfo is None:
@@ -152,7 +158,32 @@ def public_connection(db, org_id, policy=None):
     return {"id": CONNECTION_ID, "provider": "openrouter", "model": model,
             "max_calls": MAX_MODEL_CALLS, "max_output_tokens": MAX_OUTPUT_TOKENS,
             "generation": row["generation"] if row else OPERATOR_GENERATION, "grant_id": grant_id,
-            "verified_at": verified, "source": "organization" if row else "operator"}
+            "verified_at": verified, "source": source}
+
+
+def public_connection(db, org_id, policy=None):
+    if personal_projects_enabled():
+        return None
+    if policy is not None and policy.get("model_connection") != CONNECTION_ID:
+        return None
+    if db.scalar(sa.select(Organization.personal_owner_id).where(Organization.id == org_id)) is not None:
+        return None
+    row = org_connection(db, org_id)
+    model = row["model"] if row else operator_enabled(org_id)
+    grant_id = row["grant_id"] if row else OPERATOR_GENERATION
+    if not model or (policy is not None and policy.get("model_grant_id", OPERATOR_GENERATION) != grant_id):
+        return None
+    return connection_info(row, model, grant_id, "organization" if row else "operator")
+
+
+def account_connection(db, user_id):
+    namespace = personal_namespace_id(db, user_id)
+    row = org_connection(db, namespace) if namespace else None
+    return connection_info(row, row["model"], row["grant_id"], "account") if row else None
+
+
+def scan_connection(db, ctx, policy):
+    return account_connection(db, ctx.owner_user_id) if ctx.owner_user_id else public_connection(db, ctx.org_id, policy)
 
 
 def gateway_config():
@@ -194,6 +225,8 @@ def transport_guard(request, response):
 
 
 def require_manager(db, org_id, user_id, *, lock=False):
+    if db.scalar(sa.select(Organization.personal_owner_id).where(Organization.id == org_id)) is not None:
+        raise HTTPException(404, "الاتصال غير متاح.")
     if lock:
         db.execute(sa.select(Organization.id).where(Organization.id == org_id).with_for_update()).first()
         member = db.scalar(sa.select(Membership).join(User, User.id == Membership.user_id).where(
@@ -263,8 +296,17 @@ def read_connection(org_id: Identifier, request: Request, response: Response):
 def write_connection(org_id: Identifier, body: ConnectionWrite, request: Request, response: Response):
     transport_guard(request, response)
     user = require_user(request)
+    return save_connection(body, lambda db: manager_namespace(db, org_id, user.id))
+
+
+def manager_namespace(db, org_id, user_id):
+    require_manager(db, org_id, user_id, lock=True)
+    return org_id
+
+
+def save_connection(body, locked_namespace, *, source="organization"):
     with platform_session() as db:
-        require_manager(db, org_id, user.id, lock=True)
+        org_id = locked_namespace(db)
         current = org_connection(db, org_id)
         if current is None and body.api_key is None:
             raise HTTPException(422, "أدخل مفتاح OpenRouter لإعداد الاتصال.")
@@ -276,7 +318,8 @@ def write_connection(org_id: Identifier, body: ConnectionWrite, request: Request
     new_generation = old_generation if current and body.api_key is None and body.model == current["model"] else uuid4().hex
     ciphertext = verify_at_gateway(org_id, body, old_generation, new_generation)
     with platform_session() as db:
-        require_manager(db, org_id, user.id, lock=True)
+        if locked_namespace(db) != org_id:
+            raise HTTPException(409, "الاتصال اتغيّر. حدّث الصفحة وجرّب تاني.")
         existing = org_connection(db, org_id)
         if (existing["generation"] if existing else None) != old_generation:
             raise HTTPException(409, "الاتصال اتغيّر. حدّث الصفحة وجرّب تاني.")
@@ -287,7 +330,7 @@ def write_connection(org_id: Identifier, body: ConnectionWrite, request: Request
             db.execute(connections.update().where(connections.c.org_id == org_id).values(**values))
         else:
             db.execute(connections.insert().values(org_id=org_id, **values))
-        return connection_view(public_connection(db, org_id), True)
+        return connection_view(connection_info(values, body.model, values["grant_id"], source), True)
 
 
 @router.delete("")
@@ -299,3 +342,71 @@ def delete_connection(org_id: Identifier, request: Request, response: Response):
         db.execute(connections.delete().where(connections.c.org_id == org_id))
         current = public_connection(db, org_id)
     return connection_view(current, gateway_status(managed=True).get("ready") is True)
+
+
+def account_actor(request, response):
+    if not personal_projects_enabled():
+        raise HTTPException(404, "المسار غير متاح.")
+    transport_guard(request, response)
+    return require_user(request).id
+
+
+def locked_account_namespace(db, user_id):
+    namespace = personal_namespace_id(db, user_id, create=True)
+    if not namespace:
+        raise HTTPException(401, "الحساب غير متاح.")
+    return namespace
+
+
+@account_router.get("")
+def read_account_connection(request: Request, response: Response):
+    user_id = account_actor(request, response)
+    with platform_session() as db:
+        current = account_connection(db, user_id)
+    return connection_view(current, gateway_status(managed=True).get("ready") is True)
+
+
+@account_router.post("/models")
+def list_account_models(body: CatalogKey, request: Request, response: Response):
+    user_id = account_actor(request, response)
+    url, headers = gateway_config()
+    if not url:
+        raise HTTPException(503, "خدمة إدارة اتصال الموديل غير متاحة.")
+    with platform_session() as db:
+        namespace = locked_account_namespace(db, user_id)
+        current = org_connection(db, namespace)
+        if not body.api_key and not current:
+            raise HTTPException(422, "أدخل مفتاح OpenRouter لعرض الموديلات.")
+        allowed = reserve_verification(db, namespace)
+    if not allowed:
+        raise HTTPException(429, "عدد محاولات التحقق وصل للحد المؤقت.",
+                            headers={"Retry-After": str(WINDOW_SECONDS)})
+    payload = {"org_id": namespace, "previous_generation": current["generation"] if current else None}
+    if body.api_key is not None:
+        payload["api_key"] = body.api_key.get_secret_value()
+    try:
+        reply = httpx.post(url + "/models", headers=headers, json=payload, timeout=15, trust_env=False)
+        if reply.status_code == 422:
+            raise HTTPException(422, "OpenRouter رفض المفتاح. استخدم مفتاح API مخصص للاستدلال.")
+        if reply.status_code == 409:
+            raise HTTPException(409, "الاتصال اتغيّر. حدّث الصفحة وجرّب تاني.")
+        reply.raise_for_status()
+        return reply.json()
+    except (httpx.HTTPError, ValueError):
+        raise HTTPException(503, "تعذّر تحميل موديلات OpenRouter.") from None
+
+
+@account_router.put("")
+def write_account_connection(body: ConnectionWrite, request: Request, response: Response):
+    user_id = account_actor(request, response)
+    return save_connection(body, lambda db: locked_account_namespace(db, user_id), source="account")
+
+
+@account_router.delete("")
+def delete_account_connection(request: Request, response: Response):
+    user_id = account_actor(request, response)
+    with platform_session() as db:
+        namespace = locked_account_namespace(db, user_id)
+        bind_organization(db, namespace)
+        db.execute(connections.delete().where(connections.c.org_id == namespace))
+    return connection_view(None, gateway_status(managed=True).get("ready") is True)

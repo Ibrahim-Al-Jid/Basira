@@ -34,6 +34,8 @@ import { Reports } from "./Reports";
 import { Platform, usePlatformSession } from "./Platform";
 import { Landing } from "./Landing";
 import { SiteHeader, readPreference, savePreference } from "./SiteHeader";
+import { PersonalSidebar } from "./PersonalWorkspace";
+import { action } from "./platformClient";
 import "./style.css";
 import "./workspace.css";
 
@@ -49,7 +51,12 @@ function App() {
   });
   const [theme, setTheme] = useState(() => readPreference("theme", "dark") === "light" ? "light" : "dark");
   const landingPage = location.pathname === "/";
-  const demoPage = /^\/demo\/?$/.test(location.pathname);
+  const [product, setProduct] = useState(null);
+  const [productError, setProductError] = useState(false);
+  const [productAttempt, setProductAttempt] = useState(0);
+  const [projectRevision, setProjectRevision] = useState(0);
+  const personal = product?.personal_projects;
+  const demoPage = product && !personal && /^\/demo\/?$/.test(location.pathname);
   const session = usePlatformSession();
   const t = (ar, en) => lang === "en" ? en : ar;
   const mainContent = useRef(null);
@@ -57,6 +64,7 @@ function App() {
   const findingsPage = /^\/findings\/?$/.test(location.pathname);
   const reportsPage = /^\/reports(?:\/|$)/.test(location.pathname);
   const projectsPage = /^\/(?:projects(?:\/|$)|dashboard\/?$|scans\/?$|new-scan\/?$|settings\/?$|signin\/?$)/.test(location.pathname);
+  const personalWorkspace = Boolean(personal && session.user && !landingPage);
   const [dialog, show] = useState(""),
     [source, setSource] = useState(emptySource),
     [sourceBusy, setSourceBusy] = useState(false),
@@ -84,6 +92,16 @@ function App() {
     event.preventDefault();
     navigate(path);
   }
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setProductError(false);
+    action("/api/product", { signal: controller.signal }).then(
+      (value) => { if (!controller.signal.aborted) setProduct(value); },
+      () => { if (!controller.signal.aborted) setProductError(true); },
+    );
+    return () => controller.abort();
+  }, [productAttempt]);
 
   useEffect(() => {
     const onPopState = () => setLocation(currentLocation());
@@ -180,12 +198,20 @@ function App() {
     metrics = latest?.metrics;
   return (
     <>
-      <SiteHeader pathname={location.pathname} follow={follow} lang={lang} authenticated={Boolean(session.user)} showSignIn={!projectsPage && !reportsPage && !findingsPage} />
+      <SiteHeader pathname={location.pathname} follow={follow} lang={lang} authenticated={Boolean(session.user)}
+        personal={personal} showSignIn={!projectsPage && !reportsPage && !findingsPage} />
+      <div className={personalWorkspace ? "personal-shell" : undefined}>
+      {personalWorkspace && <PersonalSidebar key={session.user.id} location={location} navigate={navigate} lang={lang}
+        revision={projectRevision} onLogout={() => { session.setUser(null); navigate("/", { replace: true }); }} />}
       <main ref={mainContent} id="main-content" tabIndex={-1} className={landingPage ? "site-landing-main" : "site-workspace-main"}>
-        {landingPage ? <Landing follow={follow} lang={lang} theme={theme} authenticated={Boolean(session.user)} />
-          : reportsPage ? <Reports location={location} navigate={navigate} revision={latest?.id} lang={lang} session={session} />
+        {productError ? <div role="alert"><p>{t("تعذّر تحميل إعدادات مرصد.", "Marsad settings could not be loaded.")}</p>
+          <button className="btn" type="button" onClick={() => setProductAttempt((attempt) => attempt + 1)}>{t("إعادة المحاولة", "Retry")}</button></div>
+          : !product ? <p role="status">{t("جاري تحميل مرصد…", "Loading Marsad…")}</p>
+          : landingPage ? <Landing follow={follow} lang={lang} theme={theme} authenticated={Boolean(session.user)} personal={personal} />
+          : reportsPage ? <Reports location={location} navigate={navigate} revision={latest?.id} lang={lang} session={session} personal={personal} />
           : findingsPage ? <p role="status">{t("جاري فتح التقارير…", "Opening reports…")}</p>
           : projectsPage ? <Platform location={location} navigate={navigate} lang={lang} session={session}
+            personal={personal} onProjectsChanged={() => setProjectRevision((revision) => revision + 1)}
             preferences={{ lang, setLang, theme, setTheme }} />
           : demoPage ? (
           <>
@@ -307,6 +333,7 @@ function App() {
           <a href="/" onClick={(event) => follow(event, "/")}>{t("الصفحة الرئيسية", "Back to home")}</a>
         </section>}
       </main>
+      </div>
       {dialog === "agents" && (
         <Modal lang={lang} title={t("دليل الوكلاء", "Agent guide")} close={() => show("")}>
           <div className="agent-list">

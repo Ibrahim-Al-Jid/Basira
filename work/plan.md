@@ -1,12 +1,14 @@
 # خطة تطوير مرصد
 
-آخر مراجعة ٢١ نوفمبر ٢٠٢٦. ده المرجع التنفيذي للمراحل الجاية. الخلفية والتشغيل الحالي في [مرجع المشروع](../docs/PROJECT.md)، ومسؤوليات المكونات في [التصميم المعماري](../docs/ARCHITECTURE.md)، ونموذج البيانات في [ERD](../docs/ERD.md)، والقواعد في [كتالوج الفحوصات](../docs/CHECKS.md).
+آخر مراجعة ٢٢ نوفمبر ٢٠٢٦. ده المرجع التنفيذي للمراحل الجاية. الخلفية والتشغيل الحالي في [مرجع المشروع](../docs/PROJECT.md)، ومسؤوليات المكونات في [التصميم المعماري](../docs/ARCHITECTURE.md)، ونموذج البيانات في [ERD](../docs/ERD.md)، والقواعد في [كتالوج الفحوصات](../docs/CHECKS.md).
 
-## النتيجة المطلوبة
+## النتيجة المطلوبة للمراحل ١–١٢
 
 المستخدم يختار بنفسه ملف HTML من جهازه ويشوف نوعه وحجمه قبل ما يبدأ الفحص. يوصل لتقرير ثابت باللينك، ويفهم اللي اتفحص واللي اتخطى، ويقدر يتتبع كل نتيجة للدليل والإصلاح، ويعرضها ويصدّرها بالعربي والإنجليزي. امتداد المنتج هو تدقيق دفاعي لمصدر أو إعدادات مملوكة قدّمها المستخدم، مع دعم snapshot محلي للمستودع وملفات رصد محفوظة زي HAR بعد حجب البيانات الحساسة. تكامل المستودع ممكن يتحقق عبر تنزيل snapshot بإذن قراءة وباختيار المستخدم. مسار عنوان الموقع يسجّل الهدف وينظّم ربط الأدلة المُقدّمة به. فحص المواقع المباشر والاستغلال ومحاكاة الهجمات خارج نطاق الخطة.
 
 Phase 1–6 اكتمل قبولها محليًا ونُشرت على GitHub. Phase 7 وحّدت شغل التطوير والتشغيل في `sentinel` على فرع `main` المتتبع لـ`github/main`. بيانات Docker المحلية مرتبطة بنفس المجلد. تفاصيل الجرد والتحويل والتحقق في [توثيق Phase 7](../docs/CONSOLIDATION.md#نتيجة-تنفيذ-phase-7).
+
+الإصدار القادم بيستخدم حسابات شخصية وثلاثة مدخلات للفحص. تفاصيل النطاق الجديد في [خطة تطوير المنتج بعد Phase 12](#خطة-تطوير-المنتج-بعد-phase-12).
 
 ## مراحل التنفيذ والـChecklist
 
@@ -24,6 +26,13 @@ Phase 1–6 اكتمل قبولها محليًا ونُشرت على GitHub. Pha
 | [x] | [Phase 10 · تحليل المصدر وتوحيد الحساب والواجهة](#phase-10) | Phase 9 |
 | [x] | [Phase 11 · استيراد المصادر وأدلة الويب والـAPI](#phase-11) | Phase 9 و10 عند الدمج |
 | [x] | [Phase 12 · التقييم المستقل وقبول الإصدار](#phase-12) | Phase 8–11 |
+| [x] | [Phase 13 · حسابات شخصية وترحيل ملكية المشاريع](#phase-13) | Phase 12 وخط أساس قابل للاسترجاع |
+| [ ] | [Phase 14 · مدخلات ZIP وGitHub وURL](#phase-14) | Phase 13 |
+| [ ] | [Phase 15 · سجل الأدوات والتنفيذ المعزول](#phase-15) | عقود Phase 14 |
+| [ ] | [Phase 16 · الوكلاء والأدلة والذاكرة](#phase-16) | Phase 14 وخط أساس Phase 15 |
+| [ ] | [Phase 17 · تقرير نصي وPDF باللغتين](#phase-17) | عقود الأدلة من Phase 16 |
+| [ ] | [Phase 18 · التقييم والاختبارات](#phase-18) | Phase 15–17، مع تجهيز العينات من Phase 13 |
+| [ ] | [Phase 19 · التوثيق والتشغيل وقبول الإصدار](#phase-19) | Phase 13–18 |
 
 كل مرحلة تحت فيها ترتيب التنفيذ، والمسؤول، والمخرج، ودليل القبول. علّم المرحلة مكتملة بعد تحقق معاييرها، وسجّل في آخر الخطة تاريخ التحقق ونسخة الكود والاختبار اللي اتشغّل ونتيجته وأي جزء باقي. لو بند اتأجل، سجّل المرحلة اللي هتستلمه قبل ما تعتبر المرحلة مكتملة.
 
@@ -230,3 +239,686 @@ Phase 1–6 اكتمل قبولها محليًا ونُشرت على GitHub. Pha
 - [x] **12.3 — قبول الإصدار بعد 7.3 و8.3 و9.4 و10.2–10.4 و11.1–11.5 و12.2.** لو تطبيق GitHub غير متاح في البيئة، سجل صراحة إن القبول المحلي تم بالـZIP واعرض GitHub كغير مفعّل لحد اختبار الاتصال. اختبار ترحيل واستعادة وتشغيل من مجلد واحد، حجب بين مؤسستين، إلغاء واستئناف، رحلة AR/EN وملخص تنفيذي ومقارنة وتصدير. أعد اختبار PDF المنفذ في Phase 9 مع قبول الإصدار، بما فيه RTL وتطابق الأدلة والأرقام. دوّن ما ثبت بوضوح، مع سياسة إطفاء adapter متعطل وإمكانية الرجوع للإصدار المستقر. أضف اختبار قبول للحساب واللغة والثيم، ومراجعة للّوحات على 320 و566 و1280 بكسل بالعربي والإنجليزي، وتحقق من غياب صفحة Checks وبلوكات الترحيل والأدوات ومعرّف الحساب ومن عدم تكرار New Scan. اختبر الدعوة وصلاحيات الأعضاء وتسجيل الخروج والتنقل بالكيبورد، وعزل اتصال كل مؤسسة، ورفض المفتاح الخام على المسارات القديمة، والتدوير الفاشل والإبطال، وفتح تقرير قديم وتنزيل PDF من نفس الرحلة. النشر أو التشغيل المستضاف له قرار منفصل.
 
 **قبول Phase 12 محليًا.** اتثبتت مجموعة ١٢ حالة بالمواضع والعتبات والبصمة. المحللات الفعلية وصلت لـ90% Precision و90% Recall، مع تطابق كامل للأدلة وقت ترتيبها بالمزوّد المحاكى. الأولوية الأولى اتطابقت في ٢ من ٢ في الترتيبين، فالإثراء يفضل اختياريًا لكل فحص. نجحت استعادة تقارير المشاريع والمختبر وقراءة نسخة البيانات بالصورة السابقة، واختبارات الإلغاء والعزل والصلاحيات واللغة وتصدير PDF وSARIF. GitHub المحلي يستخدم ZIP في القبول، وتفعيل الاتصال الخارجي يتطلب App. [معايير وقبول Phase 12](../docs/PHASE12.md) · [القياس الخام](../docs/phase12-results.json)
+
+## خطة تطوير المنتج بعد Phase 12
+
+Phase 13 مكتملة ومتحقق منها على التشغيل المحلي. المراحل ١٤–١٩ مخططة. سجل المراحل ١–١٢ يوثّق النسخة السابقة، وسجل قبول Phase 13 يثبت خط الأساس للنسخة الشخصية.
+
+ادمجنا هنا مواصفات خريطة طريق MARSAD V3 وملاحظات رحلة المستخدم والمعمارية والتقييم. يفضل هذا الملف المرجع التنفيذي الوحيد للمراحل. توثيق التصميم والتشغيل يتحدّث مع كل مرحلة، وتراجعه Phase 19 قبل الإصدار.
+
+### عقد المنتج ورحلة القبول
+
+> **MARSAD** منصة **Personal Account → Projects → Security Scans** تكتشف مؤشرات ثغرات تطبيقات الويب اعتمادًا على أدلة يمكن تتبعها. لا Organizations ولا Demo ولا مختبر HTML. كل مستخدم يمتلك مشاريعه، وكل مشروع له فحوصات متعددة. تبدأ كل عملية فحص **بمدخل واحد من ثلاثة**: **ZIP Source Code**، أو **GitHub Repository بعد Connect**، أو **Website URL بجمع أدلة سلبي ضمن نطاق مصرح به**. والنتيجة الموجهة للمستخدم **تقرير نصي + PDF** بالإنجليزية أو العربية؛ دون شاشة نتائج تقنية متشعبة.
+
+#### خارج نطاق المنتج
+
+- لا Organizations / Memberships / Invitations / Project Grants / Org-based GitHub settings في واجهة المنتج أو نموذج الوصول المستقبلي.
+- لا `/demo`، ولا HTML paste/HTML single-file scanner، ولا sample mode أو مسارات legacy المحلية الموجهة للمستخدم.
+- لا طلب HAR / OpenAPI / ZAP JSON / config JSON كـ**مدخل رابع** للمستخدم؛ يمكن استخراج هذه الأدلة داخليًا من المصدر أو من بيانات الويب التي يجمعها المسار السلبي المصرّح به.
+- لا بيع فكرة «Full penetration test» أو «0 vulnerabilities = secure». ZIP/GitHub = white-box، URL = black-box محدود بما يتيحه جمع الأدلة السلبي المصرّح به.
+- لا تنزيل أدوات تلقائيًا من الإنترنت بناءً على رأي LLM؛ الأدوات التي وافقنا عليها **مُثبتة ومحددة الإصدارات مسبقًا**.
+- لا Microservices أو Vector DB أو framework replacement بلا حاجة واختبارات مقارنة.
+
+#### رحلة المستخدم
+
+1. فتح Landing → Register / Login.
+2. بعد الدخول يظهر الغلاف بشريط جانبي فيه **Projects** و**New Project** و**My Projects** و**GitHub Connection** و**Settings** و**Logout**. سجل الفحوصات داخل المشروع، والتنقل يدعم الشاشات الصغيرة واللغتين.
+3. `Projects` → `+ New Project` → اسم يختاره المستخدم؛ لا خطوة «Create Organization».
+4. يفتح المشروع → `New Scan` → ثلاث بطاقات **ZIP / GitHub / Website URL** فقط.
+5. يختار ZIP، أو Repository من حساب GitHub المربوط، أو يحدد URL ونطاق التفويض.
+6. يرى تقدم الفحص الحقيقي (queued / intake / profiling / planning / running / validating / reporting / completed / partial / failed / cancelled).
+7. `Report`: عنوان وملخص نصي وقائمة Findings منظمة ونطاق الفحص وحدوده، تغيير AR/EN، زر `Download PDF`. التاريخ محفوظ ضمن المشروع. لا Charts ملزمة ولا تبويبات Technical Findings أو Evidence Explorer.
+8. المشروع يحتوي Scans متعددة، مع تاريخ وتاريخ آخر فحص؛ يمكن إعادة الفحص ومقارنة البيانات **داخليًا** لتحسين الـMemory والتقييم، من غير شاشة Comparison مستقلة.
+
+**مثال:** صاحب الحساب ينشئ مشروع `E-commerce Backend Security`، ويرفع ZIP في فحص 1، ثم يربط GitHub ويفحص commit في فحص 2، ثم يفحص URL مسموحًا به في فحص 3. لا يختلط نوع المدخل بالـProject ID.
+
+### قرارات المعمارية
+
+| المجال | البدائل الجدية | **القرار** | المبرر / ما لن نبنيه |
+|---|---|---|---|
+| Product model | Workspace/Org, Personal | **Personal Account → Projects** | مطابق لرحلة المستخدم، يعزل البيانات بسهولة |
+| Backend shape | Microservices, Modular Monolith | **FastAPI Modular Monolith + isolated scan workers** | نستفيد من الموجود ونفصل مخاطر التشغيل |
+| Agent orchestration | fully autonomous swarm, fixed pipeline, hybrid | **LangGraph supervisor + bounded dynamic task graph** | اختيار وتحليل مرن، لكن control plane deterministic |
+| Agent count | Agent لكل Tool, 30 agent, small specialists | **3 reasoning agents + deterministic services** مبدئيًا | التخطيط والتحقق والتفسير فقط تحتاج reasoning؛ قابل لزيادة تخصص عند ظهور benchmark evidence |
+| Tool selection | Internet search, unrestricted MCP, static list, hybrid | **Curated registry + capability filter + deterministic rank + optional planner recommendation** | FindTool يبحث في Registry الداخلية فقط؛ السياسة تحسم التنفيذ |
+| Tools execution | subprocess مباشر من API, sandbox broker | **preinstalled image + broker + isolated per-run worker** | لا تنفيذ untrusted uploads على API server |
+| Memory | chat history, vector-only, multi-layer | **LangGraph Postgres checkpoints + Project Knowledge in Postgres + immutable scan evidence** | لا تضخيم أو تسرب لمحتوى غير موثوق |
+| Data | Firebase/SQLite, PostgreSQL | **PostgreSQL + Alembic** | أساس V3 جيد؛ schema migration واجبة |
+| Artifacts | large blobs in DB, object storage | **S3-compatible object storage (MinIO local)** | SHA256/retention/encryption and replay |
+| Async | replace all with Temporal, Celery | **retain Celery/Redis with idempotency** | محدود التعقيد؛ نعيد تقييم Temporal لو ظهرت مشكلة orchestration عملية |
+| Frontend | rewrite Next.js, retain React | **React + Vite + incremental TypeScript** | سرعة التطوير والحفاظ على المستخدم |
+| Reporting | dashboards, many report formats | **one canonical ReportModel → AR/EN text + PDF** | مطابق للمنتج؛ الاحتفاظ بالبيانات الفنية داخليًا |
+| LLM | mandatory to find issues, optional | **bounded planning & evidence explanation; no unsupported finding creation** | نتائج الفحوصات يجب أن تكون مرتبطة بدليل |
+| Observability | custom logs only, OTel | **OpenTelemetry traces + structured JSON logs + audit events** | سهل التتبع والتقييم |
+| Evaluation | single benchmark score | **Security ground-truth + Agent trace/task + Product E2E** | يثبت القيمة الفعلية مقابل الأدوات وحدها |
+| Auth | organization SSO, account sessions | **existing password/OIDC identity where applicable; owner-only project auth** | لا rewrite لنظام التسجيل ما لم يظهر نقص أمني |
+
+**هل Tools per Agent أم Tool Registry واحدة؟** الاختيار **Hybrid**: Registry مركزية واحدة، لكن كل Agent يملك *Tool Visibility Profile* و*Capabilities Allowlist* مختلفًا. `FindTool` خدمة deterministic في الـControl Plane، وتوجد recommendation من Planner يمكن رفضها. Execution Broker وحده يملك إذن تشغيل الأداة. هذا يتفادى تكرار تعريف الأدوات وعدم الانضباط.
+
+### المسار الموحد وعقود الفحص
+
+```text
+Browser (account authenticated)
+  ├── Sidebar: My Projects / New Project / Settings / GitHub
+  └── Project → New Scan [ZIP | GitHub | URL]
+                   │
+            API / ownership / quota
+                   │
+       Intake & Scope Policy Gateway
+      ┌────────────┼────────────┐
+      ZIP         GitHub       Website URL
+   Safe unpack   GitHub App     authorized scope
+      │          commit SHA    safe passive collector
+      └────────────┼────────────┘
+              Target Profile
+                   │
+         LangGraph Supervisor
+                   │
+         Planning Agent (bounded)
+                   │
+        FindTool (local registry)
+                   │
+        Execution Policy Gateway
+                   │
+            Tool Execution Broker
+        ┌──────────┼─────────────┐
+   Source tools   SCA/secrets   URL passive tools
+        └──────────┼─────────────┘
+          Normalize Observations
+                   │
+         Validation Agent + rules
+                   │
+           Finding dedup + risk
+                   │
+         Report Composition Service
+             ┌─────┴─────┐
+         English/Arabic  PDF
+             └─────┬─────┘
+              Project Scans
+
+Shared infrastructure: Postgres (owner-scoped data + checkpoints)
+Redis/Celery (jobs), object storage (snapshots/artifacts),
+OpenTelemetry (trace), audit events, budget/scope enforcement.
+```
+
+**فصل الـControl Plane عن الـExecution Plane:** الـAPI/Agents لا تشغّل أدوات التحليل نفسها؛ تستدعي Broker بمدخلات مقننة. بعض Source analyzers تحتاج تحديث قواعدها/قاعدة ثغرات؛ *التحديث عملية تشغيلية مُدارة* خارج استدلال الـAgents، مع pinned versions وتوثيق آخر تحديث ومصدر البيانات، وليس «بحث تلقائي عن Tools».
+
+#### عقود البيانات المشتركة
+
+- `Project`: `id`, `owner_user_id`, `name`, `created_at`, `updated_at`, `deleted_at?`.
+- `ScanRequest`: `project_id`, `input_kind: zip|github|url`, `source_ref`, `authorization_scope`, `language_preference?`, `idempotency_key`, `requested_by`.
+- `SourceSnapshot`: `sha256`, `kind`, `commit_sha?`, `repo_id?`, `canonical_url?`, `scope_policy_id?`, `artifact_key?`.
+- `TargetProfile`: languages/frameworks, repository roots, package manifests, candidate APIs/paths, available capabilities, confidence.
+- `ScanPlan`: version, task DAG, tool intent, permissions, budgets, prerequisites, fallback.
+- `ToolManifest`: `id`, version/digest, supported inputs/languages, capabilities, risks/egress, timeout, resource limits, parser version, license, installed/readiness.
+- `ToolResult`: status `success|partial|unsupported|blocked|timeout|error`, observations, logs/evidence keys, tool version/digest, attempt/trace ID.
+- `Finding`: stable fingerprint, CWE/class, title, severity, confidence, review status, evidence refs, location, actionable fix, detection provenance.
+- `ScanStatus`: `queued|intake|profiling|planning|running|validating|reporting|completed|partial|failed|cancelled`.
+- `ReportModel`: source, scope, timestamp, summary, findings, tool coverage/limitations, skipped/failed checks, provenance. **Text/PDF يقرؤون هذه النسخة فقط**.
+
+لا ننشئ 3 محركات مختلفة: Input adapters فقط، ثم Model موحدة، مع Tool selection مرتبطة بنوع المصدر. URL لا يُعامل source code؛ لا ندّعي اكتشاف مشكلة متعلقة بالكود لو الدليل غير متاح.
+
+### ترتيب التنفيذ وإثبات القبول
+
+- Phase 13 تسبق إتاحة رحلة Phase 14. تصميم الأدوات ممكن يبدأ بالتوازي، والدمج يعتمد على عقود المصادر من 14.
+- Phase 15 تسلّم خط أساس Tools-only قبل إدخال استدلال الوكلاء في 16.
+- تصميم ReportModel يبدأ بالتوازي مع 14–16، والربط النهائي في 17 يعتمد على الأدلة الموحّدة من 16.
+- تجهيز حالات العزل والأمن يبدأ مع 13، وقياس A/B/C/D النهائي يأتي بعد اكتمال 16 و17.
+- سجّل عند إغلاق كل مرحلة الهدف والتبعيات، إصدار الكود، أوامر الاختبار ومكان مخرجاتها، القيود، وقرار القبول أو التأجيل. علّم البند بعد تحقق مخرجه. لو زاد النطاق، أضف بندًا تابعًا للمرحلة المناسبة. افتح Phase 20 فقط لو الزيادة تسليم مستقل له قبول خاص.
+- القيود اللي بتتغيّر أثناء التنفيذ تتسجل في نفس المرحلة، ومنها حدود الرفع ونطاق التغطية وسياسات التشغيل. نجاح فحص واحد أو مراجعة الكود يسند النتيجة اللي اتقاست فقط.
+
+### Phase 13
+
+**الهدف.** تحويل رحلة المنتج إلى حساب شخصي ومشاريع مملوكة للمستخدم وتثبيت مسار آمن لترحيل الإصدار السابق.
+
+**التبعيات.** تبدأ من سجل Phase 12. تجميد نسخة مرجعية ونجاح الاسترجاع يسبقان الترحيل على بيانات المستخدم.
+
+**مسؤوليات التنفيذ.** Backend/Data للترحيل والصلاحيات، Frontend للغلاف والتنقل، وQA لإثبات العزل وتطابق البيانات.
+
+- [x] **13.1 — خط الأساس وجرد الاعتمادات.** ثبّت commit وكوّن نسخ PostgreSQL وSQLite وإعدادات التشغيل على بيئة اختبار. سجّل البناء ونتائج unit/integration/E2E، أعداد الجداول والتقارير وعلاقات المفاتيح والبصمات بعد الاسترجاع. اجرد Demo والكيانات والمسارات المعتمدة على org_id والبيانات التجريبية والحقيقية والاتصالات المشتركة.
+- [x] **13.2 — تعريف المالك وترحيل البيانات.** أضف owner_user_id بصورة تراكمية مع FK وفهرس، وجهّز خريطة ملكية قابلة للمراجعة وBackfill على نسخة مستعادة. احجز الحالات الملتبسة للمراجعة. دوّن قرار فترة التوافق أو نافذة الصيانة، ثم جهّز تحويل العلاقات والاستعلامات وسياسات RLS. اختبر تطابق المعرّفات والتقارير والتاريخ والـrollback. حذف الجداول والأعمدة القديمة بوابة منفصلة في 19.
+- [x] **13.3 — واجهة برمجة المشاريع الشخصية.** نفّذ إنشاء وعرض وتعديل وحذف المشاريع باسم المالك من جلسة الخادم. حدّد تأكيد الحذف ودورة الاحتفاظ، وحدّث سياق الصلاحيات والمهام والأحداث والتقارير والأصول والتصدير. اختبر الوصول بين حسابين عند معرفة الـID، ومع غياب سياق المعاملة. احتفظ بالتسجيل المحلي وOIDC حيث يلزم واختبر CSRF والجلسات.
+- [x] **13.4 — الغلاف والتنقّل.** بعد الدخول اعرض Projects وNew Project وقائمة My Projects، مع GitHub Connection وSettings وLogout، وسجل الفحوصات داخل المشروع. خَلّي إنشاء المشروع بالاسم مباشرة ودعم العربي والإنجليزي والموبايل. ابدأ واجهة اختيار المصدر بثلاث بطاقات فقط وبيّن الخيارات المخطط لها لحد قبول 14.
+- [x] **13.5 — إخراج المسارات القديمة من الواجهة.** حدّث Landing واحذف أزرار Demo والعينة وHTML paste من رحلة المنتج، وشيل طلب المؤسسة والأدوار والدعوات ومرجع تقارير Demo من الواجهة المستهدفة بعد إثبات البديل. اتفق على 404 أو إعادة توجيه للمدخل العام. احفظ تقارير المستخدم القابلة للترحيل، واحتفظ بقواعد HTML ذات القيمة داخل فحص المشروع الكامل.
+- [x] **13.6 — تهيئة ربط GitHub الشخصي.** صمّم github_connections المرتبط بالمستخدم، وسياسة نقل المراجع وفحص صلاحية كل مستخدم على التثبيت. جهّز فصل الأسرار عن بيانات المشروع، وخَلّي ربط GitHub اختيارًا منفصلًا عن تسجيل الحساب. اختبار الاتصال واختيار اللقطة يتسلمان في 14.
+
+**التسليم.** مخطط ملكية جديد وواجهات مشاريع شخصية وغلاف حساب، وجرد ترحيل بسجل للبيانات المحفوظة والحالات المؤجلة.
+
+**معيار القبول.** مستخدم جديد يسجّل وينشئ My First Project من غير مؤسسة ويشوفه في القائمة، ويقدر يدير اسمه وتاريخه. حساب A ما يقدرش يقرأ أو يبدأ أو يتابع أو يصدر فحصًا لحساب B. مراجع التقارير المقبولة تفضل سليمة، وكل ملكية ملتبسة معلّقة للبت. واجهة الخيارات الثلاثة ما تعتبرش إثباتًا إن محركاتها اشتغلت.
+
+**التوثيق المصاحب.** حدّث معمارية المنتج ونموذج البيانات وأذونات المالك، وسجّل إجراءات استرجاع خط الأساس في وثائق التشغيل.
+
+#### شكل التنقّل المقترح
+
+القائمة بتعرض المشاريع تخص الحساب الحالي، وتفتح سجل الفحوصات داخل المشروع المختار.
+
+```text
+┌───────────────────────────┐
+│                           │
+│         MARSAD            │
+│                           │
+├───────────────────────────┤
+│                           │
+│ 🏠 Projects               │
+│                           │
+│ ➕ New Project            │
+│                           │
+│ ───────────────────────   │
+│                           │
+│ MY PROJECTS               │
+│                           │
+│ 📁 E-commerce Security    │
+│ 📁 Banking Website        │
+│ 📁 Graduation Project     │
+│                           │
+│ ───────────────────────   │
+│                           │
+│ 🔗 GitHub Connection      │
+│ ⚙️ Settings               │
+│                           │
+│ 🚪 Logout                 │
+│                           │
+└───────────────────────────┘
+```
+
+#### خريطة التغييرات في V3
+
+| الموجود حاليًا (تمت مراجعته في المصدر) | القرار المطلوب | أين نبدأ |
+|---|---|---|
+| `frontend/src/main.jsx`: شرط `/demo` وعرض Demo | حذف Route وعناصر الملاحة والاعتمادات المرتبطة، وتحويل الدخول للـAccount Flow | `main.jsx`, `Source.jsx`, `Landing.jsx` |
+| `backend/main.py`: `/api/run` وlegacy SQLite reports و`/demo` | إخراجها من واجهة المنتج؛ حذفها/ترحيلها بعد التأكد من عدم اعتماد أي مستهلك حقيقي عليها | `main.py`, `legacy_backup.py`, `graph.py` |
+| `frontend/src/ProjectDirectory.jsx`: إنشاء/list Organizations ثم Projects | واجهة **My Projects** + إنشاء مباشر للمشروع | `ProjectDirectory.jsx`, `Platform.jsx` |
+| `frontend/src/Platform.jsx`: جلب `/organizations` و`selectedOrg` وعمليات project org | استخدام `/projects` مباشرة وإنشاء عبر `POST /projects`، وSidebar جديدة | `Platform.jsx`, `platformClient.js`, CSS |
+| `frontend/src/Landing.jsx`: HTML/HAR/JSON مذكورة كخيارات | استبدال التسويق والشرح بـZIP/GitHub/URL | `Landing.jsx` |
+| `frontend/src/Reports.jsx`: demo fallback / advanced sections | قائمة + صفحة نصية بسيطة + لغة + PDF | `Reports.jsx`, `ReportAdvanced.jsx`, `ReportEvidence.jsx` |
+| `backend/platform_db.py`: `Organization`, `Membership`, `Project.org_id`, `ProjectGrant` | نموذج ملكية **Project.owner_user_id**؛ ترحيل آمن للمراجع | `platform_db.py`, migrations |
+| `backend/identity.py`: `ProjectContext.org_id`, tenant role/group privileges | `ProjectContext(user_id, project_id, owner_user_id)` + Owner-only access | `identity.py`, `password_auth.py` |
+| `backend/platform_runtime.py`: مفاتيح وفهارس وعلاقات مبنية على `org_id` | إعادة Scope إلى `(owner_user_id/project_id)` مع حماية row access | `platform_runtime.py`, migrations |
+| `backend/organization_invitations.py`, `ProjectAccess.jsx` | تعطيل/إزالة المنتج والمؤسسة بالكامل بعد Migration | الملفات المذكورة، الاختبارات |
+| `backend/github_import.py`: `MARSAD_GITHUB_INSTALLATIONS` وorg installations | **GitHub App connection per USER**؛ تثبيت التفويض عند اختيار Repository وفحص SHA | `github_import.py`, account UI |
+| `backend/graph.py`: Graph مرتبط بتحليل HTML | Engine جديد قائم على profile/tasks/tool observations/validation | `graph.py`, `platform_jobs.py` |
+| `backend/source_adapters.py`: تكاملات مصدر موجودة لكن ضيقة | إدخالها في Registry موحدة وتجهيز adapters موثوقة لا أوامر عامة | `source_adapters.py` |
+| `backend/report_pdf.py`: مولد PDF عربي/إنجليزي | الاحتفاظ به وتطوير rendering من ReportModel واحدة وفحوصات RTL | `report_pdf.py`, tests |
+| `work/plan.md`: Phases 1–12 منتهية في السجل | استمرار **Phase 13+** في نفس الملف، مع إثبات قبول/نتائج | `work/plan.md` |
+| `docs/` بها وثائق Phase كثيرة وبعضها يقول HTML فقط | توحيد مصادر الحقيقة وعدم حذف السجل التاريخي قبل أرشفته | `docs/`, README |
+
+##### ملاحظة معمارية حاسمة: حذف الـOrganization ليس Frontend فقط
+
+V3 تضع `org_id` في `projects`، `project_grants`، scans/events/findings/assets/provenance، Github sources وRLS وقيود FK. مجرد إخفاء زر المؤسسة سيترك نموذجًا متضاربًا وصلاحيات خاطئة. الهجرة تتطلب: **جرد علاقات → مالك فعلي لكل Project → Backfill → Dual-Read/Write أو maintenance migration → تحويل FK/RLS → اختبارات عزل → حذف جداول org بعد النسخ الاحتياطي**. لا نحذف بيانات أو نختار مالكًا عشوائيًا إذا كان المشروع مشتركًا: نوقف الحالة ونطلب حسم ملكيتها إداريًا عبر خطة ترحيل موثقة.
+
+#### الملكية الشخصية وترحيل قاعدة البيانات
+
+##### الواجهة وعلاقة المستخدم بالمشروع
+
+- الحساب مستقل عن GitHub؛ GitHub اتصال اختياري لمصدر، وليس شرطًا لتسجيل الدخول.
+- المستخدم يضيف Project باسمه، يعدل الاسم ويحذفه مع تأكيد وسياسة احتفاظ.
+- **Project belongs to exactly one user**. لا Collaborators أو Org roles في هذه النسخة.
+- `GET /projects`, `POST /projects`, `GET/PATCH/DELETE /projects/{id}`. أي `/projects/{id}/scans` لا يعمل إلا إذا `owner_user_id == session.user_id` حتى لو عرف المستخدم الـID.
+- URL الفحص محدد بنطاق مصرح به؛ التأكيد وحده لا يثبت الملكية. نطبق سياسات واضحة تتناسب مع نوع الهدف، ونمنع فحص نطاقات لا يملكها المستخدم أو لا يملك تفويضًا لها. بيئات محلية معزولة للـBenchmarks مسموحة.
+- اختبارات IDOR/BOLA على كل endpoint، artifact، event، pdf وbackground job؛ ولا يكفي إخفاء الزر في UI.
+
+##### استراتيجية Migration الآمنة من `org_id`
+
+1. Backup واسترجاع مجرّب، سجل أعداد وFK mapping؛ سجّل أي org لها أكثر من عضو/مشروع مشترك.
+2. أضف `projects.owner_user_id` nullable مع FK وindex؛ حدد Owner بطريقة موثوقة من Membership + Grants والسياسات الحالية.
+3. عند أكثر من مالك محتمل أو مستخدم غير معروف، **لا تهاجر تلقائيًا**؛ سجل صفًا للمراجعة/حظر التشغيل إلى حسم الملكية.
+4. Backfill جميع العلاقات التي تحتاج owner scope؛ جهّز قيود FK/unique مناسبة للـProject دون org.
+5. بدّل query policy وRLS إلى `owner_user_id` و`project_id` (محددة المعاملة)، واختبر failure on missing context؛ استخدم code-level auth أيضًا.
+6. GitHub installation mapping ينتقل إلى `github_connections(user_id, installation_id, provider_account_id, status)` مع تحقق صلاحية الشخص الحالية؛ لا تنسخ مفاتيح اتصال مشترك إلى حسابات غير مخولة.
+7. أثناء فترة توافق محددة، يمكن إبقاء الأعمدة org في DB فقط لتنفيذ migration؛ **لا تظهر في المنتج**. بعد تكافؤ البيانات والاختبارات احذف جداول organizations/memberships/project_grants/invitations وكل org-based fields في migration تالية.
+8. بيانات Demo/legacy: حدد هل هي عينات أم بيانات مستخدمين؛ لا تحذف بيانات حقيقية تلقائيًا. اعمل data-retention manifest وإزالة مشروطة.
+9. اختبر rollback restore على snapshot؛ لا تعدّل migrations 1–11 القديمة.
+
+##### ERD منطقي جديد (الحد الأدنى)
+
+```text
+users 1──N projects 1──N scans 1──N scan_tasks
+  │           │           │         └──N tool_runs
+  │           │           ├──N observations ──N finding_evidence
+  │           │           ├──N findings
+  │           │           ├──N report_outputs [ar_text/en_text, ar_pdf/en_pdf]
+  │           │           ├──N scan_events / checkpoints refs
+  │           │           └──1 source_snapshot
+  │           └──N project_knowledge (verified only)
+  ├──N auth_sessions
+  └──N github_connections (installation permission snapshots)
+
+shared: tool_catalog, tool_versions, evaluation_runs, audit_events,
+        source_artifacts (storage refs), scope_authorizations
+```
+
+`report_outputs` يمكن أن يخزن ملفين PDF ونسختين نصيتين أو يولدهما وفق اللغة من تقرير معياري واحد، لكن إصدار التقرير يجب أن يبقى ثابتًا لكل Scan. لا نشتق بيانات تقرير قديم من نتائج/ذاكرة تغيّرت بعد انتهاء الفحص.
+
+#### أول دفعة تنفيذ
+
+عنوان العمل المقترح: `refactor(product): establish personal projects and remove demo entry points`.
+
+ابدئي بتثبيت نسخة V3 ونتائج البناء والاسترجاع. بعد كده اشتغلي على خريطة الملكية واختبارات الـAPI بالتوازي مع الغلاف الجديد. ممكن تفعيل مسار المشاريع الشخصية خلف إعداد انتقالي لحد اختبار الترحيل. بعد قبول الغلاف، شيلي روابط المختبر من الصفحة والتنقّل. التأكد من حفظ البيانات وترحيلها يسبق أي حذف فعلي. حدّثي معمارية المنتج ونموذج البيانات واربطّي نتيجة الاختبارات ببند القبول.
+
+#### سجل قبول Phase 13 · ٢٢ نوفمبر ٢٠٢٦
+
+- **13.1 · خط الأساس.** مرجع Git هو `e344b5d` مع تعديلات التحقق من التسجيل الموجودة محليًا قبل المرحلة. نجح بناء الواجهة و٢٠١ اختبار Python و٨ حالات فرعية في خط الأساس. استُعيدت نسخة PostgreSQL في قاعدة مستقلة، واتحققت نسخة SQLite وفيها ٣ تقارير. محتوى النسخ محفوظ محليًا في `data/phase13/` خارج Git.
+- **13.2–13.3 · الملكية والعزل.** رُحّل المخطط من `platform_evidence_links_0011` إلى `platform_personal_0012`. نجح تمرين ترقية ورجوع على نسخة مستعادة قبل التفعيل الفعلي، وبقيت أعداد الحسابات والمشاريع والفحوصات ١/١/١ وبصمة SHA-256 لمحتوى التقرير زي ما هي. التجارب غطّت مشاريع مشتركة ومشاريع بلا مالك صالح، ومنع إتاحة سجلاتها لحساب شخصي. على PostgreSQL بدور التطبيق، ظهر التقرير للمالك في نطاق المعاملة فقط، وحُجب مع مالك مختلف وعند غياب السياق وبعد انتهاء المعاملة. الحذف من الواجهة يخفي المشروع ويلغي العمل المعلّق ويحفظ السجل.
+- **13.4–13.5 · رحلة المنتج.** اختبار Edge على نسخة منفصلة نجح في التسجيل وإنشاء مشروع شخصي وإعادة تسميته وحذفه، وتشغيل ZIP من الطابور إلى تقرير PDF عربي، ورفض حساب تاني على مسارات المشروع والتقرير، وفتح قائمة الموبايل العربية وإغلاقها بالكيبورد. النسخة المحلية على 8765 تعمل بالوضع الشخصي، وعودة `/demo` و`/api/history` أصبحت 404 في هذا الوضع.
+- **13.6 · GitHub.** أُضيف مخطط اتصالات الحساب وقراءة حالته، مع اختبار فصل حسابين. ربط المستودع فعليًا وجمع أدلة URL ضمن Phase 14. اتصالات المؤسسات السابقة محفوظة من غير نقل صلاحياتها أو رموز الوصول للحسابات الشخصية.
+- **أدلة الاختبار.** نجح `npm run build`، و`python -m pytest -q backend` بنتيجة ٢٠٤ اختبارات و٨ حالات فرعية، مع تخطّي اختبار CLI الاختياري في التشغيل العام. نجح `python tests/browser_phase13.py` على النسخة المستعادة. سجل المراجع وإجراءات الإتاحة والرجوع في [دليل التشغيل](../docs/PLATFORM.md#تفعيل-المشاريع-الشخصية--phase-13)، و[المعمارية](../docs/ARCHITECTURE.md#المشاريع-الشخصية--phase-13)، و[نموذج البيانات](../docs/ERD.md#ملكية-المشاريع-الشخصية--phase-13).
+- **قرار القبول.** المرحلة مقبولة ومفعّلة على Windows محليًا. سجل الترحيل والتقرير محفوظ، والمخطط القديم ما زال جزءًا من التوافق لحد Phase 19. تفعيل الإنتاج المستضاف يمر بتحقّق مستقل من النسخ والإعدادات ودورة الاحتفاظ.
+
+### Phase 14
+
+**الهدف.** تسليم ثلاث طرق إدخال تغذّي نفس عقد الفحص، مع إثبات مصدر اللقطة وحدود التفويض.
+
+**التبعيات.** تعتمد على صلاحيات وملكية 13. عقد المصدر يسبق دمج أدوات 15.
+
+**مسؤوليات التنفيذ.** Intake/Backend للرفع والملفات، Integrations لـGitHub، Security/QA لسياسة المصدر، وFrontend لاختيار المدخل.
+
+- [x] **14.1 — عقد إدخال ومخرجات موحّدة.** وحّد ScanRequest وSourceSnapshot وTargetProfile وتحقق من النوع والمالك والنطاق والحصص والتكرار. اربط اللقطة ببصمتها ومصدرها وبنسخة سياسة الفحص. اجعل Adapter مستقلًا لكل مدخل، واستخدم Profiler واحدًا يجرد ما يمكن تحليله.
+- [x] **14.2 — ZIP وحفظ اللقطة.** نفّذ رفعًا تدريجيًا إلى مساحة حجر في S3-compatible storage وMinIO محليًا، مع قياس الحجم والبصمة قبل وبعد الفك وإدارة دورة حياة الأثر. اختبر أسماء الملفات والروابط والملفات المكررة والأرشيف التالف وحدود الضغط على fixtures. أبقِ حدود V3 إلى أن تنجح اختبارات التخزين والضغط والاحتفاظ.
+- [ ] **14.3 — اتصال GitHub واختيار المستودع.** نفّذ GitHub App لكل حساب مع callback مربوط بالجلسة والتحقق من الإذن وقائمة المستودعات المتاحة. اختَر فرعًا أو commit وثبّت SHA وبصمة الأرشيف. اختبر الإلغاء وعدم اتساع الصلاحية عند تغيير التثبيت أو المستودع، وحافظ على مراجع التقارير السابقة بدون تخزين التوكن فيها.
+- [ ] **14.4 — جمع أدلة الموقع المصرّح به.** ابدأ بصفحات ثابتة وأهداف اختبار محلية معتمدة، ثم اعرض تقريرًا عن جمع الأدلة السلبي ضمن النطاق المثبت. إثبات التفويض وسياسة الخروج وحدود الوقت والحجم والطلبات تسبق أي إتاحة عامة. استخدم حالات اختبار معزولة لإثبات رفض الوجهات الخاصة أو تغيّر الوجهة خارج النطاق.
+- [x] **14.5 — توحيد تجربة بدء الفحص.** اعرض ثلاث اختيارات بالضبط، مع توضيح متطلبات كل مصدر وحدوده. ابدأ الحالة نفسها بعد قبول المدخل. قدّم خطأ مفهومًا عند تعذّر الوصول أو رفض الملف أو التفويض، وأظهر نوع المدخل وحدوده في نتيجة الفحص.
+
+**التسليم.** ثلاثة Adapters، تخزين لقطات مع بصمات، وسياسة وصول وحصص قابلة للاختبار.
+
+**معيار القبول.** ثلاث رحلات E2E منفصلة تصل إلى profiling. رفض الأرشيف المتجاوز للحدود والاتصال غير المفوض والوجهة الخارجة عن النطاق، مع إثبات عدم حفظ أسرار مؤقتة في التقارير. فشل المدخل يرجع حالة واضحة قابلة للتفسير.
+
+**التوثيق المصاحب.** حدّث design وsecurity وoperations بعقود الإدخال وسياسة التفويض ومسار التخزين.
+
+#### سجل قبول Phase 14 · ٢٢ نوفمبر ٢٠٢٦
+
+- نُفّذت عقود الاستقبال والجرد وواجهة المدخلات الثلاثة، مع رحلات اختبار حتى التقرير لكل مدخل. سجل التعريف بالمصدر في صفحة النتيجة وPDF، ويحتفظ SHA-256 ونسخة سياسة الفحص في سجل المصدر. تظل حدود ZIP الأصلية سارية.
+- اجتاز الحجر اختبارًا مع MinIO محلي فعلي شمل SHA-256 والتحقق بعد القراءة وتنظيف الآثار بعد القبول أو الرفض. ثبتت قاعدة دورة الحياة على bucket الاختبار. نسخة التشغيل المحلية تستخدم التخزين المؤقت عند غياب إعدادات S3.
+- نُفّذ GitHub App الشخصي، واختُبر تفويض PKCE مرة واحدة، ورفض حساب مختلف، ورفض مستودع فقد صلاحية الوصول، وتثبيت SHA، وإعادة الطلب، وإبطال التفويض محليًا، واستمرار فتح التقرير السابق. القبول الخارجي يحتاج تسجيل GitHub App فعلي وتجربة مستودع مخوّل من حساب المستخدم.
+- اتوسّع جمع أدلة الموقع لحد ثلاث صفحات معتمدة لنفس الأصل، بطلب قراءة واحد لكل صفحة. اختُبر رفض الوجهات الخاصة والتحويلات، واتصال TLS على خادم محلي معزول وتنقيح الدليل. يظل ربط ZAP والتحقق من ضوابط خروج استضافة عامة ضمن العمل المفتوح في 14.4.
+- اتجهّزت صفحة اتصال GitHub برابط التسجيل المعبّأ وعنوان الرجوع، ورابط اختيار المستودعات، وزر اختبار الصلاحية وعرض المستودعات. أضيف أمر لحفظ الإعداد المحلي بمدخل سر مخفي. تجربة مزوّد GitHub الحقيقي تتطلب تسجيل التطبيق وتثبيته وتفويض حساب المستخدم.
+- طبّق الترحيل `platform_personal_github_0014` بعد نسخة احتياطية محلية، وتحقق من عزل اعتماد GitHub بدور التطبيق في PostgreSQL. تفاصيل الإعداد وحدود التغطية في [التصميم](../docs/ARCHITECTURE.md#استقبال-المصادر-الشخصية--phase-14) و[التشغيل](../docs/PLATFORM.md#تشغيل-مدخلات-الفحص--phase-14).
+- نجح بناء الواجهة واختبار المتصفح بالعربي والإنجليزي، بما فيه اختيارات المصدر الثلاثة ورفع ZIP وتنزيل PDF. نتيجة مجموعة Python الكاملة ٢١٠ اختبارًا ناجحًا و٨ اختبارات فرعية ناجحة، مع تخطي اختبار اختياري واحد للأدوات. مسارا الاستقبال يعملان في نسخة التطوير المحلية على المنفذ ٨٧٦٥.
+
+#### تفاصيل المصادر الثلاثة
+
+##### A. ZIP (Source Code)
+
+- Drag & drop / browse؛ `*.zip` فقط في واجهة الاستخدام؛ MIME+magic+archive parser على السيرفر.
+- Upload streamed إلى quarantine storage؛ SHA256، file limits، total expanded size، ratio، archive nesting، path traversal، symlink/hardlink، weird encoding، duplicate filenames، executable indicators، decompression bomb.
+- لا ننفذ أي كود من الملف، ولا `pip install/npm install` أثناء تحليل source؛ لو Tool تحتاج sandbox فبصلاحيات قراءة وبدون شبكة إلا عند ضرورة مُوثقة.
+- اكتشاف repo roots واللغات وlockfiles/config/API specs، واستبعاد build artifacts/large binaries، وتسجيل ما استبعدناه.
+- الحجم الحالي المقيد في V3 (بحسب `artifact_review.zip_texts`) لا نرفعه قبل وضع streaming/object storage/limits/security tests.
+
+##### B. GitHub repository
+
+- `Connect GitHub` لكل مستخدم عبر GitHub App (installation + authorization as necessary): **read-only Contents**, selected repo access؛ OAuth `state`، session binding، webhook signature checks لو استخدمنا webhooks.
+- قراءة قائمة المستودعات التي يسمح بها GitHub للمستخدم/التثبيت؛ عدم اظهار repos غير مخولة.
+- اختيار repo + branch/commit، وتحويله إلى **immutable commit SHA**، وأخذ snapshot محددة؛ record provider IDs + digest + repo permission at scan time.
+- رمز GitHub قصير المدى ومحمي وممنوع وصوله للـLLM أو scanners. Disconnect / revoke / repo uninstall يلغي الوصول للفحوصات المستقبلية ويطبق قواعد حذف/احتفاظ مناسبة.
+- API الحالي في `github_import.py` يعتمد على operator-bound/org installs؛ يجب تغييره إلى user-bound دون فقد النسخ السابقة بلا سياسة واضحة.
+
+##### C. Website URL وجمع الأدلة السلبي
+
+- إدخال HTTPS URL + declaration/verification of authorization + approved domain/subdomain/path scope؛ تحديد default safe mode.
+- Scope guard لكل اتصال: allowlisted public targets، منع private/link-local/metadata/loopback/reserved، account for DNS rebinding وIPv6 mapped addresses، revalidate redirects، enforce egress firewall. حالات الاختبار المحلية في network sandbox مخصصة.
+- Passive crawling محدود `max_pages`, `max_depth`, `max_requests`, `max_duration`, `max_bytes`, `rate`, `concurrency`; التقاط headers, cookies attributes, TLS metadata, forms, reachable endpoints and evidence للمراجعة السلبية فقط.
+- Browser automation *اختياري عند الحاجة* للـSPA مع قيود شديدة؛ non-mutating requests وممنوع login brute force / forms submission / active attacks. الصفحات التي تتطلب تسجيل دخول تسجّل كخارج التغطية في هذه الخطة.
+- مراجعة ZAP السلبية داخل عامل معزول تعتمد على المحتوى الذي أقرّه مسار الجمع المصرّح به. تقتصر الخطة على التحليل السلبي. تسجيل non-applicable limitations لأن URL لا يعطي source code.
+- حجب sensitive tokens/cookies/PII من saved evidence/LLM/traces.
+
+**قيد علمي:** مدخل URL لن يكشف بشكل موثوق عيوبًا لا تُرى إلا بالكود أو بالسلوك الموثق. التقرير يعرض **modality-specific coverage** بدل المقارنة على أساس أن كل Inputs متكافئة.
+
+### Phase 15
+
+**الهدف.** تشغيل أدوات معتمدة فقط من سجل واحد وإنتاج مقارنة Tools-only قابلة للتكرار.
+
+**التبعيات.** الدمج بعد عقود 14. السجل والـfixtures ممكن تجهيزهم أثناء 14. نتيجة القبول تسبق Phase 16.
+
+**مسؤوليات التنفيذ.** Detection لتجارب الأدوات والمحوّلات، Platform لعامل التنفيذ والصور، وSecurity/QA للترخيص والعزل.
+
+- [ ] **15.1 — سجل وأشكال مخرجات موحّدة.** اعتمد ToolManifest وToolResult وObservation بإصدارات ثابتة، ونوع المدخل والقدرة والمدخلات اللازمة وحدود الموارد وحالة الجاهزية. ثبّت عقد الإخفاق والتخطّي والموضع والمصدر المنقّح لكل أداة.
+- [ ] **15.2 — اختيار حتمي وخطة تنفيذ مقيدة.** سجّل نتيجة FindTool مع سبب الاختيار والتخطي والبدائل، وقارن التداخل بين الأدوات وزمنها وتغطيتها. الـBroker يعيد التحقق من السياسة وهوية الأداة وإصدارها والموارد المحددة قبل كل تشغيل.
+- [ ] **15.3 — صور تحليل معزولة.** استخدم أدوات منصّبة مسبقًا داخل صور مثبّتة البصمة. افصل عمال المصدر عن جمع أدلة الموقع، وشغّل أدوات المصدر ببيئة قراءة مقيّدة. وثّق تحديث صور الأدوات وقواعد البيانات في عملية إدارية خارج الفحص والتحكّم في الخروج الشبكي.
+- [ ] **15.4 — مراجعة المحللات على عينات.** حافظ على القواعد الحالية، وافحص المرشحين Semgrep وGitleaks وOSV-Scanner وTrivy ومحوّل OpenAPI ومراجعة ZAP السلبية حسب المدخل. استخدم عينات نظيفة ومصطنعة وإعدادات وقواعد مرخصة ومحددة. اعتمد الأداة بعد اختبار العزل والمواضع والتطبيع والمهلة والتداخل وجودة الدليل.
+- [ ] **15.5 — تقرير تغطية وخط أساس.** سجّل مدة التشغيل والحالة وإصدار المحلّل ومصدر الدليل والقيود لكل محاولة. احتفظ بنتائج الأدوات الناجحة عند إخفاق أداة مطلوبة. خزّن تشغيل Tools-only ثابتًا وموثّقًا لإعادة استعماله في مقارنة 18.
+
+**التسليم.** سجل وصور مُعتمدة ومحوّلات موحّدة ونتائج Tools-only معلومة المصدر.
+
+**معيار القبول.** اختبارات تثبت رفض أي أداة غير مسجلة أو خروج غير مسموح، وحجب الأسرار، ومطابقة عقود المخرجات. إخفاق أداة منطبقة ينتج تغطية جزئية مع سبب، وتنجح إعادة تشغيل نفس الحالات بالمثبتات نفسها.
+
+**التوثيق المصاحب.** حدّث design وsecurity بقواعد انتخاب الأدوات، وoperations ببناء الصور وتحديث البيانات، وevaluation بخط الأساس.
+
+#### عقود السجل واختيار الأدوات
+
+##### Registry موحدة (لا Internet tool search)
+
+كل Tool manifest يحتوي: ID/version/image digest/license/maintainer/source audit، capabilities، input types، supported languages، risk profile، network needs، cpu/ram/time، output parser/schema، healthcheck، known exclusions، benchmark evidence، approval state.
+
+**FindTool algorithm:**
+
+1. Filter: task type + input modality + language + evidence prerequisites.
+2. Policy check: user scope, permitted tool risk, isolation, required egress, quotas.
+3. Readiness: image pinned and available, dependencies installed/ready.
+4. Rank: measured coverage/precision by language & CWE, expected cost/time, overlaps (avoid running equivalent scanners without reason).
+5. Return selection + rationale + alternatives + skipped reason. Broker revalidates policy on execution.
+
+##### Recommended curated adapters (start small)
+
+| Adapter | capability | used for | notes |
+|---|---|---|---|
+| Existing Marsad rules | deterministic local checks | ZIP/GitHub/URL evidence | revise which rules genuinely apply to whole projects |
+| **Semgrep OSS** | SAST | ZIP/GitHub | تغطية اللغات ومجموعة القواعد موثقة حسب الأدلة |
+| **Gitleaks** | secrets | ZIP/GitHub | redact secrets in all reports; ZIP snapshot lacks git history |
+| **OSV-Scanner V2** | SCA | ZIP/GitHub lockfiles | check supported lockfile types; fix current Python-only narrow integration |
+| **Trivy** | filesystem dependency/misconfiguration | ZIP/GitHub | avoid duplicate SCA by selection; enable relevant scanners only |
+| **OWASP ZAP Automation Framework (passive)** | مراجعة سلبية للأدلة | محتوى مسار URL المصرّح به | فحوصات سلبية فقط ضمن هذه الخطة |
+| Native OpenAPI analyzer | contract lint | ZIP/GitHub extracted spec | internal capability not fourth input |
+
+**Integrate ≠ install all:** first a candidate tool `shadow` trial with fixtures, version pinning, sandbox validation, normalized result parsing, licensing/security review; then enable it. No automatic tools marketplace. MCP can be considered *later* only as adapter protocol for **approved local servers**; unnecessary for initial registry, and not a permission boundary.
+
+### Phase 16
+
+**الهدف.** بناء LangGraph بإشراف مقيد واستئناف وذاكرة موثّقة، مع فصل قرارات الأدلة عن اقتراحات الموديل.
+
+**التبعيات.** تعتمد على مدخلات 14 وقبول Tools-only في 15. يمكن تصميم نموذج 17 بالتوازي.
+
+**مسؤوليات التنفيذ.** Agents/Backend لعقود الحالات، Data لعزل الذاكرة، وDetection/QA للتحقق من الأدلة وحدود الوكلاء.
+
+- [ ] **16.1 — حالة الفحص ومخطط المهام.** نفّذ Supervisor حتميًا مع Task DAG بإصدارات وحالات وانتقالات وتصاريح معلومة. حدّد طلبات متوازية مستقلة فقط، ومزامنة قبل التقرير. اربط التشغيل بـlease وidempotency_key وtrace_id.
+- [ ] **16.2 — عقود الاستدلال.** حدّد للأدوار الثلاثة Planning وValidation وExplanation مخططات مدخلات ومخرجات، وميزانية ووقت وصلاحيات رؤية، وقواعد اختيار fallback حتمي. يحتفظ الخادم بالقرار ويقبل الاقتراح داخل قائمة قدرات معتمدة بعد تحقق Pydantic والسياسة.
+- [ ] **16.3 — التطبيع والتحقق.** طبّع Observation وبصّم كل دليل ونتيجة واحفظ مصادر الملاحظة عند إزالة التكرار. افصل خطورة النتيجة عن الثقة وحالة التغطية، وميّز الملاحظة المثبتة عن اللي محتاجة مراجعة. اربط النتيجة المؤكدة بموضع دليل، واختبر ثباته لو تغيّر رد الموديل أو تعطّل.
+- [ ] **16.4 — الاستئناف والذاكرة.** ادمج LangGraph PostgresSaver مع فحوص عزل owner/project/scan، وحدّد TTL ونسخ المصادر وذاكرة المشروع الموثّقة واسترجاع أقل سياق لازم. اربط الإلغاء والاستئناف والمراجعة وإعادة المحاولة باللقطة نفسها.
+- [ ] **16.5 — اختبارات الصمود والرصد.** جرّب تعطل العامل، تكرار الرسالة، إلغاء أثناء التشغيل، استدعاء موديل معطّل أو مخالف للعقد، ومحتوى غير موثوق فيه تعليمات. ثبّت شروط عدم مضاعفة النتائج وعدم اختلاط الحسابات، مع تسجيل قرار كل دور وتكلفته ومدته بشكل منقّح.
+
+**التسليم.** مسار قابل للاستئناف، أدوار موثقة، وأدلة وبصمات وسجل قرارات ومقاييس تشغيل.
+
+**معيار القبول.** نجاح resume وcancel وretry من checkpoint، وثبات الأدلة عند غياب الاستدلال. اختبارات تثبت إن تغيير نص المدخل ما يغيّرش سياسة الأدوات، وإن خطأ في مرحلة يبان في النتيجة النهائية، وإن كل حساب يقدر يوصل لبياناته بس.
+
+**التوثيق المصاحب.** حدّث architecture وdesign وdata-model وsecurity بعقود الأدوار والبيانات المسموح بها وقيود الاسترجاع.
+
+#### عقود الوكلاء والحالات
+
+##### Architectural pattern: Supervisor + bounded specialist nodes + deterministic services
+
+**لا نحتاج Agent لكل خطوة وكل Tool.** عند البداية:
+
+| Component | LLM? | الصلاحيات | المدخل | المخرج | failure behavior |
+|---|---|---|---|---|---|
+| Intake/Profiler | لا (rules/parsers) | read snapshot/scope فقط | SourceSnapshot | TargetProfile | unsupported/partial وليس clean |
+| Supervisor | State machine (LLM محدود اختياري للتوجيه) | orchestration API فقط | profile, budgets | next tasks/cancel | deterministic fallback |
+| **Planning Agent** | نعم، bounded | يرشح capabilities من قائمة معتمدة، لا shell | profile + registry metadata | typed plan DAG | reject invalid plans, fallback templates |
+| Tool Selector (`FindTool`) | **لا** في البداية | registry read فقط | task/capabilities/policy | ranked allowed tools + rationale | explicit unsupported |
+| Execution Broker | لا | whitelist tool manifest + sandbox | approved tool run | raw tool result | timeout/retry/blocked |
+| Normalizer/Deduplicator | لا | evidence store scoped | tool results | structured observations/fingerprints | parse error kept |
+| **Validation Agent** | نعم، bounded | read redacted evidence only | observations/grounding | reviewed findings + uncertainty | do not fabricate confirmation |
+| **Report Explanation Agent** | نعم، اختياري | read accepted structured findings | findings/report contract | clear remediation prose | deterministic fallback |
+| Report renderer | لا | report model only | canonical report | Arabic/English text/PDF | retry render with preserved model |
+
+##### قواعد سلوك ملزمة
+
+- كل Agent له `input_schema`, `output_schema`, `tool_allowlist`, `memory_policy`, `budgets`, `timeout`, `retry policy`, `trace_id`.
+- لا Agent تعمل arbitrary shell، ولا تحصل على SSH/GitHub tokens، ولا تستطيع إلغاء Gate التنفيذ.
+- كل Plan قابلة للفحص حتميًا (Pydantic validation + policy checks). لا self-recursive loops؛ `max_iterations` وtoken/cost/time budgets.
+- موازيّة المهام المستقلة فقط؛ لا نتيجة تقرير قبل synchronization/validation؛ Task idempotent.
+- الأدلة الناقصة أو فشل Tool = **partial/unknown** لا «safe».
+- LLM لا تنتج Vulnerability «confirmed» بدون source-backed observation وsupporting evidence؛ human review status عندما يكون الدليل غير كافٍ.
+- تغيير نموذج LLM/Prompt/Tool version يُسجّل كـrevision في نتائج الـbenchmark.
+- لا تخزين raw repository text في persistent Agent Memory ولا تمرير untrusted instruction كـsystem prompt.
+
+##### State transitions
+
+`intake → profiling → planning → policy_validate → schedule_runs → collect_results → normalize → validate → report → completed/partial`، مع `failed` و`cancelled`. يدعم resume من checkpoint. Worker/Job lease وجديد retries دون مضاعفة النتائج.
+
+##### Agent Quality Gates
+
+- نفس مجموعة الأدوات ونفس حدود النطاق والوقت والميزانية: قارن Tools-only vs Single-agent vs Multi-agent.
+- مقاييس: Task coverage، tool-selection validity، plan validity، evidence grounding، number of duplicate tools، false-positive rate، end-to-end time، tokens & cost، budget/scope violations.
+- إذا Multi-agent لم يقدم مكسبًا واضحًا، نخفف Agents بدل زيادة التعقيد لغرض العرض.
+
+**عرض الحالة.** تعرض الواجهة الحالات العامة في ScanStatus. خطوات policy_validate وschedule_runs وcollect_results وnormalize أحداث داخلية قابلة للتتبع. يرجع الاستئناف للـcheckpoint التي تخص نفس اللقطة والمحاولة المصرح بها.
+
+#### الذاكرة والسياق
+
+ملاحظات التصميم تجمع الذاكرة في ثلاث طبقات تشغيلية. حالة الفحص الجارية للاستئناف، وسجل التنفيذ والأدلة الثابتة للمراجعة، ومعرفة المشروع الموثّقة عبر الفحوصات. مخزن الملفات الخام وسجل خصائص الأدوات خدمات مساندة لها صلاحيات واحتفاظ منفصلين.
+
+| layer | store | write permission | read permission | retention |
+|---|---|---|---|---|
+| Scan working state | LangGraph PostgresSaver | orchestrator/checkpointer | current scan graph | TTL + cleanup |
+| Immutable execution/audit | PostgreSQL + object storage | task broker/audit event service | owner + internal evaluations | configured policy |
+| Verified project knowledge | owner-scoped Postgres tables | approved validator/system only | owner-scoped relevant scan | versioned + deletable |
+| Raw artifacts / evidence | encrypted object storage | isolated execution service | scoped backend, never arbitrary agent retrieval | short retention/default deletion |
+| Tool metadata/capabilities | approved registry | administrators/release process | planner/selector | versioned |
+
+- Key memories by **user/project/scan**، لا org؛ الإشارة إلى source snapshot SHA، evidence id، validity period، confidence، tool version.
+- Retained knowledge includes confirmed recurring issues, known frameworks, resolved findings; **never** stores attacker-provided commands or unverified fixes as instructions.
+- Retrieve minimal verified context with explicit redaction. Use Postgres full-text first; `pgvector` only after measurable need/benchmark. Context caches have expiry and invalidation on new commit or URL scope changes.
+- User delete project/account triggers explicit deletion workflow (artifacts, reports, checkpoint, tokens, backups retention policy), with audit of purge.
+
+### Phase 17
+
+**الهدف.** تسليم صفحة تقرير واحدة بسيطة ونسختي PDF ونص عربي وإنجليزي من بيانات تقرير ثابتة.
+
+**التبعيات.** تصميم ReportModel ممكن يبدأ مع 14–16. دمج العرض النهائي بعد قبول مرحلة الأدلة والذاكرة في 16.
+
+**مسؤوليات التنفيذ.** Product/Frontend للتنقل والتقرير، Backend/PDF للعقد والتنضيد، وQA للتحقق من تطابق الصيغ.
+
+- [ ] **17.1 — مصدر بيانات للتقرير.** ثبّت ReportModel وإصداره عند اكتمال الفحص. اربط الملخص والمواضع والبصمات والثقة والتغطية بالمصدر والنطاق وقيود كل مدخل. احفظ مراجع المخرجات أو ولّدها من النسخة نفسها بشكل قابل للتكرار.
+- [ ] **17.2 — تجربة الفحص وصفحة التقرير.** اعرض نوع المدخل والتقدّم والسجل داخل المشروع، وصفحة تقرير نصية بأزرار **English** و**العربية** و**Download PDF**. ضمّن الدليل المنقّح والتوصية لكل نتيجة، واذكر الأجزاء المتخطّاة وأسبابها. أخرج تبويبات التقارير المتقدمة من رحلة المستخدم بعد اختبار البديل واحفظ الأدلة الفنية اللازمة للاسترجاع داخليًا.
+- [ ] **17.3 — PDF باللغتين.** طوّر report_pdf.py على fpdf2 والخطوط الحالية، مع اختبار الحروف المركبة واتجاهات النصوص المختلطة ولف السطور ومسارات الملفات الطويلة والأعداد وتعدد الصفحات. اجعل العربية والإنجليزية نصًا قابلًا للبحث والتحديد.
+- [ ] **17.4 — توافق الواجهة وقابلية الاستخدام.** قسّم المكونات تدريجيًا بحسب الميزات، وتحقق من إدخال لوحة المفاتيح والقائمة في الشاشات الصغيرة، وRTL وLTR. اختبر إذن فتح التقرير وتنزيله للحساب الصحيح وإعادة فتح تقرير قديم قابل للترحيل.
+- [ ] **17.5 — مطابقة المخرجات.** قارن أرشيف التقرير وعدد النتائج والموقع ومعرّفات الدليل، بين النص العربي والإنجليزي وملفي PDF. راجع بصريًا مسارات ZIP وGitHub وURL وتقريرًا جزئيًا، واختبر تنقيح الأسرار واللينكات.
+
+**التسليم.** واجهة تقارير خفيفة وغلاف قابل للوصول، مع AR/EN text وPDF من نفس العقد.
+
+**معيار القبول.** المحتوى الفني والعدادات متطابقة عبر اللغتين والصيغ، والنص قابل للتحديد، ونتيجة بلا أدلة مطابقة توضّح حدود التغطية. الرحلات الثلاث تعدّي قبول E2E ومراجعة العرض.
+
+**التوثيق المصاحب.** حدّث design بعقد التقرير ومخططات التنقل وعمليات الوصول، وoperations بمخرجات PDF ومتطلبات الخطوط.
+
+#### قالب التقرير والتطابق عبر الصيغ
+
+**Two language outputs** for each Scan (English and Arabic), from a *single* immutable `ReportModel` with standardized findings; render text on web + searchable/selectable PDF. الواجهة تعتمد النص وPDF لهذه النسخة.
+
+##### Report template (both languages)
+
+```text
+MARSAD Security Assessment
+Project / Scan ID / Source (ZIP, GitHub SHA or URL scope)
+Date / status (Completed or Partial) / coverage and limitations
+
+Summary: N findings (Critical / High / Medium / Low / Info)
+
+1. Finding title — severity / confidence
+   Affected location: path:line OR permitted URL
+   Why it matters: concise supported explanation
+   Evidence: redacted proof + source tool / observed state
+   Recommended fix: actionable and scoped
+
+... (repeat all findings)
+
+Checks performed and skipped (with reasons)
+Notes: URL evidence is passive. Report observed coverage and limitations even when there are zero findings.
+```
+
+**Report UI**: language toggle، download PDF button، optional copy text، metadata/status، findings، limitations. **لا Advanced Reporting Page ولا Evidence Explorer**؛ detailed evidence metadata محفوظ داخليًا للوثوقية ويُعرض كمقتطف ضمن finding فقط عند الحاجة.
+
+**PDF technology:** الاحتفاظ بـ`backend/report_pdf.py` (fpdf2 + fonts) مع اختبار glyph coverage/RTL/mixed LTR tokens/Unicode line breaks/long file paths/large findings/pages. نص عربي **selectable**, no raster screenshot. ركّب نسختي PDF على نفس snapshot، وتأكد تطابق النتائج مع text.
+
+#### تنظيم ملفات الواجهة والخادم
+
+##### Backend (Target logical layout; incremental moves only)
+
+```text
+backend/
+  main.py                  # app composition ONLY
+  api/                     # auth, projects, scans, github, reports
+  domain/                  # typed contracts/models + ownership/policies
+  intake/                  # zip, github, url (3 adapters)
+  agents/                  # graph, planner, validator, explanation, state
+  tools/                   # registry, find_tool, broker, adapters/
+  detection/               # native rules, observations, dedup, evidence
+  reporting/               # report_model, text, pdf
+  infrastructure/          # db, queue, storage, telemetry
+  migrations/              # existing Alembic chain + new revisions
+  tests/                   # unit / integration / security / fixtures
+```
+
+##### Frontend
+
+```text
+frontend/src/
+  app/             # routing, auth guard, sidebar, app shell
+  features/
+    auth/
+    projects/
+    scans/         # intake cards + progress + history
+    github/
+    reports/       # text + PDF ONLY
+    settings/
+  shared/          # typed API, UI primitives, translations, styles
+```
+
+- File grouping by cohesive module, **not one file per tiny function**. Keep high-cohesion modules together; split only when responsibilities and tests justify it.
+- Delete obsolete route/component/test **after** live replacements pass tests. Avoid two active implementations of same operation.
+- Keep public API versioning and backward compatibility only for *existing real user data*; don't preserve Demo legacy forever.
+- Backend FastAPI + Pydantic + SQLAlchemy + Alembic; Frontend React/Vite, TypeScript progressively; lint Ruff + ESLint, formatting, type checks; CI.
+
+### Phase 18
+
+**الهدف.** قياس جودة اكتشاف الأدلة وقيمة الوكلاء والتكلفة على حالات ثابتة قابلة للإعادة.
+
+**التبعيات.** تجهيز fixtures يبدأ مع 13. قياس A/B/C/D بعد تثبيت مخرجات 15–17.
+
+**مسؤوليات التنفيذ.** QA/Evaluation لتثبيت المرجع والتحليل، Detection لتفسير الفجوات، وPlatform لتشغيل CI وحفظ النتائج.
+
+- [ ] **18.1 — تثبيت العينات والمرجع.** ثبّت commit وتوقعات أدلة مستقلة لكل مجموعة وحالات صحيحة وسلبية ومتكررة. افصل حالات التدريب والتطوير عن القياس، واستخدم تقسيمات المستودع واللغة وCWE والمدخل. استخدم Juice Shop وWebGoat محليًا في سيناريوهات جمع أدلة سلبي معلومة المرجع، مع توثيق ما تغطيه كل حالة.
+- [ ] **18.2 — مقارنة بأربع إعدادات.** نفّذ Native Rules وTools-only وSingle Agent وMulti-Agent على نفس اللقطات والنطاق والميزانية. ثبّت نسخ الأدوات والموديل والـprompt والتوقعات قبل المقارنة. افصل قياس مصادر الكود عن أدلة URL.
+- [ ] **18.3 — قياس القبول والفجوات.** سجّل TP/FP/FN وPrecision/Recall/F1 حسب الطبقة، وصحة الموضع والاستدلال، والتغطية القابلة للتطبيق، والتكرار والأخطاء وكثافة النتائج الزائدة، وp50/p95 والتوكنات والتكلفة. سجّل صلاحية الخطط ومخالفات السياسة والمهام الزائدة وحالات الإخفاق.
+- [ ] **18.4 — تقوية الاختبارات.** نفّذ اختبارات الوحدة والعقود والتكامل والمتصفح والعزل والصمود والأداء حسب المصفوفة أدناه. ضع حالات صغيرة في CI وتشغيلًا أثقل دوريًا. اختبر من بيئات منفصلة، واحفظ النواتج مع run ID وبيان الإعدادات.
+- [ ] **18.5 — قرار قيمة الوكلاء.** فسّر أسباب الفجوات وانخفاض الأداء والتغطية وحدود البيانات. دوّن قرار زيادة الاستدلال أو تقليله وفق تحسّن موثّق وميزانية مقبولة، واربط أي إصلاح بنتيجة إعادة القياس.
+
+**التسليم.** evaluation manifests ونتائج قابلة للإعادة ونواتج أثر وسجل قرار مبني على القياس.
+
+**معيار القبول.** مشغّل مستقل يقدر يعيد التجربة باستخدام تثبيت النسخ نفسه، وكل اختلاف مهم له تفسير. القبول يعرض حدود القياس وأثر التغطية والتكلفة، ويشمل قرارًا مبررًا عن جدوى الوكلاء.
+
+**التوثيق المصاحب.** حدّث evaluation بالمجموعات والتثبيت والمقاييس والأثر، وsecurity بملخص نتائج العزل، وoperations بإعادة تشغيل القياس.
+
+#### تصميم التجارب ومجموعات القياس
+
+**لا يوجد benchmark واحد يثبت كفاءة نظام متعدد الوكلاء على ZIP/GitHub/URL معًا.** نقسم التقييم بدل التلاعب بمقياس واحد.
+
+| Dataset / framework | الاستخدام الصحيح | المحدودية |
+|---|---|---|
+| **OWASP Benchmark Java v1.2** | ground-truth للتحليل الساكن ومراجعة الأدلة السلبية, labeled cases + scorecards | مصنوع، Java أساسًا، لا يثبت تعميمًا على أنظمة حقيقية |
+| **OWASP Benchmark Python** | إضافات Python مدعومة حسب الإصدار المثبت | أصغر/أقل نضجًا من Java حسب حالة الإصدار؛ تحقق pin |
+| **OWASP Juice Shop** | سيناريوهات محلية لجمع الأدلة السلبي المصرّح به | ليس dataset رسميًا مباشرًا لقياس precision/recall لكل finding بدون mapping يدوي |
+| **OWASP WebGoat** | حالات محلية لمراجعة الأدلة السلبية واختبارات التراجع | تعليم وليس ground-truth scoring جاهز لكل أداة |
+| **OWASP VulnerableApp** | مرشح إضافي للاختبار بعد مراجعة dataset/ground truth | مرحلة maturity/coverage تُتحقق قبل الاعتماد |
+| **OWASP ASVS v5 + WSTG** | coverage requirements + test methodology | **معايير** وليست benchmark scorecards |
+| **Internal MARSAD dataset** | representative projects + negatives + regression + language/case splits | تعيين ground truth ومراجعة حالات false positives مطلوب |
+| **Agent-specific traces dataset** | اختيار tool، plan validity، loop budget، policy violations | لا يغني عن benchmark detection |
+
+##### Protocol (same targets / same constraints)
+
+- A: Marsad native deterministic rules.
+- B: Same curated security tools, no LLM agents.
+- C: Same tools + single coordinator agent.
+- D: Same tools + proposed multi-agent graph.
+- **Equal budgets/scope/source snapshots**؛ اختبارات source مستقلة عن URL؛ Test split by repo/CWE/language/scan modality.
+- Metrics: TP/FP/FN + Precision/Recall/F1 per CWE/language; false-positive density, evidence validity, applicable coverage, tool errors, runtime p50/p95, tokens/cost, reproducibility, security policy violations, per-agent unnecessary tool usage.
+- Generate machine-readable `evaluation_run` (environment + pinned tool/model/prompt versions, dataset commits, costs, gold labels, run IDs), and human summary in `docs/evaluation.md` with trace link. No invented results or unsupported accuracy promises.
+- CI quick subset; scheduled heavier benchmark with immutable artifacts. Regression alerts when accuracy decreases beyond defined tolerance.
+
+#### مصفوفة الاختبار والقبول
+
+**Minimum testing pyramid**
+
+- Unit: owner authorization, ZIP safe extraction, project create/rename/delete, URL scope guards, manifests/find tool selection, agent typed state, report AR/EN, stable fingerprints.
+- Contract: 3 input adapters into same ScanRequest/SourceSnapshot; all tools produce ToolResult with supported status/error handling.
+- Integration: PostgreSQL migration + RLS isolation, Github install/uninstall/revocation & SHA, Redis/Celery retries/idempotency, object store retention, PDF endpoint authorization.
+- E2E Playwright: Signup → Sidebar → New Project → ZIP scan → text AR/EN → PDF; GitHub connect → repo → PDF; authorized local URL → passive scan → PDF; multiple projects isolation.
+- Security: BOLA/IDOR, CSRF/session cookies, XSS from findings, ZIP Slip/bomb/symlink, رفض الوجهات غير المسموحة وتغيُّر عنوان الوجهة وإعادة التوجيه خارج النطاق وIPv6, egress, رفض تعليمات غير موثوقة داخل ملفات المصدر ومحتوى الويب, secret redaction, اختبارات حدود عزل عامل التحليل, user enumeration, token revoke.
+- Reliability: scan retries, cancellation, worker crash, partial findings, outbox recovery, queue starvation, timeout, quotas, source freshness, uninstallation, PDF large report.
+- Performance: controlled resource budgets by scan type, latency and memory baselines, concurrent account fairness.
+
+### Phase 19
+
+**الهدف.** توحيد المرجع والتشغيل، وتنفيذ إزالة الموروث بعد إثبات حفظ البيانات، واتخاذ قرار الإصدار.
+
+**التبعيات.** توثيق كل مرحلة يبدأ وقت تنفيذها. الإغلاق بعد نجاح 13–18 وسجل اختبار الترحيل والتشغيل والقياس.
+
+**مسؤوليات التنفيذ.** Product/Docs لإدارة المراجع، Data للترحيل والاستعادة، Ops للإطلاق والرصد، وQA لمراجعة القبول.
+
+- [ ] **19.1 — التوثيق الموحد والأرشيف.** اجمع مراجع التشغيل والتصميم والبيانات والأمن والتقييم في المستندات الرسمية، وانقل المستندات التاريخية بعد تأكيد البديل وتحديث الروابط. وثّق الحالة وتاريخ التحقق وcommit لكل مرجع، واتخذ قرارات معمارية مستقلة فقط عند وجود قرار طويل الأثر.
+- [ ] **19.2 — إغلاق التوافق القديم.** على نسخة مستعادة، طابق الحسابات والمشاريع والفحوصات والتقارير والأذونات وحدّد صراحة مصير كل سجل ملتبس وبيانات Demo. شغّل اختبار الاسترجاع قبل إيقاف مسارات التوافق وحذف org_id والكيانات والجداول عند قبول الترحيل. سجّل مسار rollback ونقطة توقف آمنة لو ظهرت فجوة.
+- [ ] **19.3 — تجهيز التشغيل والنشر.** وثّق Docker Compose للتطوير وتثبيت الصور والأدوات وترقية بيانات التنبيهات. جهّز الأسرار والنسخ الاحتياطي والاسترجاع والاحتفاظ والحذف وTLS والنطاق والخروج الشبكي للتشغيل المستضاف. فعّل الرصد الموضعي وسجل الأحداث المنقّح واختبر الإنذارات بدون بيانات حساسة.
+- [ ] **19.4 — اختبار ضغط ومراجعة الإصدار.** اختبر العدالة بين الحسابات وتأخير الطابور والذاكرة وتحمّل الأعطال واستعادة نسخة بيانات. راجع تسلسل الصلاحيات ونواتج العزل وثبات الأدلة، وتغطية الرحلات الثلاث وتقارير اللغتين. اربط حدود التغطية الحالية بالنتائج المنشورة.
+- [ ] **19.5 — بيان تسليم وقرار نشر.** جمّع release manifest بإصدارات الكود والصور والأدوات والمخطط، والـchecks وبصمات نتائج التقييم والقيود، واربطه بأوامر النشر والرجوع. سجّل قرار Go أو No-Go ومن يوافق والإجراءات المتبقية.
+
+**التسليم.** خطة واحدة، ERD مطابق، توثيق تشغيلي وأرشيف منظم، وبيان إصدار وإجراءات استرجاع.
+
+**معيار القبول.** ثلاث رحلات مقبولة، وتطابق النص والـPDF في اللغتين، وعزل المالك، ودليل لكل نتيجة، وتغطية جزئية معلنة عند الفشل. الوثائق تطابق commit الإصدار، وتجربتا النشر والـrollback ممكن إعادتهما، ومصير البيانات القديمة مُوثّق ومقبول.
+
+**التوثيق المصاحب.** راجع README وفهرس docs والمستندات المرجعية وقرارات ADR وروابط الأرشيف، وأثبت نسخة الإصدار في work/plan.md.
+
+#### مراجع التوثيق والأرشفة
+
+```text
+README.md                # landing: product + quickstart + links
+work/
+  plan.md                # ONLY living phased plan: 1..12 history, 13+ active
+
+docs/
+  README.md              # documentation navigation + current status
+  architecture.md        # actual + target with clear implementation statuses
+  design.md              # UX flows, agents, tool contracts, report design
+  data-model.md          # new owner-based ERD, migration notes
+  security.md            # authorization, URL scope, sandbox, threats
+  evaluation.md          # datasets, protocols, result links, scorecards
+  operations.md          # setup/config/deployment/backups/runbooks
+  decisions/             # ONLY material ADRs (one per durable change)
+  archive/               # legacy PHASE* and obsolete documents read-only
+```
+
+**نظام التوثيق.** تتضاف بنود كل مرحلة إلى `work/plan.md`. تغييرات المعمارية في `architecture.md`، ونتائج التقييم في `evaluation.md`، ونواتج كل تشغيل آلي في `artifacts/evaluations/{run-id}/`. استبعد النواتج المولّدة الكبيرة من Git. يحدد `docs/README.md` المستند المرجعي لكل موضوع. كل مستند يسجل حالة التنفيذ وآخر تحقق ونسخة الكود. قبل الأرشفة، جهّز خريطة للروابط القديمة وحدّث الإحالات إليها. راجع مسارات الملفات اللي تختلف في حالة الحروف، زي `ARCHITECTURE.md`، قبل إعادة التسمية على Windows.
+
+#### متطلبات التشغيل والنشر
+
+استخدم Docker Compose للتطوير والبحث. حدّد مسؤوليات `api` و`frontend` و`worker-source` و`worker-url` و`postgres` و`redis` و`minio`، مع OTel Collector اختياري في البداية. التشغيل المستضاف يحتاج TLS، ومدير أسرار أو KMS، وتجارب استرجاع للنسخ الاحتياطية، وفحص الصور وتوقيعها وتثبيت بصماتها، وعزل الخروج الشبكي، وCI/CD وسياسات الاحتفاظ والحذف. تحديث تغذيات التنبيهات مسؤولية مهمة تشغيلية منفصلة ومقيدة.
+
+## الأولويات والقرارات المفتوحة للمراحل ١٣–١٩
+
+### ترتيب أعمال الاستبدال والتحسين
+
+| Priority | Remove/Replace | Keep/Improve |
+|---|---|---|
+| P0 | `/demo`, old homepage demo button, `Source.jsx` demo user journey, sample data UI | login/register, new AppShell/Sidebar |
+| P0 | Organizations/memberships/org grants/invitations/API routes/DB after migration | users/auth sessions, projects owner relationship, scanning data |
+| P0 | org-scoped GitHub mapping | GitHub App concept; account GitHub Connect & disconnect |
+| P0 | single HTML and artifact-only source cards | ZIP/GitHub/URL source contracts and safe intake |
+| P1 | parallel disjoint HTML graph and project scanner | unified multi-agent workflow with typed evidence |
+| P1 | tool choices hardcoded across unrelated files | registry/selector/broker with approved adapters |
+| P1 | report UI advanced pages + demo fallbacks | canonical report, bilingual text/PDF |
+| P1 | vague /session memory with no lifecycle | Postgres checkpoints + verified project memory |
+| P2 | Phase-specific doc duplication and stale descriptions | one plan and 6 canonical docs + decisions |
+| P2 | blanket scanner accuracy claims | versioned empirical benchmarks |
+| P2 | loosely-scoped access to tool output/raw content | scoped artifacts/provenance, retention/redaction |
+| P3 | framework changes without measured benefit | React/FastAPI/Postgres/Celery/LangGraph |
+
+### سياسات لازم تتحدد قبل الإصدار
+
+- **Phase 13 و19.** مهلة الاحتفاظ بالتقارير والملفات، وسياسة حذف الحساب أو المشروع والنسخ الاحتياطية، والوقت المتفق عليه لإتمام الحذف.
+- **Phase 14.** حصص ZIP والمشروع وحدود الأرشيف، والتوازي لكل حساب، ومسار التحقق من تفويض URL وأنواع الأهداف وحدود النطاق والمعدل. حدّد دعم المستودعات العامة والخاصة وهل الحساب يربط أكثر من هوية GitHub.
+- **Phase 15.** مراجعة ترخيص كل أداة ونسخة قواعدها وسياسة تحديث بيانات التنبيهات.
+- **Phase 16.** اختيار مزوّد الموديل وسياسة مفاتيحه وإبطالها، وحدود التكلفة والوقت والسياق المسموح.
+
+**حدود خط الأساس.** تدقيق إعداد الخريطة السابقة شمل فحصًا ثابتًا للكود. أدلة القبول القديمة باقية في سجل ١–١٢. تُعاد اختبارات خط الأساس المطلوبة على بيئة Phase 13 وتُرفق النتيجة بالـcommit ونسخة البيانات.
+
+### المراجع الرسمية الواردة في خريطة الطريق
+
+1. LangGraph Postgres checkpoints and subgraphs: [المصدر](https://github.com/langchain-ai/langgraph/blob/main/libs/checkpoint-postgres/README.md) · [المصدر](https://github.com/langchain-ai/docs/blob/main/src/oss/langgraph/use-subgraphs.mdx)
+2. GitHub App user authorization / installation tokens / permissions: [المصدر](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/authenticating-with-a-github-app-on-behalf-of-a-user) · [المصدر](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/authenticating-as-a-github-app-installation) · [المصدر](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/choosing-permissions-for-a-github-app)
+3. OWASP SSRF prevention: [المصدر](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html)
+4. ZAP Automation Framework / passive scanner: [المصدر](https://www.zaproxy.org/docs/automate/automation-framework/) · [المصدر](https://www.zaproxy.org/docs/docker/baseline-scan/) · [المصدر](https://www.zaproxy.org/docs/desktop/addons/passive-scanner/automation/)
+5. OWASP Benchmark official (Java/Python): [المصدر](https://owasp.org/projects/benchmark)
+6. Juice Shop & WSTG/ASVS: [المصدر](https://owasp.org/projects/juice-shop) · [المصدر](https://wstg.owasp.org/) · [المصدر](https://asvs.owasp.org/)
+7. OWASP VulnerableApp بوصفه مجموعة مرشحة: [المصدر](https://owasp.github.io/blog/2026/09/09/owasp-vulnerableapp-benchmarking-security-scanners.html)
+8. OSV-Scanner V2 and lockfiles: [المصدر](https://google.github.io/osv-scanner/usage/scan-source) · [المصدر](https://google.github.io/osv-scanner/supported-languages-and-lockfiles/)
+9. Trivy filesystem scanners: [المصدر](https://trivy.dev/docs/latest/target/filesystem/)
+10. Gitleaks: [المصدر](https://github.com/gitleaks/gitleaks)
+11. Celery idempotent tasks: [المصدر](https://docs.celeryq.dev/en/latest/userguide/tasks.html)
+12. OpenTelemetry Python: [المصدر](https://opentelemetry.io/docs/languages/python/instrumentation/)

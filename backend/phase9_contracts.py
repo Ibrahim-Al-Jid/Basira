@@ -136,6 +136,31 @@ class GitHubSnapshotRef(BaseModel):
     repository: str = Field(max_length=140, pattern=r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
     commit: str = Field(pattern=r"^[a-f0-9]{40}$")
     connection_id: Identifier
+    installation_id: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    repository_id: str | None = Field(default=None, exclude_if=lambda value: value is None)
+
+
+class TargetProfile(BaseModel):
+    mode: Literal["zip", "github", "website"]
+    contract: Literal["marsad-intake-1"] = "marsad-intake-1"
+    text_files: int | None = None
+    skipped_files: int | None = None
+    expanded_text_sha256: Digest | None = None
+    expanded_text_bytes: int | None = None
+    file_types: list[str] = Field(default_factory=list)
+    root_count: int | None = None
+    executable_entries: int | None = None
+    lockfiles: int | None = None
+    config_files: int | None = None
+    api_specs: int | None = None
+    public_url: str | None = None
+    pages: int | None = None
+    requests: int | None = None
+    forms: int | None = None
+    links_observed: int | None = None
+    page_bytes: int | None = None
+    page_sha256: Digest | None = None
+    tls_version: str | None = None
 
 
 class SourceSnapshot(BaseModel):
@@ -146,6 +171,7 @@ class SourceSnapshot(BaseModel):
     created_at: datetime
     raw_expires_at: datetime
     github: GitHubSnapshotRef | None = None
+    profile: TargetProfile | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class ScopeVersion(BaseModel):

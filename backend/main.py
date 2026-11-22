@@ -8,6 +8,7 @@ import html
 import json
 import os
 from pathlib import Path
+import re
 import secrets
 import sqlite3
 import time
@@ -26,6 +27,7 @@ from .contracts import (
 from .graph import GraphError, run_graph
 from .artifact_review import RULESET_VERSION, catalog as rule_catalog, redact_label
 from .offline_worker import scan_payload
+from .platform_db import personal_projects_enabled
 
 ROOT = Path(__file__).resolve().parents[1]
 COOKIE = "marsad_session"
@@ -56,11 +58,23 @@ app.openapi = describe_ndjson
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_error(request, _error):
+async def validation_error(request, error):
     # Pydantic's default body may echo a submitted credential or HTML source.
     if request.url.path in {"/api/platform/auth/password/register", "/api/platform/auth/password/login"}:
-        detail = "راجع صيغة الإيميل وكلمة المرور. الحد الأقصى لكلمة المرور ١٢٨ حرف."
-    elif request.url.path.startswith("/api/platform/"):
+        messages = {
+            "email": "اكتب الإيميل بصيغة صحيحة.",
+            "password": "راجع كلمة المرور. الحد الأقصى ١٢٨ حرف.",
+        }
+        if request.url.path.endswith("/register"):
+            messages.update({
+                "first_name": "اكتب الاسم الأول بحروف من غير أرقام أو شرطة سفلية.",
+                "last_name": "اكتب اسم العائلة بحروف من غير أرقام أو شرطة سفلية.",
+            })
+        locations = {tuple(issue["loc"]) for issue in error.errors()}
+        fields = [field for field in messages if ("body", field) in locations]
+        detail = " ".join(messages[field] for field in fields) or "راجع الحقول المطلوبة لإنشاء الحساب أو تسجيل الدخول."
+        return JSONResponse({"detail": detail, "fields": fields}, status_code=422)
+    if request.url.path.startswith("/api/platform/"):
         detail = "راجع الحقول المطلوبة ونوع البيانات."
     else:
         detail = "راجع نوع وحجم مصدر HTML والحقول المدعومة."
@@ -69,6 +83,16 @@ async def validation_error(request, _error):
 
 @app.middleware("http")
 async def protect_requests(request, call_next):
+    path = request.url.path.rstrip("/")
+    if personal_projects_enabled() and (
+        path in {"/demo", "/api/run", "/api/history", "/api/reports"}
+        or path.startswith(("/api/reports/", "/api/platform/organizations/", "/api/platform/invitations/"))
+        or path == "/api/platform/organizations"
+        or re.match(r"^/api/platform/projects/[^/]+/(?:grants|github-source)(?:/|$)", path)
+        or re.fullmatch(r"/api/platform/projects/[^/]+/reports/[^/]+/claim", path)
+    ):
+        return JSONResponse({"detail": "المسار غير متاح."}, status_code=404,
+                            headers={"Cache-Control": "no-store"})
     if request.url.path.startswith("/api/"):
         origin = request.headers.get("origin")
         if request.method in {"POST", "PUT", "PATCH", "DELETE"} and origin and origin.rstrip("/") != str(request.base_url).rstrip("/"):
@@ -385,6 +409,11 @@ def download(report_id: str, request: Request, lang: Literal["en", "ar"] = "en",
     })
 
 
+@app.get("/api/product", include_in_schema=False)
+def product_mode():
+    return {"personal_projects": personal_projects_enabled()}
+
+
 @app.get("/", include_in_schema=False)
 @app.get("/reports", include_in_schema=False)
 @app.get("/reports/{report_id}", include_in_schema=False)
@@ -398,8 +427,10 @@ def download(report_id: str, request: Request, lang: Literal["en", "ar"] = "en",
 @app.get("/settings", include_in_schema=False)
 @app.get("/new-scan", include_in_schema=False)
 def frontend_page(request: Request):
-    _, token = session(request)
     page = FileResponse(ROOT / "frontend" / "dist" / "index.html", headers={"Cache-Control": "no-store"})
+    if personal_projects_enabled():
+        return page
+    _, token = session(request)
     return set_session(page, token, request)
 
 
@@ -407,11 +438,18 @@ from .identity import install_identity
 from .platform_api import router as platform_router
 from .evidence_links import router as evidence_links_router
 from .github_import import router as github_import_router
-from .model_connections import router as model_connection_router
+from .model_connections import account_router as account_model_router, router as model_connection_router
+from .personal_projects import router as personal_project_router
+from .personal_github import router as personal_github_router
+from .personal_intake import router as personal_intake_router
 
 install_identity(app)
 app.include_router(platform_router)
 app.include_router(evidence_links_router)
 app.include_router(github_import_router)
 app.include_router(model_connection_router)
+app.include_router(account_model_router)
+app.include_router(personal_project_router)
+app.include_router(personal_github_router)
+app.include_router(personal_intake_router)
 app.mount("/", StaticFiles(directory=ROOT / "frontend" / "dist", html=True, check_dir=False), name="frontend")

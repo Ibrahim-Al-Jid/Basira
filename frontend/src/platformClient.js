@@ -18,7 +18,10 @@ export async function action(path, options) {
   const value = await response.json().catch(() => null);
   if (!response.ok) {
     const fallback = response.status === 429 ? "محاولات كتير في وقت قصير. استنى شوية وحاول تاني." : "تعذّر تنفيذ الطلب.";
-    throw Object.assign(Error(typeof value?.detail === "string" ? value.detail : fallback), { status: response.status });
+    throw Object.assign(Error(typeof value?.detail === "string" ? value.detail : fallback), {
+      status: response.status,
+      fields: Array.isArray(value?.fields) ? value.fields : [],
+    });
   }
   return value;
 }

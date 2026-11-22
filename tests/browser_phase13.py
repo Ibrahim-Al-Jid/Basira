@@ -1,0 +1,123 @@
+"""Exercise Phase 13 in a disposable personal-project environment."""
+
+from io import BytesIO
+import os
+from secrets import token_urlsafe
+from urllib.parse import parse_qs, urlsplit
+from uuid import uuid4
+from zipfile import ZipFile
+
+from playwright.sync_api import expect, sync_playwright
+
+
+def signup(page, origin, language):
+    address = f"phase13-{uuid4().hex[:12]}@example.test"
+    password = token_urlsafe(24)
+    page.goto(origin + "/signin")
+    page.get_by_role("button", name="Create an account" if language == "en" else "إنشاء حساب", exact=True).click()
+    page.locator('[name="first_name"]').fill("Example")
+    page.locator('[name="last_name"]').fill("Tester")
+    page.locator('[name="email"]').fill(address)
+    page.locator('[name="password"]').fill(password)
+    page.get_by_role("button", name="Create account" if language == "en" else "إنشاء الحساب", exact=True).click()
+    page.wait_for_url(origin + "/projects")
+    return address, password
+
+
+def project_zip():
+    archive = BytesIO()
+    with ZipFile(archive, "w") as file:
+        file.writestr("index.html", "<!doctype html><html><title>Phase 13 fixture</title><p>Sample</p></html>")
+    return {"name": "project.zip", "mimeType": "application/zip", "buffer": archive.getvalue()}
+
+
+def main():
+    origin = os.environ["MARSAD_PHASE13_QA_ORIGIN"].rstrip("/")
+    parsed = urlsplit(origin)
+    if parsed.scheme != "http" or parsed.hostname != "127.0.0.1" or parsed.port in (None, 8765):
+        raise ValueError("Use a disposable loopback Phase 13 instance on its own port.")
+    with sync_playwright() as playwright:
+        channel = os.environ.get("MARSAD_BROWSER_CHANNEL")
+        browser = playwright.chromium.launch(channel=channel)
+        owner = browser.new_context(locale="en-US")
+        other = browser.new_context(locale="ar-EG", viewport={"width": 390, "height": 844})
+        assert owner.request.get(origin + "/api/product").json() == {"personal_projects": True}
+        page = owner.new_page()
+        address, password = signup(page, origin, "en")
+        sidebar = page.get_by_role("navigation", name="Workspace navigation")
+        expect(page.get_by_text("Create organization")).to_have_count(0)
+        sidebar.get_by_role("link", name="New Project", exact=True).click()
+        page.get_by_label("Project name").fill("Personal QA project")
+        page.get_by_role("button", name="Create project", exact=True).click()
+        expect(page.get_by_role("heading", name="Personal QA project", exact=True)).to_be_visible()
+        project_id = parse_qs(urlsplit(page.url).query)["project"][0]
+        project_api = origin + "/api/platform/projects/" + project_id
+        expect(sidebar.get_by_role("link", name="Personal QA project", exact=True)).to_be_visible()
+        project_navigation = page.get_by_role("navigation", name="Project sections")
+        expect(project_navigation.get_by_role("link", name="Scan History")).to_be_visible()
+        page.get_by_role("link", name="New scan", exact=True).click()
+        page.get_by_role("button", name="Continue to source").click()
+        expect(page.locator('input[name="kind"]')).to_have_count(3)
+        expect(page.get_by_role("radio", name="GitHub", exact=False)).to_be_enabled()
+        website = page.get_by_role("radio", name="Website URL", exact=False)
+        expect(website).to_be_enabled()
+        website.check()
+        expect(page.get_by_label("Approved page URL")).to_be_visible()
+        page.get_by_role("radio", name="Project source", exact=False).check()
+        page.locator('input[type="file"]').set_input_files(project_zip())
+        page.get_by_role("button", name="Review scan").click()
+        page.get_by_role("checkbox", name="I have permission to review this file").check()
+        page.get_by_role("button", name="Submit scan").click()
+        page.wait_for_url("**/projects/*/scans/*")
+        scan_id = urlsplit(page.url).path.rsplit("/", 1)[-1]
+        expect(page.get_by_role("link", name="Open report", exact=True)).to_be_visible(timeout=50_000)
+        export = owner.request.get(f"{project_api}/reports/{scan_id}/download?format=pdf&lang=ar")
+        assert export.ok and export.body().startswith(b"%PDF")
+
+        mobile = other.new_page()
+        signup(mobile, origin, "ar")
+        expect(mobile.locator("html")).to_have_attribute("dir", "rtl")
+        menu = mobile.get_by_role("button", name="القائمة", exact=True)
+        menu.focus()
+        menu.press("Enter")
+        mobile_sidebar = mobile.get_by_role("navigation", name="مساحة العمل")
+        mobile_new_project = mobile_sidebar.get_by_role("link", name="مشروع جديد", exact=True)
+        expect(mobile_new_project).to_be_visible()
+        mobile_new_project.focus()
+        mobile_new_project.press("Escape")
+        expect(menu).to_be_focused()
+        expect(menu).to_have_attribute("aria-expanded", "false")
+        expect(mobile.get_by_text("Personal QA project", exact=True)).to_have_count(0)
+        for path in ("", "/scans", f"/scans/{scan_id}", f"/reports/{scan_id}/download?format=pdf"):
+            assert other.request.get(project_api + path).status == 404
+        assert other.request.patch(project_api, data={"name": "Cross-account update"}).status == 404
+
+        sidebar.get_by_role("link", name="Personal QA project", exact=True).click()
+        page.get_by_role("link", name="Project management", exact=True).click()
+        page.get_by_label("Project name").fill("Renamed personal QA")
+        page.get_by_role("button", name="Save name").click()
+        expect(sidebar.get_by_role("link", name="Renamed personal QA", exact=True)).to_be_visible()
+        sidebar.get_by_role("link", name="GitHub Connection").click()
+        expect(page.get_by_text("The server needs a GitHub App configuration.", exact=False)).to_be_visible()
+        assert owner.request.get(origin + "/demo").status == 404
+        sidebar.get_by_role("button", name="Logout", exact=True).click()
+        page.wait_for_url(origin + "/")
+        page.goto(origin + "/signin")
+        page.locator('[name="email"]').fill(address)
+        page.locator('[name="password"]').fill(password)
+        page.get_by_role("button", name="Sign in", exact=True).click()
+        page.wait_for_url(origin + "/projects")
+        page.get_by_role("link", name="Renamed personal QA", exact=True).first.click()
+        page.get_by_role("link", name="Project management", exact=True).click()
+        page.get_by_role("button", name="Delete project", exact=True).click()
+        page.get_by_role("checkbox", name="Hide the project", exact=False).check()
+        page.get_by_role("button", name="Confirm project deletion", exact=True).click()
+        page.wait_for_url(origin + "/projects")
+        assert owner.request.get(project_api).status == 404
+        assert owner.request.get(f"{project_api}/reports/{scan_id}").status == 404
+        browser.close()
+    print("Phase 13 browser acceptance passed in English and Arabic.")
+
+
+if __name__ == "__main__":
+    main()

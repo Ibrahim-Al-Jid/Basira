@@ -74,7 +74,6 @@ const copy = {
     remediation: "الإصلاح",
     executive: "ملخص الفحص",
     pdf: "تحميل PDF",
-    alternatePdf: "تحميل PDF بالإنجليزي",
     findingTypes: "أنواع النتائج",
     rulesApplied: "قواعد اتنفذت",
     incompleteCoverage: "بعض القواعد ما اكتملتش. راجع تغطية الفحص للتفاصيل.",
@@ -209,7 +208,6 @@ const copy = {
     remediation: "Remediation",
     executive: "Scan summary",
     pdf: "Download PDF",
-    alternatePdf: "Download Arabic PDF",
     findingTypes: "Finding types",
     rulesApplied: "Rules run",
     incompleteCoverage: "Some checks did not finish. Open scan coverage for details.",
@@ -558,7 +556,27 @@ function Provenance({ projectApi, reportId, t, lang, count }) {
 
   const current = state?.attempt === attempt ? state : null;
   const data = current?.data;
+  const intake = data?.snapshot?.profile;
+  const website = intake?.mode === "website";
+  const intakeLabels = lang === "ar" ? {
+    field: "المدخل", zip: "رفع ZIP", github: "لقطة GitHub", website: "صفحة HTTPS",
+    scope: "التغطية", websiteScope: "استجابات الصفحات المعتمدة والمتاحة للعامة",
+    sourceScope: "الملفات النصية المدعومة في اللقطة", expanded: "بصمة المحتوى النصي",
+    textFiles: "ملفات اتفحصت", skipped: "ملفات اتخطّت", page: "الصفحة المرصودة",
+  } : {
+    field: "Input", zip: "ZIP upload", github: "GitHub snapshot", website: "HTTPS page",
+    scope: "Coverage", websiteScope: "Responses from approved public pages",
+    sourceScope: "Supported text files in the snapshot", expanded: "Extracted text fingerprint",
+    textFiles: "Included files", skipped: "Skipped files", page: "Observed page",
+  };
   const fields = data && [
+    [intakeLabels.field, intakeLabels[intake?.mode]],
+    [intakeLabels.scope, intake && (website ? intakeLabels.websiteScope : intakeLabels.sourceScope)],
+    [intakeLabels.page, intake?.public_url],
+    ["TLS", intake?.tls_version],
+    [intakeLabels.textFiles, Number.isInteger(intake?.text_files) && count(intake.text_files)],
+    [intakeLabels.skipped, Number.isInteger(intake?.skipped_files) && count(intake.skipped_files)],
+    [intakeLabels.expanded, intake?.expanded_text_sha256],
     [t.snapshotHash, data.snapshot?.sha256],
     [t.policyHash, data.scope?.sha256],
     [t.profile, data.scope?.profile],
@@ -671,7 +689,6 @@ function ReportDetails({ report, t, lang, params, pathname, hash, navigate, repo
   const source = report.source || report.input_artifact;
   const summary = lang === "ar" ? report.summary_ar : report.summary_en;
   const downloads = [
-    [`format=pdf&lang=${lang === "ar" ? "en" : "ar"}`, t.alternatePdf],
     ["lang=ar", t.downloadAr],
     ["lang=en", t.downloadEn],
     ["format=json", t.json],
@@ -710,9 +727,6 @@ function ReportDetails({ report, t, lang, params, pathname, hash, navigate, repo
               <span className="reports-tag" data-report-status={report.status || "completed"}>{label(t, report.status || "completed")}</span>
             </div>
           </div>
-          <a className="reports-button reports-primary reports-pdf" href={`${reportApi}/download?format=pdf&lang=${lang}`} download>
-            <ArrowDownToLine size={18} aria-hidden="true" />{t.pdf}
-          </a>
         </div>
         <dl className="reports-overview-stats">
           {stats.map(([title, value]) => <div key={title}><dt>{title}</dt><dd>{value}</dd></div>)}
@@ -815,7 +829,7 @@ function ReportContext({ location, navigate, lang, active, state, retry }) {
   </section>;
 }
 
-export function Reports({ location, navigate, revision, lang: preferredLanguage = "ar", session }) {
+export function Reports({ location, navigate, revision, lang: preferredLanguage = "ar", session, personal }) {
   const { pathname, search, hash } = location;
   const params = new URLSearchParams(search);
   const locale = params.get("lang");
@@ -824,11 +838,11 @@ export function Reports({ location, navigate, revision, lang: preferredLanguage 
   const id = /^\/reports\/([^/]+)\/?$/.exec(pathname)?.[1];
   const project = params.get("project");
   const projectApi = /^[a-f0-9]{32}$/.test(project ?? "") ? `/api/platform/projects/${project}/reports` : null;
-  const explicitDemo = params.get("scope") === "demo";
+  const explicitDemo = !personal && params.get("scope") === "demo";
   const [projects, retryProjects] = useReportProjects(!id);
-  const demoArchive = explicitDemo || projects?.guest;
-  const badProject = Boolean(project && !projectApi);
-  const guestProject = Boolean(projectApi && (session.user === null || projects?.guest));
+  const demoArchive = !personal && (explicitDemo || projects?.guest);
+  const badProject = Boolean((project || (personal && id)) && !projectApi);
+  const guestProject = Boolean((projectApi || personal) && (session.user === null || projects?.guest));
   const archive = projectApi || (demoArchive && !badProject ? "/api/history" : null);
   const url = guestProject || badProject ? null : id ? (projectApi || "/api/reports") + "/" + encodeURIComponent(id) : archive;
   const archiveRevision = id ? null : revision;
@@ -837,7 +851,7 @@ export function Reports({ location, navigate, revision, lang: preferredLanguage 
   const heading = useRef(null);
   const current = state?.url === url && state.retry === retry && state.archiveRevision === archiveRevision ? state : null;
   const scanProject = projects?.projects?.find((item) => item.id === project && item.role !== "viewer");
-  const showNewScan = !id && !demoArchive && !guestProject && (scanProject || (!project && projects?.projects?.some((item) => item.role !== "viewer")));
+  const showNewScan = !personal && !id && !demoArchive && !guestProject && (scanProject || (!project && projects?.projects?.some((item) => item.role !== "viewer")));
 
   useEffect(() => {
     if (!url) return;
@@ -856,17 +870,28 @@ export function Reports({ location, navigate, revision, lang: preferredLanguage 
   }, [current, hash]);
 
   const back = reportPath("/reports", params, { finding: "", findingSeverity: "", findingDomain: "", baseline: "" });
+  const showReportActions = Boolean(id && current?.data);
   return (
     <section className="reports-workspace" lang={lang} dir={lang === "ar" ? "rtl" : "ltr"}>
-      {id && <Link className="reports-back" href={back} navigate={navigate}>{lang === "ar" ? <ArrowRight size={17} aria-hidden="true" /> : <ArrowLeft size={17} aria-hidden="true" />}{t.back}</Link>}
-      <div className="reports-heading">
+      <header className="reports-heading">
         <div>
+          {id && <Link className="reports-back" href={back} navigate={navigate}>{lang === "ar" ? <ArrowRight size={17} aria-hidden="true" /> : <ArrowLeft size={17} aria-hidden="true" />}{t.back}</Link>}
           <h1 tabIndex={-1} ref={heading}>{id ? (projectApi ? t.projectReport : t.report) : t.reports}</h1>
-          {!id && <p>{demoArchive && !projectApi ? t.archiveIntro : lang === "ar" ? "اختار مشروعًا لعرض تقاريره." : "Choose a project to see its reports."}</p>}
+          {!id && demoArchive && !projectApi && <p>{t.archiveIntro}</p>}
         </div>
+        {showReportActions && <div className="report-header-actions">
+          <div className="report-language" role="group" aria-label={lang === "ar" ? "لغة التقرير" : "Report language"}>
+            {["ar", "en"].map((language) => <Link key={language} lang={language}
+              href={reportPath(pathname, params, { lang: language }) + hash} navigate={navigate}
+              aria-current={lang === language ? "true" : undefined}>{language === "ar" ? "العربية" : "English"}</Link>)}
+          </div>
+          <a className="reports-button reports-primary reports-pdf" href={`${url}/download?format=pdf&lang=${lang}`} download>
+            <ArrowDownToLine size={18} aria-hidden="true" />{t.pdf}
+          </a>
+        </div>}
         {showNewScan && <Link className="reports-button reports-primary" navigate={navigate}
           href={scanProject ? reportPath("/new-scan", new URLSearchParams(), { project }) : "/new-scan"}>{t.newScan}</Link>}
-      </div>
+      </header>
       {!id && !explicitDemo && <ReportContext location={location} navigate={navigate} lang={lang} active={Boolean(project)}
         state={projects} retry={retryProjects} />}
       {id && guestProject && <div className="reports-panel reports-state">
