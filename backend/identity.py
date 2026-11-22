@@ -224,7 +224,10 @@ def password_auth_enabled(request):
 
 
 def require_user(request):
-    digest = session_digest(request)
+    return require_session_user(request, session_digest(request))
+
+
+def require_session_user(request, digest):
     if digest:
         with platform_session() as db:
             user = db.scalar(

@@ -12,9 +12,9 @@ from langgraph.graph import END, START, StateGraph
 
 from .artifact_review import EXTENDED_IDS, InputError, decode_payload, prepare, review_prepared, tool_record
 from .checks import openapi_contract, zap_passive
-from .phase9_contracts import ALL_INPUTS
+from .phase9_contracts import ALL_INPUTS, resolve_analyzers
 from .rules import RULES
-from .source_adapters import SOURCE_KINDS, SOURCE_TOOLS, configured_tools
+from .source_adapters import SOURCE_TOOLS
 
 DOCUMENT_RULES = {"openapi": tuple(openapi_contract.RULES), "zap": tuple(zap_passive.RULES)}
 
@@ -93,16 +93,15 @@ def scan_payload(data, *, external=False):
         def rule_plan(item):
             if not isinstance(item["policy"], dict):
                 raise InputError("صيغة سياسة المشروع غير صالحة.")
+            pins = item["policy"].get("_analysis_plan")
+            try:
+                choices = resolve_analyzers(item["kind"], pinned=pins, external=external)
+            except ValueError:
+                raise InputError("نسخة خطة الفحص غير متوافقة. قدّم الملف من جديد.") from None
             if item["kind"] in DOCUMENT_RULES:
                 return DOCUMENT_RULES[item["kind"]]
-            pins = item["policy"].get("_analysis_plan")
-            if item["kind"] not in SOURCE_KINDS:
-                source_rules = ()
-            elif pins is None:
-                source_rules = tuple(tool.rule for tool in configured_tools()) if external else ()
-            else:
-                scheduled = {tool["id"] for tool in pins}
-                source_rules = tuple(tool.rule for tool in SOURCE_TOOLS if tool.id in scheduled)
+            scheduled = {tool.id for tool in choices if tool.status == "selected"}
+            source_rules = tuple(tool.rule for tool in SOURCE_TOOLS if tool.id in scheduled)
             return (*RULES, *EXTENDED_IDS, *source_rules)
         return {"prepared": prepared, "rules": task("planning-rules", "planning", "rule-registry", rule_plan, state)}
 

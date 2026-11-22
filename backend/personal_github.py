@@ -16,18 +16,20 @@ from uuid import uuid4
 import httpx
 from cryptography.fernet import Fernet, InvalidToken
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy import delete, select
 
 from . import github_import as github
-from .identity import session_digest
+from .identity import require_session_user, session_digest
 from .personal_projects import personal_user
-from .platform_db import PersonalGitHubGrant, PersonalGitHubState, User, bind_owner, platform_session
+from .platform_db import PersonalGitHubGrant, PersonalGitHubState, User, bind_owner, personal_projects_enabled, platform_session
 from .platform_runtime import now
 
 router = APIRouter(prefix="/api/platform/github", tags=["Personal GitHub"])
 OAUTH = "https://github.com/login/oauth"
 CALLBACK_PATH = "/api/platform/github/callback"
+CALLBACK_COOKIE = "marsad_github_callback"
+CALLBACK_TTL = 600
 MAX_PAGES = 5
 
 
@@ -87,18 +89,26 @@ def serialize_account(db, user_id):
 def authorize(request: Request):
     user = personal_user(request)
     client_id, _, callback, cipher = settings()
+    if callback != str(request.base_url).rstrip("/") + CALLBACK_PATH:
+        raise HTTPException(409, "افتح مرصد من العنوان المسجل في إعداد GitHub وحاول تاني.")
+    digest = session_digest(request)
     state, verifier = token_urlsafe(32), token_urlsafe(64)
     challenge = base64.urlsafe_b64encode(sha256(verifier.encode()).digest()).decode().rstrip("=")
     with platform_session() as db:
         serialize_account(db, user.id)
         db.execute(delete(PersonalGitHubState).where(PersonalGitHubState.user_id == user.id))
         db.add(PersonalGitHubState(user_id=user.id, state_digest=sha256(state.encode()).hexdigest(),
-                                   session_digest=session_digest(request), ciphertext=cipher.encrypt(verifier.encode()),
-                                   expires_at=now() + timedelta(minutes=10)))
-    return {"url": OAUTH + "/authorize?" + urlencode({
+                                   session_digest=digest, ciphertext=cipher.encrypt(verifier.encode()),
+                                   expires_at=now() + timedelta(seconds=CALLBACK_TTL)))
+    response = JSONResponse({"url": OAUTH + "/authorize?" + urlencode({
         "client_id": client_id, "redirect_uri": callback, "state": state,
         "code_challenge": challenge, "code_challenge_method": "S256", "scope": "offline_access",
-    })}
+    })})
+    # A top-level GET from GitHub cannot carry the Strict platform cookie.
+    response.set_cookie(CALLBACK_COOKIE, cipher.encrypt(("github:" + digest).encode()).decode(),
+                        max_age=CALLBACK_TTL, path=CALLBACK_PATH, secure=callback.startswith("https:"),
+                        httponly=True, samesite="lax")
+    return response
 
 
 def token_identity(client_id, secret, callback, code, verifier):
@@ -106,24 +116,45 @@ def token_identity(client_id, secret, callback, code, verifier):
         payload = github.provider_json(client.post(OAUTH + "/access_token", headers={"Accept": "application/json"},
             data={"client_id": client_id, "client_secret": secret, "redirect_uri": callback,
                   "code": code, "code_verifier": verifier}), 200)
+        if payload.get("error") == "incorrect_client_credentials":
+            raise github.GitHubFailure(424, "GitHub rejected the app credentials.")
+        if payload.get("error"):
+            raise github.GitHubFailure(409, "GitHub rejected the authorization exchange.")
         token, ttl = payload.get("access_token"), payload.get("expires_in")
         if (not isinstance(token, str) or not re.fullmatch(r"ghu_[A-Za-z0-9_]{10,250}", token)
                 or type(ttl) is not int or not 0 < ttl <= 28_800):
-            raise github.GitHubFailure(409, "فعّل انتهاء صلاحية توكنات GitHub App وأعد الربط.")
+            raise github.GitHubFailure(422, "فعّل انتهاء صلاحية توكنات GitHub App وأعد الربط.")
         who = github.provider_json(client.get(github.API + "/user", headers=github.headers(token)), 200)
         return token, ttl, str(provider_id(who.get("id")))
 
 
-def consume_state(db, user_id, request, state, cipher):
+def callback_session(request, cipher):
+    cookie = request.cookies.get(CALLBACK_COOKIE, "")
+    if not cookie or len(cookie) > 512:
+        raise HTTPException(403)
+    try:
+        proof = cipher.decrypt(cookie.encode("ascii"), ttl=CALLBACK_TTL)
+    except (InvalidToken, UnicodeError):
+        raise HTTPException(403) from None
+    if not re.fullmatch(rb"github:[a-f0-9]{64}", proof):
+        raise HTTPException(403)
+    digest = proof.removeprefix(b"github:").decode("ascii")
+    current = session_digest(request)
+    if current and not hmac.compare_digest(current, digest):
+        raise HTTPException(403)
+    return digest
+
+
+def consume_state(db, user_id, digest, state, cipher):
     serialize_account(db, user_id)
     entry = db.get(PersonalGitHubState, user_id)
     if (not entry or entry.expires_at.replace(tzinfo=None) <= now()
-            or not hmac.compare_digest(entry.session_digest, session_digest(request))
+            or not hmac.compare_digest(entry.session_digest, digest)
             or not hmac.compare_digest(entry.state_digest, sha256(state.encode()).hexdigest())):
         raise HTTPException(403, "طلب ربط GitHub انتهت صلاحيته أو بدأ من جلسة مختلفة.")
     db.delete(entry)
     try:
-        return cipher.decrypt(entry.ciphertext, ttl=600).decode("ascii")
+        return cipher.decrypt(entry.ciphertext, ttl=CALLBACK_TTL).decode("ascii")
     except InvalidToken:
         raise HTTPException(403, "طلب ربط GitHub غير صالح.") from None
 
@@ -131,23 +162,38 @@ def consume_state(db, user_id, request, state, cipher):
 @router.get("/callback", include_in_schema=False)
 def oauth_callback(request: Request, state: str = "", code: str = ""):
     destination = "/settings?tab=github&github=failed"
+    consumed = False
     try:
-        user = personal_user(request)
+        if not personal_projects_enabled():
+            raise HTTPException(404)
         client_id, secret, callback, cipher = settings()
         if not state or len(state) > 128 or len(code) > 512:
             raise HTTPException(422)
+        digest = callback_session(request, cipher)
+        user = require_session_user(request, digest)
         # Hold the state transaction only during consume. A superseding connect or disconnect
         # invalidates the pending callback before it can persist the new grant.
         with platform_session() as db:
-            verifier = consume_state(db, user.id, request, state, cipher)
+            verifier = consume_state(db, user.id, digest, state, cipher)
             if code:
                 marker = sha256(("used:" + state).encode()).hexdigest()
                 db.flush()
                 db.add(PersonalGitHubState(user_id=user.id, state_digest=marker,
-                    session_digest=session_digest(request), ciphertext=cipher.encrypt(b""),
+                    session_digest=digest, ciphertext=cipher.encrypt(b""),
                     expires_at=now() + timedelta(minutes=1)))
+        consumed = True
         if code:
-            token, ttl, identity = github.provider_call(token_identity, client_id, secret, callback, code, verifier)
+            try:
+                token, ttl, identity = github.provider_call(token_identity, client_id, secret, callback, code, verifier)
+            except HTTPException as error:
+                if error.status_code == 424:
+                    destination = "/settings?tab=github&github=credentials"
+                elif error.status_code == 422:
+                    destination = "/settings?tab=github&github=expiration"
+                elif error.status_code == 502:
+                    destination = "/settings?tab=github&github=unavailable"
+                raise
+            require_session_user(request, digest)
             with platform_session() as db:
                 serialize_account(db, user.id)
                 pending = db.get(PersonalGitHubState, user.id)
@@ -160,7 +206,10 @@ def oauth_callback(request: Request, state: str = "", code: str = ""):
             destination = "/settings?tab=github&github=connected"
     except HTTPException:
         pass
-    return RedirectResponse(destination, 303, headers={"Referrer-Policy": "no-referrer"})
+    response = RedirectResponse(destination, 303, headers={"Referrer-Policy": "no-referrer"})
+    if consumed:
+        response.delete_cookie(CALLBACK_COOKIE, path=CALLBACK_PATH, httponly=True, samesite="lax")
+    return response
 
 
 @router.delete("/connection", status_code=204)
@@ -277,22 +326,40 @@ def repository_rows(client, token, installation_id):
                 and name.split("/")[1] not in {".", ".."} and isinstance(permissions, dict)
                 and permissions.get("pull") is True):
             yield {"installation_id": installation_id, "repository_id": provider_id(row.get("id")),
-                   "repository": name, "default_branch": str(row.get("default_branch") or "")[:200]}
+                   "repository": name, "default_branch": str(row.get("default_branch") or "")[:200],
+                   "private": row.get("private") if type(row.get("private")) is bool else None}
 
 
 def visible_repos(token):
     with github.client() as client:
+        response = client.get(github.API + "/user", headers=github.headers(token))
+        if response.status_code == 401:
+            return None
+        account = github.provider_json(response, 200)
+        login = account.get("login")
+        if not isinstance(login, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9-]{0,38}", login):
+            raise ValueError("Invalid GitHub login")
         installations = list(available_installations(client, token))
         if len(installations) > 10:
             raise github.GitHubFailure(422, "عدد تثبيتات GitHub أكبر من الحد المسموح.")
-        return [row for installation in installations for row in repository_rows(client, token, installation)]
+        rows = [row for installation in installations for row in repository_rows(client, token, installation)]
+        return login, rows
 
 
 @router.get("/repositories")
 def repositories(request: Request):
-    _, token = grant_for(personal_user(request).id)
-    rows = github.provider_call(visible_repos, token)
-    return {"repositories": [
+    user_id = personal_user(request).id
+    generation, token = grant_for(user_id)
+    result = github.provider_call(visible_repos, token)
+    if result is None:
+        with platform_session() as db:
+            bind_owner(db, user_id)
+            db.execute(delete(PersonalGitHubGrant).where(
+                PersonalGitHubGrant.user_id == user_id, PersonalGitHubGrant.generation == generation,
+            ))
+        raise HTTPException(409, "اربط حسابك بـGitHub من جديد.")
+    login, rows = result
+    return {"account": {"login": login}, "repositories": [
         {**row, "installation_id": str(row["installation_id"]), "repository_id": str(row["repository_id"])}
         for row in rows
     ]}

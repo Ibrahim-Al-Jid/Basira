@@ -7,7 +7,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
-from .source_adapters import SOURCE_KINDS, configured_tools
+from .source_adapters import SOURCE_KINDS, SOURCE_TOOLS, configured_tools
 
 ArtifactKind = Literal["html", "repository", "har", "config", "openapi", "zap"]
 DEFAULT_INPUTS = ("repository", "html", "har", "openapi", "config", "zap")
@@ -83,7 +83,22 @@ class ToolManifest(ToolPin):
     supported_inputs: list[ArtifactKind]
     mode: Literal["offline"] = "offline"
     status: Literal["available", "disabled"] = "available"
-    reason: Literal["adapter_unavailable"] | None = None
+    reason: Literal["adapter_unavailable", "not_enabled", "shadow_only"] | None = None
+    contract: Literal["marsad-tool-2"] = "marsad-tool-2"
+    approval: Literal["approved", "shadow"] = "approved"
+    runner: Literal["builtin", "isolated_cli", "unregistered"] = "builtin"
+    network: Literal[False] = False
+    license: str
+    capabilities: list[str] = Field(default_factory=list)
+    evidence_requires: list[str] = Field(default_factory=list)
+    timeout_seconds: int | None = Field(default=None, gt=0)
+    limitations: list[str] = Field(default_factory=list)
+
+
+class ToolSelection(ToolPin):
+    status: Literal["selected", "skipped"]
+    reason: Literal["eligible", "unsupported_input", "adapter_unavailable", "not_enabled", "shadow_only",
+                    "not_in_pinned_plan", "offline_runner_required"]
 
 
 class RoleManifest(BaseModel):
@@ -215,27 +230,11 @@ def adapter_available(adapter):
         return False
 
 
-def analyzer_plan(kind):
+def analyzer_manifests():
     from .artifact_review import ADAPTERS, RULESET_VERSION
+    from .source_adapters import SOURCE_TIMEOUTS
     adapters = {entry.id: entry for entry in ADAPTERS}
-    tools = [
-        {"id": tool, "version": RULESET_VERSION}
-        for tool, inputs in ANALYZER_INPUTS.items()
-        if kind in inputs and (tool not in adapters or adapter_available(adapters[tool]))
-    ]
-    if kind in SOURCE_KINDS:
-        tools.extend(tool.pin for tool in configured_tools())
-    return tools
-
-
-def manifests():
-    from .artifact_review import ADAPTERS, RULESET_VERSION
-    adapters = {entry.id: entry for entry in ADAPTERS}
-    tools = [
-        ToolManifest(id=tool, version=TOOL_PROTOCOL_VERSION, title_en=names[0], title_ar=names[1],
-                     supported_inputs=ALL_INPUTS)
-        for tool, names in INTERNAL_TOOL_TITLES.items()
-    ]
+    tools = []
     for tool, inputs in ANALYZER_INPUTS.items():
         adapter = adapters.get(tool)
         available = not adapter or adapter_available(adapter)
@@ -244,10 +243,77 @@ def manifests():
             title_ar=adapter.title_ar if adapter else ANALYZER_TITLES_AR[tool],
             supported_inputs=inputs, status="available" if available else "disabled",
             reason=None if available else "adapter_unavailable",
+            license="MIT", capabilities=[tool],
+            evidence_requires=["saved ZAP Traditional JSON"] if tool == "zap-passive-report" else [],
+            limitations=["imported alerts only"] if tool == "zap-passive-report" else [],
         ))
+    enabled = configured_tools()
+    for tool in SOURCE_TOOLS:
+        secret_review = tool.id == "gitleaks"
+        tools.append(ToolManifest(
+            id=tool.id, version=tool.version, title_en=tool.title_en, title_ar=tool.title_ar,
+            supported_inputs=SOURCE_KINDS, status="available" if tool in enabled else "disabled",
+            reason=None if tool in enabled else "not_enabled", runner="isolated_cli",
+            license="MIT" if secret_review else "Apache-2.0",
+            capabilities=["credential-signatures" if secret_review else "dependency-advisories"],
+            evidence_requires=["submitted text"] if secret_review else ["supported lockfile or exact PyPI pins"],
+            timeout_seconds=SOURCE_TIMEOUTS[tool.id],
+            limitations=["snapshot only; no Git history"] if secret_review else ["bundled advisory ecosystems only"],
+        ))
+    tools.extend(ToolManifest(
+        id=tool, version=version, title_en=title, title_ar=title, supported_inputs=SOURCE_KINDS,
+        approval="shadow", runner="unregistered", status="disabled", reason="shadow_only",
+        license=license_name, capabilities=[capability], limitations=[limitation],
+    ) for tool, version, title, license_name, capability, limitation in (
+        ("semgrep", "1.186.0", "Semgrep CE", "LGPL-2.1", "source-patterns", "fixture rules only"),
+        ("trivy", "0.76.2", "Trivy", "Apache-2.0", "configuration-audit", "overlap with approved configuration and dependency checks"),
+    ))
+    return tools
+
+
+def resolve_analyzers(kind, *, pinned=None, external=True):
+    """Resolve server-authored pins without granting any new capability to an old job."""
+    manifests = analyzer_manifests()
+    accepted = [
+        tool.model_dump(include={"id", "version"}) for tool in manifests
+        if tool.approval == "approved" and kind in tool.supported_inputs
+    ]
+    if pinned is not None:
+        if not isinstance(pinned, list) or not pinned or [
+            pin for pin in accepted if pin in pinned
+        ] != pinned:
+            raise ValueError("Incompatible analyzer plan")
+    decisions = []
+    for tool in manifests:
+        pin = tool.model_dump(include={"id", "version"})
+        if tool.approval == "shadow":
+            reason = "shadow_only"
+        elif kind not in tool.supported_inputs:
+            reason = "unsupported_input"
+        elif pinned is not None and pin not in pinned:
+            reason = "not_in_pinned_plan"
+        elif tool.status == "disabled":
+            reason = tool.reason
+        elif tool.runner == "isolated_cli" and not external:
+            reason = "offline_runner_required"
+        else:
+            reason = "eligible"
+        decisions.append(ToolSelection(**pin, status="selected" if reason == "eligible" else "skipped", reason=reason))
+    return decisions
+
+
+def analyzer_plan(kind):
+    return [tool.model_dump(include={"id", "version"}) for tool in resolve_analyzers(kind) if tool.status == "selected"]
+
+
+def manifests():
+    tools = [
+        ToolManifest(id=tool, version=TOOL_PROTOCOL_VERSION, title_en=names[0], title_ar=names[1],
+                     supported_inputs=ALL_INPUTS, license="MIT", capabilities=[tool])
+        for tool, names in INTERNAL_TOOL_TITLES.items()
+    ]
+    tools.extend(analyzer_manifests())
     source_tools = configured_tools()
-    tools.extend(ToolManifest(id=tool.id, version=tool.version, title_en=tool.title_en,
-                              title_ar=tool.title_ar, supported_inputs=SOURCE_KINDS) for tool in source_tools)
     roles = [
         RoleManifest(id=role, tools=[*allowed, *(tool.id for tool in source_tools if role == "analysis")],
                      input_contract=ROLE_BOUNDARIES[role][0],

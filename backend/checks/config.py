@@ -16,6 +16,8 @@ Neither evaluates templates or infers effective runtime environment settings.
 """
 
 import ast
+from base64 import b64decode
+from binascii import Error as Base64Error
 from collections import deque
 from dataclasses import dataclass
 from fnmatch import fnmatchcase
@@ -615,7 +617,10 @@ def check_branch_protection(inputs, policy, results):
                     results.add("CI-06", path, lines.get(branch, 1), "Protected branch is missing at least one required CI check.")
 
 
-PEM_PRIVATE_KEY = re.compile(r"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----")
+PEM_PRIVATE_KEY = re.compile(r"-----BEGIN (?P<label>(?:[A-Z0-9]+ ){0,4}PRIVATE KEY)-----$")
+PEM_ESCAPED_LINE = re.compile(r"\\r\\n|\\[rn]")
+PEM_PAYLOAD = re.compile(r"[A-Za-z0-9+/]+={0,2}")
+PEM_MAX_PAYLOAD = 64 * 1024
 TOKEN_SIGNATURES = {
     "GitHub": re.compile(r"(?<![A-Za-z0-9_])(?:gh[pousr]_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{70,110})(?![A-Za-z0-9_])"),
     "OpenRouter": re.compile(r"(?<![A-Za-z0-9_-])sk-or-v1-[a-fA-F0-9]{64}(?![A-Za-z0-9_-])"),
@@ -809,6 +814,35 @@ def check_app_settings(path, settings, policy, results):
             results.add("APP-06", path, setting.line, "A TLS keystore password field contains a literal value.")
 
 
+def pem_key_lines(lines):
+    """Return PEM marker locations without parsing keys or including their contents in evidence."""
+    closing = None
+    for line_number, line in enumerate(lines, 1):
+        for segment in PEM_ESCAPED_LINE.split(line):
+            value = segment.strip()
+            opening = PEM_PRIVATE_KEY.search(value)
+            if opening:
+                closing = f"-----END {opening['label']}-----"
+                start_line, size, payload = line_number, 0, []
+            elif closing and value.startswith(closing):
+                if size >= 32:
+                    try:
+                        b64decode("".join(payload), validate=True)
+                    except Base64Error:
+                        pass
+                    else:
+                        yield start_line
+                closing = None
+            elif closing and value:
+                if not payload and value.startswith(("Proc-Type:", "DEK-Info:")):
+                    continue
+                size += len(value)
+                if size > PEM_MAX_PAYLOAD or not PEM_PAYLOAD.fullmatch(value):
+                    closing = None
+                else:
+                    payload.append(value)
+
+
 def check_app(path, text, documents, policy, results):
     parts = PurePosixPath(path.casefold()).parts
     if "fixtures" in parts or path_selected(path, config_list(policy, "fixture_paths")):
@@ -817,9 +851,11 @@ def check_app(path, text, documents, policy, results):
     suffix = PurePosixPath(filename).suffix
     if suffix in SOURCE_SUFFIXES or filename.startswith((".env", "dockerfile")):
         results.applicable("APP-01", "APP-02")
-        for line, value in enumerate(text.splitlines(), 1):
-            if PEM_PRIVATE_KEY.search(value):
+        lines = text.splitlines()
+        if "PRIVATE KEY-----" in text:
+            for line in pem_key_lines(lines):
                 results.add("APP-01", path, line, "PEM private-key marker is present.")
+        for line, value in enumerate(lines, 1):
             for provider, expression in TOKEN_SIGNATURES.items():
                 if expression.search(value):
                     results.add("APP-02", path, line, f"{provider} token signature is present.")

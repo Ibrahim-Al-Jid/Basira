@@ -3,8 +3,12 @@ from contextlib import nullcontext
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from html import unescape
 from io import BytesIO
 import json
+from pathlib import Path
+import re
+import runpy
 import socket
 import ssl
 import stat
@@ -23,6 +27,7 @@ import pytest
 from sqlalchemy import text
 
 from . import github_import, intake_website, personal_github, platform_jobs
+from .identity import SESSION_COOKIE
 from .artifact_review import InputError
 from .platform_db import platform_session
 from .test_personal_projects import API, BASE, personal_clients, repository_submission
@@ -117,9 +122,11 @@ def test_personal_github_oauth_rechecks_selected_repo_and_pins_commit(personal_c
     seen = []
     installation = {"id": 12, "permissions": {"contents": "read", "metadata": "read"},
                     "repository_selection": "selected"}
-    repository = {"id": 28, "full_name": "Example/Fixture", "default_branch": "main", "permissions": {"pull": True}}
+    repository = {"id": 28, "full_name": "Example/Fixture", "default_branch": "main",
+                  "private": True, "permissions": {"pull": True}}
     visible = [repository]
     challenge = None
+    exchange_error = None
 
     def respond(request):
         seen.append((request.method, request.url.path))
@@ -129,6 +136,8 @@ def test_personal_github_oauth_rechecks_selected_repo_and_pins_commit(personal_c
             assert exchange["code"] == ["fixture-code"]
             verifier = exchange["code_verifier"][0]
             assert challenge == urlsafe_b64encode(sha256(verifier.encode()).digest()).decode().rstrip("=")
+            if exchange_error:
+                return httpx.Response(200, json={"error": exchange_error})
             return httpx.Response(200, json={"access_token": TOKEN, "expires_in": 28_800})
         if request.url.host == "codeload.github.com":
             assert "authorization" not in request.headers
@@ -138,7 +147,7 @@ def test_personal_github_oauth_rechecks_selected_repo_and_pins_commit(personal_c
             return httpx.Response(204)
         assert request.headers["authorization"] == "Bearer " + TOKEN
         if url == "/user":
-            return httpx.Response(200, json={"id": 77})
+            return httpx.Response(200, json={"id": 77, "login": "fixture-user"})
         if url == "/user/installations":
             return httpx.Response(200, json={"installations": [installation]})
         if url == "/user/installations/12/repositories":
@@ -150,16 +159,42 @@ def test_personal_github_oauth_rechecks_selected_repo_and_pins_commit(personal_c
         pytest.fail(str(request.url))
 
     monkeypatch.setattr(github_import, "client", lambda: httpx.Client(transport=httpx.MockTransport(respond)))
+    discarded = other.post(provider + "/authorize")
+    discarded_state = parse_qs(urlsplit(discarded.json()["url"]).query)["state"][0]
+    discarded_proof = other.cookies.get(personal_github.CALLBACK_COOKIE)
+    # A second client logs out, while a previously issued cross-site proof still exists.
+    with platform_session() as db:
+        db.execute(text("UPDATE auth_sessions SET revoked_at = CURRENT_TIMESTAMP WHERE token_digest = :digest"),
+                   {"digest": sha256(other.cookies.get(SESSION_COOKIE).encode()).hexdigest()})
+    assert other.get(provider + "/callback", params={"state": discarded_state, "code": "fixture-code"},
+                     headers={"Cookie": f"{personal_github.CALLBACK_COOKIE}={discarded_proof}"},
+                     follow_redirects=False).headers["location"].endswith("failed")
+    assert seen == []
     authorize = owner.post(provider + "/authorize")
+    cookie = authorize.headers["set-cookie"]
+    assert "SameSite=lax" in cookie and "HttpOnly" in cookie
+    assert "Path=" + personal_github.CALLBACK_PATH in cookie
     params = parse_qs(urlsplit(authorize.json()["url"]).query)
     challenge, state = params["code_challenge"][0], params["state"][0]
     callback = {"state": state, "code": "fixture-code"}
+    proof = owner.cookies.get(personal_github.CALLBACK_COOKIE)
+    session = owner.cookies.get(SESSION_COOKIE)
     assert other.get(provider + "/callback", params=callback, follow_redirects=False).headers["location"].endswith("failed")
+    assert owner.get(provider + "/callback", params=callback, follow_redirects=False,
+                     headers={"Cookie": f"{SESSION_COOKIE}={session}"}).headers["location"].endswith("failed")
+    callback_headers = {"Cookie": f"{personal_github.CALLBACK_COOKIE}={proof}"}
+    assert owner.get(provider + "/callback", params={**callback, "state": "wrong"}, follow_redirects=False,
+                     headers=callback_headers).headers["location"].endswith("failed")
     assert seen == []
-    assert owner.get(provider + "/callback", params=callback, follow_redirects=False).headers["location"].endswith("connected")
-    assert owner.get(provider + "/callback", params=callback, follow_redirects=False).headers["location"].endswith("failed")
-    assert other.get(provider + "/repositories").status_code == 409
-    assert owner.get(provider + "/repositories").json()["repositories"][0]["repository_id"] == "28"
+    assert owner.get(provider + "/callback", params=callback, follow_redirects=False,
+                     headers=callback_headers).headers["location"].endswith("connected")
+    assert owner.get(provider + "/callback", params=callback, follow_redirects=False,
+                     headers=callback_headers).headers["location"].endswith("failed")
+    assert other.get(provider + "/repositories").status_code == 401
+    listing = owner.get(provider + "/repositories").json()
+    assert listing["account"] == {"login": "fixture-user"}
+    assert listing["repositories"][0]["repository_id"] == "28"
+    assert listing["repositories"][0]["private"] is True
     body = {**SCOPE, "source": "github", "installation_id": "12", "repository_id": "28", "ref": "main"}
     headers = {"Idempotency-Key": "github-fixture-key"}
     scan = owner.post(path + "/intake", json=body, headers=headers)
@@ -175,6 +210,61 @@ def test_personal_github_oauth_rechecks_selected_repo_and_pins_commit(personal_c
     assert owner.delete(provider + "/connection").status_code == 204
     assert not owner.get(provider + "/connection").json()["connected"]
     assert owner.get(path + "/reports/" + scan.json()["id"]).status_code == 200
+    exchange_error = "incorrect_client_credentials"
+    authorize = owner.post(provider + "/authorize")
+    params = parse_qs(urlsplit(authorize.json()["url"]).query)
+    challenge = params["code_challenge"][0]
+    rejected = owner.get(provider + "/callback", params={"state": params["state"][0], "code": "fixture-code"},
+                         follow_redirects=False)
+    assert rejected.headers["location"].endswith("github=credentials")
+    assert not owner.get(provider + "/connection").json()["connected"]
+
+
+def test_local_github_manifest_wizard_uses_one_time_state_and_saves_configuration(tmp_path, monkeypatch):
+    script = Path(__file__).resolve().parents[1] / "ops" / "configure-local-github.py"
+    wizard = runpy.run_path(str(script))["register"]
+    received = []
+    outcomes = []
+    threads = []
+    origin = "http://127.0.0.1:8765"
+    callback = origin + personal_github.CALLBACK_PATH
+    fixture_code = "local-setup-fixture-code"
+    path = tmp_path / "vault" / "github-app.json"
+
+    def convert(code):
+        received.append(code)
+        return "Iv1.Fixture", "marsad-fixture", "test-app-config-value"
+
+    def open_wizard(url):
+        def exercise():
+            with httpx.Client(trust_env=False) as browser:
+                page = browser.get(url)
+                state_url = unescape(re.search(r'<form method="post" action="([^"]+)"', page.text)[1])
+                state = parse_qs(urlsplit(state_url).query)["state"][0]
+                manifest_data = json.loads(unescape(re.search(r'name="manifest" value="([^"]+)"', page.text)[1]))
+                redirect = manifest_data["redirect_url"]
+                rejected = browser.get(redirect, params={"state": "wrong", "code": fixture_code})
+                accepted = browser.get(redirect, params={"state": state, "code": fixture_code})
+                outcomes.append((page.status_code, manifest_data, rejected.status_code, accepted.text))
+
+        thread = Thread(target=exercise, daemon=True)
+        threads.append(thread)
+        thread.start()
+
+    monkeypatch.setitem(wizard.__globals__, "convert_registration", convert)
+    monkeypatch.setattr(wizard.__globals__["webbrowser"], "open", open_wizard)
+    wizard(path, origin, callback)
+    threads[0].join(timeout=5)
+    code, manifest_data, rejected, done = outcomes[0]
+    assert code == 200 and rejected == 400 and received == [fixture_code]
+    assert manifest_data["callback_urls"] == [callback] and manifest_data["public"] is False
+    assert manifest_data["hook_attributes"]["active"] is False
+    assert manifest_data["default_permissions"] == {"contents": "read"}
+    assert "https://github.com/apps/marsad-fixture/installations/new" in done
+    assert "test-app-config-value" not in done
+    saved = json.loads(path.read_text(encoding="utf-8"))
+    assert saved["callback_url"] == callback and saved["client_id"] == "Iv1.Fixture"
+    assert Fernet(saved["credential_key"].encode())
 
 
 class StaticResponse(BytesIO):

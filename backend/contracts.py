@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from .phase9_contracts import ArtifactKind, CoverageStatus, GitHubSnapshotRef, TargetProfile
+from .phase9_contracts import ArtifactKind, CoverageStatus, GitHubSnapshotRef, TargetProfile, ToolSelection
 
 MAX_SOURCE_BYTES = 1_000_000
 MAX_SOURCE_CHARS = 250_000
@@ -63,7 +63,7 @@ class FindingOrigin(BaseModel):
 class AdvisoryEvidence(BaseModel):
     id: str = Field(max_length=80)
     aliases: list[str] = Field(default_factory=list, max_length=30)
-    ecosystem: Literal["PyPI"]
+    ecosystem: Literal["PyPI", "npm"]
     package: str = Field(max_length=150)
     version: str = Field(max_length=100)
     database_date: date
@@ -188,6 +188,7 @@ class Report(BaseModel):
     input_manifest: list[InputManifestEntry] | None = Field(default=None, max_length=200)
     imported_evidence: ImportedEvidence | None = None
     task_runs: list[TaskRun] = Field(default_factory=list)
+    tool_selection: list[ToolSelection] = Field(default_factory=list, exclude_if=lambda value: not value)
     enrichment: Enrichment | None = None
     summary_source: DecisionSource | None = None
     summary_ar: str
