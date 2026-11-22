@@ -1,20 +1,27 @@
 """Pinned classifiers for read-only, submitted source snapshots in the isolated worker."""
 from bisect import bisect_right
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import date
 import json
 import os
 from pathlib import Path, PurePosixPath
 import re
+import sqlite3
 import subprocess
 from tempfile import TemporaryDirectory
+from time import monotonic
 from types import MappingProxyType
 from urllib.parse import unquote, urlsplit
+from zipfile import ZIP_DEFLATED, ZipFile
+import zlib
 
 
 TOOLS_DIR = Path("/opt/marsad-tools")
 MAX_REPORT_BYTES = 2_000_000
 MAX_OBSERVATIONS = 1000
+MAX_NPM_ADVISORIES = 2000
+MAX_NPM_ADVISORY_BYTES = 16_000_000
 SOURCE_KINDS = ("repository", "config")
 GITLEAKS_RULE = "SRC-01"
 PYPI_RULE = "SCA-01"
@@ -48,7 +55,7 @@ class SourceTool:
 
 
 GITLEAKS = SourceTool("gitleaks", "8.30.1", GITLEAKS_RULE, "application", "Secret signatures", "بصمات الأسرار")
-OSV = SourceTool("osv-scanner", "2.7.1", PYPI_RULE, "dependencies", "PyPI advisories", "تنبيهات تبعيات PyPI")
+OSV = SourceTool("osv-scanner", "2.7.1", PYPI_RULE, "dependencies", "Dependency advisories", "تنبيهات التبعيات")
 SOURCE_TOOLS = (GITLEAKS, OSV)
 SOURCE_TIMEOUTS = MappingProxyType({GITLEAKS.id: 8, OSV.id: 22})
 
@@ -114,16 +121,28 @@ def run_cli(tool, args, directory, report, *, timeout, success, env=None):
     if type(timeout) not in (int, float) or not 0 < timeout <= SOURCE_TIMEOUTS[tool.id]:
         raise AdapterError("adapter_budget_exceeded")
     if (not report.resolve().is_relative_to(directory.resolve()) or not approved_cli(tool, args, directory, report)
-            or set(env or {}) - {"OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY", "GOMAXPROCS", "GOMEMLIMIT"}):
+            or set(env or {}) - ({"OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY"} if tool is OSV else set())):
         raise AdapterError("adapter_execution_denied")
     executable = TOOLS_DIR / tool.id
     if not executable.is_file():
         raise AdapterError("adapter_unavailable")
     variables = {"PATH": "/usr/bin:/bin", "HOME": str(directory), "TMPDIR": str(directory), "LANG": "C.UTF-8",
                  "GOMAXPROCS": "1", "GOMEMLIMIT": "275MiB"}
+    deadline = monotonic() + timeout
+    version = subprocess.run(
+        [str(executable), "--version"], cwd=directory, env=variables, check=False, stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=min(timeout, 3),
+    )
+    if version.returncode or not re.search(
+        rb"(?<![0-9.])" + re.escape(tool.version.encode("ascii")) + rb"(?![A-Za-z0-9.+-])", version.stdout[:2048],
+    ):
+        raise AdapterError("adapter_version_mismatch")
+    remaining = deadline - monotonic()
+    if remaining <= 0:
+        raise AdapterError("adapter_timeout")
     result = subprocess.run(
         [str(executable), *args], cwd=directory, env={**variables, **(env or {})}, check=False,
-        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=timeout,
+        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=remaining,
     )
     if result.returncode not in success:
         raise AdapterError("adapter_failed")
@@ -333,15 +352,60 @@ def npm_inputs(files, directory):
 
 def database(ecosystem="PyPI"):
     cache = Path(os.environ.get("MARSAD_OSV_DB_DIRECTORY", "/opt/marsad-osv"))
-    if not (cache / "osv-scalibr" / ecosystem / "all.zip").is_file():
-        raise AdapterError("database_unavailable")
+    archive = cache / "npm-advisories.sqlite3" if ecosystem == "npm" else cache / "osv-scalibr" / ecosystem / "all.zip"
     stamp_name = "npm-database-date" if ecosystem == "npm" else "database-date"
     try:
+        if not archive.is_file():
+            raise AdapterError("database_unavailable")
         with (cache / stamp_name).open("rb") as stamp:
             published = date.fromisoformat(stamp.read(16).decode("ascii").strip())
     except (OSError, ValueError):
         raise AdapterError("database_unavailable") from None
     return cache, published
+
+
+def npm_advisory_slice(index, target, names):
+    """Give OSV every indexed advisory for the submitted package names, regardless of version."""
+    target.parent.mkdir(parents=True)
+    placeholders = ",".join("?" for _ in names)
+    query = f"""SELECT id, compressed FROM advisories WHERE id IN (
+        SELECT advisory_id FROM packages WHERE name IN ({placeholders})
+    ) ORDER BY id LIMIT ?"""
+    params = (*sorted(names), MAX_NPM_ADVISORIES + 1)
+    try:
+        with closing(sqlite3.connect(index.resolve().as_uri() + "?mode=ro&immutable=1", uri=True)) as db:
+            if db.execute("PRAGMA user_version").fetchone() != (1,):
+                raise AdapterError("database_unavailable")
+            db.execute("PRAGMA cache_size=-2048")
+            with ZipFile(target, "x", compression=ZIP_DEFLATED, compresslevel=3) as archive:
+                total = 0
+                for count, (identifier, compressed) in enumerate(db.execute(query, params), 1):
+                    raw = zlib.decompress(compressed)
+                    total += len(raw)
+                    if count > MAX_NPM_ADVISORIES or total > MAX_NPM_ADVISORY_BYTES:
+                        raise AdapterError("adapter_output_limit")
+                    if not SAFE_ADVISORY.fullmatch(identifier):
+                        raise AdapterError("database_unavailable")
+                    archive.writestr(identifier + ".json", raw)
+    except (sqlite3.Error, zlib.error, OSError, ValueError, TypeError):
+        raise AdapterError("database_unavailable") from None
+
+
+def scoped_osv_cache(directory, databases, manifests):
+    cache = next(iter(databases.values()))[0]
+    if "npm" not in databases:
+        return cache
+    scoped = directory / "osv-cache"
+    names = {name for manifest in manifests.values() if manifest.ecosystem == "npm" for name, _ in manifest.pins}
+    npm_advisory_slice(cache / "npm-advisories.sqlite3", scoped / "osv-scalibr" / "npm" / "all.zip", names)
+    if "PyPI" in databases:
+        pypi = scoped / "osv-scalibr" / "PyPI"
+        try:
+            pypi.mkdir()
+            (pypi / "all.zip").symlink_to(databases["PyPI"][0].resolve() / "osv-scalibr" / "PyPI" / "all.zip")
+        except OSError:
+            raise AdapterError("database_unavailable") from None
+    return scoped
 
 
 def advisory_groups(records):
@@ -381,11 +445,21 @@ def osv(files, directory):
             databases[ecosystem] = database(ecosystem)
         except AdapterError:
             continue
-    missing_database = any(manifest.ecosystem not in databases for manifest in manifests.values())
+    database_issue = "database_unavailable" if any(
+        manifest.ecosystem not in databases for manifest in manifests.values()
+    ) else None
     manifests = {path: manifest for path, manifest in manifests.items() if manifest.ecosystem in databases}
     if not manifests:
         return AdapterResult([], "error", "database_unavailable")
-    cache = next(iter(databases.values()))[0]
+    try:
+        cache = scoped_osv_cache(directory, databases, manifests)
+    except AdapterError as exc:
+        database_issue = str(exc)
+        databases.pop("npm")
+        manifests = {path: manifest for path, manifest in manifests.items() if manifest.ecosystem != "npm"}
+        if not manifests:
+            return AdapterResult([], "error", database_issue)
+        cache = databases["PyPI"][0]
     oldest_snapshot = min(published for _, published in databases.values())
     config = directory / "osv-scanner.toml"
     config.touch()
@@ -430,8 +504,8 @@ def osv(files, directory):
                 if len(observations) > MAX_OBSERVATIONS:
                     raise AdapterError("adapter_output_limit")
     expected = {(path, key) for path, manifest in manifests.items() for key in manifest.pins}
-    if missing_database:
-        return AdapterResult(observations, "error", "database_unavailable", oldest_snapshot)
+    if database_issue:
+        return AdapterResult(observations, "error", database_issue, oldest_snapshot)
     if pypi_partial or npm_partial or seen != expected:
         return AdapterResult(observations, "error", "unsupported_dependency_pin", oldest_snapshot)
     return AdapterResult(observations, "matched" if observations else "clear", database_date=oldest_snapshot)
