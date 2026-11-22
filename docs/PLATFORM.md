@@ -20,6 +20,14 @@
 
 لاختبار الرحلات، شغّل `python -m pytest -q backend/test_personal_intake.py backend/test_github_import.py`. اختبارات GitHub تستخدم مزودًا محاكى، وتشمل رفض مستودع خارج الإذن وتكرار callback. استخدم bucket اختبار منفصلة بتشغيل نفس المجموعة مع إعدادات S3 للتحقق من SHA-256 وتنظيف الحجر. مكوّن التحليل يستقبل المدخل المقبول من الطابور، وتظل حدود حجمه كما هي.
 
+## تشغيل الأدوات ونقطة الاستئناف · Phase 15–16
+
+1. شغّل الترحيل حتى `platform_checkpoints_0015` على نسخة مستعادة أولًا. في PostgreSQL ينشئ الترحيل دالة ومحفّز `marsad_clear_analysis_checkpoint`؛ تحقق من وجودهما ومن أن تحديث الحالة إلى `completed/partial/failed/cancelled` يصفّر `analysis_checkpoint`. على SQLite يكفي العمود الجديد لأن منطق التطبيق يتولى التنظيف.
+2. صورة `marsad-platform:scanner-local` تُبنى من الهدف `scanner-npm`. فهرس npm مبني من أرشيف OSV مثبّت بتاريخ وبصمة ظاهرين في `Dockerfile`؛ لا تحدّث البيانات بتنزيل وقت التشغيل. بناء صورة جديدة بمصدر وبصمة معلومين ثم استبدال العامل بعد التحقق هو مسار التحديث الوحيد.
+3. الوسيط يتحقق من إصدار Gitleaks وOSV-Scanner قبل كل تنفيذ ويرفض أي إصدار لا يطابق السجل. ظهور `adapter_output_limit` أو `database_unavailable` يعني تغطية جزئية أو خطأ أداة في التقرير، وليس نتيجة سليمة.
+4. الإثراء بالوكلاء اختياري. إذا كان مفعّلًا، البوابة ترسل معرّفات وأعدادًا وأسماء أدوات مسموحة فقط؛ أي رد غير مطابق يُرفض كاملًا ويظهر التقرير الحتمي. تذكّر أن `MARSAD_GATEWAY_URL` و`MARSAD_GATEWAY_TOKEN` سرّان خادميان، ولا يُكتبان في السجلات أو التقارير.
+5. للتحقق الموضعي شغّل `python -m pytest -q backend/test_source_adapters.py backend/test_phase16_workflow.py backend/test_phase16_checkpoints.py backend/test_phase16_advisor.py backend/test_personal_intake.py` ثم `npm run build`. اختبارات الـcheckpoint تستخدم قواعد SQLite مؤقتة وتغطي انهيار العامل والـlease القديم وتعديل التقرير والإلغاء وانتهاء المصدر.
+
 ### تجربة GitHub على Windows
 
 لو دي أول مرة على التثبيت المحلي، شغّل الأمر ده من جذر المشروع على Windows باستخدام بيئة Python الخاصة بمرصد. لو مرصد بيشتغل على منفذ مختلف، أضف `--port` ورقم المنفذ.

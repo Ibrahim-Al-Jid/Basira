@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from .phase9_contracts import ArtifactKind, CoverageStatus, GitHubSnapshotRef, TargetProfile, ToolSelection
+from .phase9_contracts import ArtifactKind, CoverageStatus, Digest, GitHubSnapshotRef, Identifier, TargetProfile, ToolSelection
 
 MAX_SOURCE_BYTES = 1_000_000
 MAX_SOURCE_CHARS = 250_000
@@ -173,6 +173,46 @@ class ImportedEvidence(BaseModel):
     skipped_alerts: int = Field(ge=0, le=500)
 
 
+class AgentExecution(BaseModel):
+    contract: Literal["marsad-agent-workflow-1"] = "marsad-agent-workflow-1"
+    trace_id: Identifier
+    input_kind: ArtifactKind
+    source_sha256: Digest
+    inventory_sha256: Digest
+    plan_sha256: Digest
+    evidence_sha256: Digest
+    files_read: int = Field(ge=0, le=200)
+    validated_locations: int = Field(ge=0, le=5000)
+
+
+class PlanningAdvice(BaseModel):
+    tool: str = Field(min_length=1, max_length=64, pattern=r"^[a-z0-9-]+$")
+    label: Literal["review_tool_coverage", "review_tool_findings"]
+
+
+class ValidationAdvice(BaseModel):
+    fingerprint: Digest
+    label: Literal["review_evidence", "review_context"]
+
+
+class ExplanationAdvice(BaseModel):
+    fingerprint: Digest
+    label: Literal["read_remediation", "confirm_scope"]
+
+
+class AgentAdvisory(BaseModel):
+    version: Literal["marsad-advisor-1"]
+    planning: list[PlanningAdvice] = Field(max_length=12)
+    validation: list[ValidationAdvice] = Field(max_length=12)
+    explanation: list[ExplanationAdvice] = Field(max_length=12)
+
+
+class ReviewContext(BaseModel):
+    fingerprint: Digest
+    prior_scan_id: Identifier
+    status: Literal["triaged", "resolved", "accepted"]
+
+
 class Report(BaseModel):
     schema_version: Literal[1, 2] = 1
     id: str
@@ -190,6 +230,9 @@ class Report(BaseModel):
     imported_evidence: ImportedEvidence | None = None
     task_runs: list[TaskRun] = Field(default_factory=list)
     tool_selection: list[ToolSelection] = Field(default_factory=list, exclude_if=lambda value: not value)
+    execution: AgentExecution | None = Field(default=None, exclude_if=lambda value: value is None)
+    agent_advisory: AgentAdvisory | None = Field(default=None, exclude_if=lambda value: value is None)
+    review_context: list[ReviewContext] = Field(default_factory=list, max_length=20, exclude_if=lambda value: not value)
     enrichment: Enrichment | None = None
     summary_source: DecisionSource | None = None
     summary_ar: str

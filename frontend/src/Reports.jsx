@@ -78,6 +78,27 @@ const copy = {
     rulesApplied: "قواعد اتنفذت",
     incompleteCoverage: "بعض القواعد ما اكتملتش. راجع تغطية الفحص للتفاصيل.",
     technical: "التفاصيل الفنية",
+    snapshotVerification: "مطابقة لقطة الفحص",
+    verifiedLocations: "مواضع الأدلة المتحققة",
+    verifiedFiles: "الملفات اللي قرأها التحليل",
+    snapshotSha256: "بصمة المصدر",
+    agentAdvisory: "إرشادات الوكلاء",
+    advisoryNote: "إشارات مراجعة بشرية فقط؛ لا تُضيف دليلًا ولا تغيّر شدة النتيجة.",
+    advisoryPlanning: "اقتراحات التخطيط",
+    advisoryValidation: "اقتراحات التحقق",
+    advisoryExplanation: "اقتراحات الشرح",
+    review_tool_coverage: "راجع تغطية الأداة",
+    review_tool_findings: "راجع نتائج الأداة",
+    review_evidence: "راجع الدليل",
+    review_context: "راجع السياق",
+    read_remediation: "اقرأ الإصلاح",
+    confirm_scope: "أكّد النطاق",
+    priorReviews: "سياق المراجعة السابق",
+    priorReviewsNote: "حالات تصنيف سابقة من نفس المشروع واللقطة؛ سياق فقط لا دليل جديد.",
+    priorScan: "فحص سابق",
+    triaged: "تم فرزها",
+    resolved: "تم حلها",
+    accepted: "مقبولة",
     moreFormats: "صيغ تنزيل أخرى",
     compareTitle: "مقارنة الفحوصات",
     reviewTitle: "مراجعة النتائج",
@@ -212,6 +233,27 @@ const copy = {
     rulesApplied: "Rules run",
     incompleteCoverage: "Some checks did not finish. Open scan coverage for details.",
     technical: "Technical details",
+    snapshotVerification: "Scan snapshot verification",
+    verifiedLocations: "Validated evidence locations",
+    verifiedFiles: "Files read by analysis",
+    snapshotSha256: "Source fingerprint",
+    agentAdvisory: "Agent advisory",
+    advisoryNote: "Human review hints only; they add no evidence and do not change finding severity.",
+    advisoryPlanning: "Planning hints",
+    advisoryValidation: "Validation hints",
+    advisoryExplanation: "Explanation hints",
+    review_tool_coverage: "Review tool coverage",
+    review_tool_findings: "Review tool findings",
+    review_evidence: "Review evidence",
+    review_context: "Review context",
+    read_remediation: "Read remediation",
+    confirm_scope: "Confirm scope",
+    priorReviews: "Prior review context",
+    priorReviewsNote: "Prior triage states from the same project and snapshot; context only, not new evidence.",
+    priorScan: "Prior scan",
+    triaged: "Triaged",
+    resolved: "Resolved",
+    accepted: "Accepted",
     moreFormats: "Other download formats",
     compareTitle: "Compare scans",
     reviewTitle: "Finding review",
@@ -651,6 +693,39 @@ function TechnicalDetails({ report, lang, t, count, projectApi }) {
         </p>
       )}
       {projectApi && <Provenance projectApi={projectApi} reportId={report.id} t={t} lang={lang} count={count} />}
+      {report.execution && <section className="reports-section reports-advanced">
+        <h2>{t.snapshotVerification}</h2>
+        <dl className="reports-metadata">
+          <div><dt>{t.verifiedFiles}</dt><dd>{count(report.execution.files_read)}</dd></div>
+          <div><dt>{t.verifiedLocations}</dt><dd>{count(report.execution.validated_locations)}</dd></div>
+          <div><dt>{t.snapshotSha256}</dt><dd><code dir="ltr">{report.execution.source_sha256}</code></dd></div>
+        </dl>
+      </section>}
+      {report.agent_advisory && <section className="reports-section reports-advanced">
+        <h2>{t.agentAdvisory}</h2>
+        <p className="reports-annotation">{t.advisoryNote}</p>
+        <dl className="reports-metadata">
+          {[
+            [t.advisoryPlanning, report.agent_advisory.planning, (item) => `${label(t, item.label)} · ${item.tool}`],
+            [t.advisoryValidation, report.agent_advisory.validation, (item) => `${label(t, item.label)} · ${String(item.fingerprint).slice(0, 12)}`],
+            [t.advisoryExplanation, report.agent_advisory.explanation, (item) => `${label(t, item.label)} · ${String(item.fingerprint).slice(0, 12)}`],
+          ].filter(([, items]) => items?.length).map(([title, items, format]) => (
+            <div key={title}><dt>{title}</dt><dd dir="auto">{items.map(format).join(" · ")}</dd></div>
+          ))}
+        </dl>
+      </section>}
+      {report.review_context?.length > 0 && <section className="reports-section reports-advanced">
+        <h2>{t.priorReviews}</h2>
+        <p className="reports-annotation">{t.priorReviewsNote}</p>
+        <dl className="reports-metadata">
+          {report.review_context.map((item, i) => (
+            <div key={`${item.prior_scan_id}-${item.fingerprint}-${i}`}>
+              <dt><code dir="ltr">{String(item.fingerprint).slice(0, 12)}</code></dt>
+              <dd dir="auto">{label(t, item.status)} · <code dir="ltr">{item.prior_scan_id}</code></dd>
+            </div>
+          ))}
+        </dl>
+      </section>}
       {(projectApi || report.task_runs?.length > 0) && (
         <ToolRuns runs={report.task_runs} selections={report.tool_selection} lang={lang} t={t} label={label} count={count} />
       )}

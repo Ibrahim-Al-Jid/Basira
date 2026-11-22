@@ -26,8 +26,11 @@ celery_app.conf.update(task_serializer="json", accept_content=["json"], worker_p
 
 
 def analyzed(row):
+    identity = store.source_identity(row)
+    identity.pop("input_kind")
     payload = {"kind": row["input_meta"]["kind"], "name": row["input_meta"]["name"],
-               "content": base64.b64encode(row["raw"]).decode("ascii"), "policy": row["policy"]}
+               "content": base64.b64encode(row["raw"]).decode("ascii"), "policy": row["policy"],
+               **identity}
     spool_dir = os.environ.get("MARSAD_ANALYSIS_SPOOL")
     if not spool_dir:
         if os.environ.get("MARSAD_ALLOW_INLINE_ANALYSIS") == "1":
@@ -58,28 +61,39 @@ def execute_scan(org_id, project_id, scan_id):
     if row is None:
         return
     try:
-        result = analyzed(row)
-        if "error" in result:
-            store.finish(org_id, project_id, scan_id, row["lease"], message=result["error"])
-            return
-        data = result["result"]
+        data = row["analysis_checkpoint"]
+        if data is None:
+            result = analyzed(row)
+            if "error" in result:
+                store.finish(org_id, project_id, scan_id, row["lease"], message=result["error"])
+                return
+            data = store.save_analysis_checkpoint(org_id, project_id, scan_id, row["lease"], result["result"])
+            if data is None:
+                return
         connection = None
         if row["input_meta"].get("model_connection") and data["findings"]:
             if os.environ.get("MARSAD_GATEWAY_URL") and os.environ.get("MARSAD_GATEWAY_TOKEN"):
                 connection = store.reserve_model_connection(org_id, project_id, scan_id, row["lease"])
             if connection:
-                enrich(data, connection, org_id=org_id, project_id=project_id, scan_id=scan_id, lease=row["lease"])
+                enrich(data, connection, org_id=org_id, project_id=project_id, scan_id=scan_id,
+                       lease=row["lease"], execution_advice=True)
             elif row["enrichment_started_at"] is not None:
                 data["enrichment"] = "fallback"
                 data["metrics"]["modelCalls"] = 1
             else:
                 data["enrichment"] = "fallback"
-        report = Report.model_validate({
+        review = Report.model_validate({
             **data, "schema_version": 2, "id": scan_id, "created_at": store.timestamp(store.now()),
             "model": connection["model"] if connection and data.get("enrichment") == "model" else None,
             "input_artifact": row["input_meta"],
             "policy_version": row["policy"]["version"], "ruleset_version": RULESET_VERSION,
-        }).model_dump(mode="json")
+        })
+        report = review.model_dump(mode="json")
+        if review.execution and review.findings:
+            from .scan_memory import restore_review_context
+            context = restore_review_context(org_id, project_id, scan_id, row["lease"], review)
+            if context:
+                report["review_context"] = context
     except (OSError, ValueError, KeyError, RuntimeError):
         # Leave the lease and outbox in place for another bounded attempt.
         return

@@ -2,6 +2,8 @@
 import json
 import os
 from pathlib import Path
+from hashlib import sha256
+import re
 import time
 from collections import Counter
 from datetime import datetime, timezone
@@ -10,13 +12,22 @@ from uuid import uuid4
 
 from langgraph.graph import END, START, StateGraph
 
-from .artifact_review import EXTENDED_IDS, InputError, decode_payload, prepare, resolve_scan_tools, review_prepared, tool_record
+from .artifact_review import (
+    EXTENDED_IDS, InputError, decode_payload, prepare, redact_label, resolve_scan_tools, review_prepared, tool_record,
+)
 from .checks import openapi_contract, zap_passive
-from .phase9_contracts import ALL_INPUTS
+from .contracts import AgentExecution
+from .phase9_contracts import ALL_INPUTS, ROLE_TOOLS, json_digest
 from .rules import RULES
 from .source_adapters import SOURCE_TOOLS
 
 DOCUMENT_RULES = {"openapi": tuple(openapi_contract.RULES), "zap": tuple(zap_passive.RULES)}
+WORKFLOW_EDGES = (
+    (START, "orchestrator"), ("orchestrator", "planning"), ("planning", "analysis"),
+    ("analysis", "validation"), ("validation", "reporting"), ("reporting", END),
+)
+INVALID_SNAPSHOT = "لقطة الفحص لا تطابق المصدر المسجّل."
+INVALID_EVIDENCE = "فيه نتيجة خارج الأدلة أو الأدوات المسجلة للفحص."
 
 
 def write_json(path, content):
@@ -34,10 +45,39 @@ class Review(TypedDict, total=False):
     name: str
     content: str
     policy: dict
+    source_sha256: str
+    inventory_sha256: str
+    trace_id: str
     raw: bytes
     prepared: tuple
     result: dict
     rules: tuple
+    actual_source_sha256: str
+    actual_inventory_sha256: str
+    tool_plan: list[dict]
+    evidence_sha256: str
+
+
+def verify_evidence(report, prepared, plan, rules):
+    files, har, _, _ = prepared
+    line_limits = {}
+    for path, text in files.items():
+        label = redact_label(path)
+        line_limits[label] = max(line_limits.get(label, 0), text.count("\n") + 1)
+    if not files and isinstance(har, dict):
+        line_limits["capture.har"] = 1
+    tools = {row["id"]: row["version"] for row in plan if row["status"] == "selected"}
+    fingerprints = set()
+    for finding in report["findings"]:
+        path, line = finding.get("path"), finding["line"]
+        fingerprint = json_digest([finding["rule"], path, line, finding["evidence"]])
+        if (finding["rule"] not in rules or not 0 < line <= line_limits.get(path, 0)
+                or finding.get("fingerprint") != fingerprint or fingerprint in fingerprints
+                or not finding["origins"]
+                or any(tools.get(origin["tool"]) != origin["version"] for origin in finding["origins"])):
+            raise InputError(INVALID_EVIDENCE)
+        fingerprints.add(fingerprint)
+    return json_digest(sorted(fingerprints))
 
 
 def scan_payload(data, *, external=False):
@@ -73,6 +113,8 @@ def scan_payload(data, *, external=False):
         return {}
 
     def task(name, agent, tool, operation, state):
+        if tool not in ROLE_TOOLS[agent]:
+            raise InputError("الأداة خارج صلاحيات الدور.")
         started = time.monotonic()
         output = operation(state)
         tasks.append(tool_record(name, agent, tool, started))
@@ -85,28 +127,38 @@ def scan_payload(data, *, external=False):
             if item["kind"] not in ALL_INPUTS:
                 raise InputError("نوع المدخل غير مدعوم.")
         task("orchestrator-kind", "orchestrator", "artifact-router", route, state)
-        return {"raw": raw}
+        source_sha256 = sha256(raw).hexdigest()
+        trace_id = state.get("trace_id", uuid4().hex)
+        if (state.get("source_sha256", source_sha256) != source_sha256
+                or not isinstance(trace_id, str) or not re.fullmatch(r"[a-f0-9]{32}", trace_id)):
+            raise InputError(INVALID_SNAPSHOT)
+        return {"raw": raw, "actual_source_sha256": source_sha256, "trace_id": trace_id}
 
     def plan(state):
         prepared = task("planning-normalize", "planning", "artifact-normalizer",
                         lambda item: prepare(item["kind"], item["name"], item["raw"]), state)
+        inventory = json_digest(prepared[0])
+        if state.get("inventory_sha256", inventory) != inventory:
+            raise InputError(INVALID_SNAPSHOT)
+
         def rule_plan(item):
             choices = resolve_scan_tools(item["kind"], item["policy"], external=external)
+            pinned_decisions = [choice.model_dump(mode="json") for choice in choices.values()]
             if item["kind"] in DOCUMENT_RULES:
-                return DOCUMENT_RULES[item["kind"]]
+                return DOCUMENT_RULES[item["kind"]], pinned_decisions
             scheduled = {tool.id for tool in choices.values() if tool.status == "selected"}
             source_rules = tuple(tool.rule for tool in SOURCE_TOOLS if tool.id in scheduled)
-            return (*RULES, *EXTENDED_IDS, *source_rules)
-        return {"prepared": prepared, "rules": task("planning-rules", "planning", "rule-registry", rule_plan, state)}
+            return (*RULES, *EXTENDED_IDS, *source_rules), pinned_decisions
+        rules, decisions = task("planning-rules", "planning", "rule-registry", rule_plan, state)
+        return {"prepared": prepared, "rules": rules, "tool_plan": decisions, "actual_inventory_sha256": inventory}
 
     def review(state):
         task("validation-counts", "validation", "coverage-contract", validate, state)
         def validate_scope(item):
-            planned = set(item["rules"])
-            if any(row["rule"] not in planned for row in item["result"]["findings"]):
-                raise InputError("النتيجة غير موجودة في خطة الفحص.")
-        task("validation-scope", "validation", "evidence-registry", validate_scope, state)
-        return {}
+            if item["result"]["tool_selection"] != item["tool_plan"]:
+                raise InputError("الأدوات المنفّذة لا تطابق خطة الفحص.")
+            return verify_evidence(item["result"], item["prepared"], item["tool_plan"], set(item["rules"]))
+        return {"evidence_sha256": task("validation-scope", "validation", "evidence-registry", validate_scope, state)}
 
     def report(state):
         def check_summary(item):
@@ -114,7 +166,15 @@ def scan_payload(data, *, external=False):
             if not report["summary_ar"] or not report["summary_en"]:
                 raise InputError("ملخص التقرير غير مكتمل.")
         task("reporting-summary", "reporting", "bilingual-summary", check_summary, state)
-        result = task("reporting-package", "reporting", "report-projection", lambda item: dict(item["result"]), state)
+        def project(item):
+            execution = AgentExecution(
+                trace_id=item["trace_id"], input_kind=item["kind"], source_sha256=item["actual_source_sha256"],
+                inventory_sha256=item["actual_inventory_sha256"], plan_sha256=json_digest(item["tool_plan"]),
+                evidence_sha256=item["evidence_sha256"], files_read=len(item["prepared"][0]),
+                validated_locations=len(item["result"]["findings"]),
+            )
+            return {**item["result"], "execution": execution.model_dump(mode="json")}
+        result = task("reporting-package", "reporting", "report-projection", project, state)
         return {"result": result}
 
     try:
@@ -131,12 +191,12 @@ def scan_payload(data, *, external=False):
             ("reporting", "تجهيز التقرير", "Assemble the report", report),
         ]
         graph = StateGraph(Review)
-        previous = START
+        parents = {child: parent for parent, child in WORKFLOW_EDGES}
         for role, ar, en, operation in operations:
-            graph.add_node(role, node(role, None if previous == START else previous, ar, en, operation))
-            graph.add_edge(previous, role)
-            previous = role
-        graph.add_edge(previous, END)
+            parent = parents[role]
+            graph.add_node(role, node(role, None if parent == START else parent, ar, en, operation))
+        for parent, child in WORKFLOW_EDGES:
+            graph.add_edge(parent, child)
         result = graph.compile().invoke(data)["result"]
         before_analysis = [row for row in tasks if row["agent"] in {"orchestrator", "planning"}]
         after_analysis = [row for row in tasks if row["agent"] in {"validation", "reporting"}]

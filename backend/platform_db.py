@@ -228,9 +228,9 @@ def bind_project_context(db, context):
     bind_project(db, context.org_id, context.project_id, owner_user_id=context.owner_user_id)
 
 
-def bind_job_project(db, org_id, project_id):
+def bind_job_project(db, org_id, project_id, *, lock=False):
     # The queue contains IDs only. Resolve ownership from the project in the database.
-    project = db.get(Project, project_id)
+    project = db.get(Project, project_id, with_for_update=lock)
     if not project or project.org_id != org_id or project.deleted_at is not None:
         return None
     if personal_projects_enabled() and not project.owner_user_id:
