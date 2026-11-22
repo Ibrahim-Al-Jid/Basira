@@ -116,6 +116,10 @@ services:
 
   scanner:
     <<: *app
+    build:
+      context: .
+      target: scanner-npm
+    image: marsad-platform:scanner-local
     command: ["python", "-m", "backend.offline_worker"]
     environment:
       MARSAD_ANALYSIS_SPOOL: /srv/marsad/spool

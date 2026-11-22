@@ -41,6 +41,7 @@ scans = sa.Table(
     sa.Column("policy", sa.JSON, nullable=False),
     sa.Column("report", sa.JSON),
     sa.Column("report_index", sa.JSON),
+    sa.Column("analysis_checkpoint", sa.JSON(none_as_null=True)),
     sa.Column("attempt", sa.Integer, nullable=False, default=0),
     sa.Column("lease", sa.String(32)),
     sa.Column("lease_until", sa.DateTime),
@@ -171,6 +172,13 @@ TERMINAL = {"completed", "partial", "failed", "cancelled"}
 MAX_ATTEMPTS = 3
 EXPIRED_MESSAGE = "انتهت مدة الاحتفاظ بالمدخل قبل اكتمال الفحص."
 INVALID_PROVENANCE_MESSAGE = "تعذّر التحقق من مصدر الفحص أو النطاق المسجّل."
+ANALYSIS_CHECKPOINT_VERSION = 1
+ANALYSIS_RESULT_FIELDS = {
+    "status", "enrichment", "summary_source", "summary_ar", "summary_en", "findings", "coverage", "metrics",
+    "api_inventory", "imported_evidence", "input_manifest", "input_paths", "task_runs", "tool_selection", "steps",
+    "execution",
+}
+PUBLICATION_FROZEN_FIELDS = ANALYSIS_RESULT_FIELDS - {"metrics", "enrichment"}
 
 
 class Conflict(ValueError):
@@ -377,6 +385,67 @@ def intact_input(db, row):
             policy.get("_ruleset_version") == pinned["scope"].get("ruleset_version"))
 
 
+def source_identity(row):
+    """Return the immutable source identity expected from the isolated graph."""
+    kind = row["input_meta"]["kind"]
+    identity = {
+        "trace_id": row["id"], "input_kind": kind, "source_sha256": hashlib.sha256(row["raw"]).hexdigest(),
+    }
+    profile = row["input_meta"].get("profile") or {}
+    if kind == "repository" and profile.get("expanded_text_sha256"):
+        identity["inventory_sha256"] = profile["expanded_text_sha256"]
+    return identity
+
+
+def matches_source(row, analysis):
+    execution = analysis.get("execution")
+    return row["raw"] is not None and isinstance(execution, dict) and all(
+        execution.get(key) == value for key, value in source_identity(row).items()
+    )
+
+
+def checkpoint_binding(row):
+    return json_digest({
+        **source_identity(row),
+        "org_id": row["org_id"], "project_id": row["project_id"], "user_id": row["user_id"],
+        "request_digest": row["request_digest"], "idempotency_key": row["idempotency_key"],
+        "input_metadata": row["input_meta"], "policy": row["policy"],
+    })
+
+
+def validated_analysis(row, analysis):
+    """Validate the report boundary, projecting only redacted fields already used for publication."""
+    if (not isinstance(analysis, dict) or not matches_source(row, analysis)
+            or analysis.get("enrichment") != "disabled" or analysis.get("priority") is not None):
+        raise ValueError("Invalid deterministic analysis")
+    report = Report.model_validate({**analysis, "id": row["id"], "created_at": timestamp(row["created_at"]),
+                                   "model": None, "input_artifact": row["input_meta"]})
+    if report.coverage is None or report.metrics.modelCalls != 0:
+        raise ValueError("Invalid deterministic report coverage or usage")
+    return report.model_dump(mode="json", include=ANALYSIS_RESULT_FIELDS, exclude_unset=True)
+
+
+def restore_analysis_checkpoint(row):
+    checkpoint = row["analysis_checkpoint"]
+    if not isinstance(checkpoint, dict) or checkpoint.get("version") != ANALYSIS_CHECKPOINT_VERSION:
+        return None
+    try:
+        if checkpoint.get("binding") == checkpoint_binding(row):
+            analysis = validated_analysis(row, checkpoint.get("analysis"))
+            if checkpoint.get("analysis_sha256") == json_digest(analysis):
+                return analysis
+    except (ValueError, TypeError, KeyError, RecursionError):
+        pass
+    return None
+
+
+def publication_projection(report):
+    redacted = report.model_dump(mode="json", include=PUBLICATION_FROZEN_FIELDS)
+    # Legacy enrichment may reorder the display of findings, but it cannot change their evidence.
+    redacted["findings"] = sorted(json_digest(finding) for finding in redacted["findings"])
+    return redacted
+
+
 def claim(org_id, project_id, scan_id):
     with platform_session() as db:
         project = bind_job_project(db, org_id, project_id)
@@ -402,19 +471,47 @@ def claim(org_id, project_id, scan_id):
         clock = now()
         lease = uuid4().hex
         number = row["attempt"] + 1
-        cursor = record(db, row, "running", f"بدأت محاولة التنفيذ رقم {number}.")
+        checkpoint = restore_analysis_checkpoint(row)
+        detail = (f"استؤنفت محاولة التنفيذ رقم {number} من نتيجة التحليل المحفوظة."
+                  if checkpoint is not None else f"بدأت محاولة التنفيذ رقم {number}.")
+        cursor = record(db, row, "running", detail)
         db.execute(scans.update().where(scans.c.id == scan_id).values(
             state="running", attempt=number, lease=lease, lease_until=clock + timedelta(seconds=90),
+            analysis_checkpoint=row["analysis_checkpoint"] if checkpoint is not None else None,
             updated_at=clock, cursor=cursor,
         ))
-        return {**row, "lease": lease, "attempt": number}
+        return {**row, "lease": lease, "attempt": number, "analysis_checkpoint": checkpoint}
+
+
+def save_analysis_checkpoint(org_id, project_id, scan_id, lease, analysis):
+    """Fence checkpoint publication by active lease, project ownership and immutable provenance."""
+    with platform_session() as db:
+        project = bind_job_project(db, org_id, project_id, lock=True)
+        if project is None:
+            return None
+        row = select_scan(db, org_id, project_id, scan_id, lock=True)
+        clock = now()
+        if (not row or row["state"] != "running" or row["lease"] != lease
+                or not row["lease_until"] or row["lease_until"] <= clock
+                or not row["source_expires_at"] or row["source_expires_at"] <= clock
+                or (personal_projects_enabled() and row["user_id"] != project.owner_user_id)
+                or not intact_input(db, row)):
+            return None
+        result = validated_analysis(row, analysis)
+        checkpoint = {
+            "version": ANALYSIS_CHECKPOINT_VERSION, "binding": checkpoint_binding(row),
+            "analysis_sha256": json_digest(result), "analysis": result,
+        }
+        db.execute(scans.update().where(scope(scans, org_id, project_id), scans.c.id == scan_id)
+                   .values(analysis_checkpoint=checkpoint))
+        return result
 
 
 def close_scan(db, row, state, detail, report=None):
     cursor = record(db, row, state, detail)
     summary = history_item(Report.model_validate(report)).model_dump(mode="json") if report else None
     db.execute(scans.update().where(scans.c.id == row["id"]).values(
-        state=state, report=report, report_index=summary, raw=None, lease=None, lease_until=None,
+        state=state, report=report, report_index=summary, analysis_checkpoint=None, raw=None, lease=None, lease_until=None,
         updated_at=now(), cursor=cursor,
     ))
     db.execute(dispatch.delete().where(dispatch.c.scan_id == row["id"]))
@@ -423,7 +520,8 @@ def close_scan(db, row, state, detail, report=None):
 
 def finish(org_id, project_id, scan_id, lease, *, report=None, message=None):
     with platform_session() as db:
-        if not bind_job_project(db, org_id, project_id):
+        project = bind_job_project(db, org_id, project_id, lock=True)
+        if project is None:
             return False
         row = select_scan(db, org_id, project_id, scan_id, lock=True)
         if (not row or row["state"] != "running" or row["lease"] != lease or row["lease_until"] <= now()):
@@ -434,6 +532,19 @@ def finish(org_id, project_id, scan_id, lease, *, report=None, message=None):
         if report is None:
             close_scan(db, row, "failed", message or "تعذّر تنفيذ الفحص.")
             return True
+        if ((personal_projects_enabled() and row["user_id"] != project.owner_user_id)
+                or not intact_input(db, row) or not matches_source(row, report)):
+            close_scan(db, row, "failed", INVALID_PROVENANCE_MESSAGE)
+            return False
+        stored = restore_analysis_checkpoint(row)
+        if stored is None:
+            return False
+        checkpoint_report = Report.model_validate({
+            **stored, "id": scan_id, "created_at": timestamp(row["created_at"]), "model": None,
+        })
+        if publication_projection(checkpoint_report) != publication_projection(Report.model_validate(report)):
+            # Retry from the verified checkpoint, allowing only the existing bounded model budget.
+            return False
         statuses = {item["status"] for item in report["coverage"]}
         state = "partial" if statuses & {"error", "skipped"} else "completed"
         report["status"] = state

@@ -53,12 +53,59 @@ def reported(owner, path, project_id, scan):
     assert report.status_code == 200, report.text
     provenance = owner.get(path + f"/scans/{scan_id}/provenance")
     assert provenance.status_code == 200
-    return report.json(), provenance.json()["snapshot"]
+    data = report.json()
+    snapshot = provenance.json()["snapshot"]
+    execution = data["execution"]
+    assert execution["source_sha256"] == snapshot["sha256"]
+    assert execution["trace_id"] == scan_id
+    assert execution["validated_locations"] == len(data["findings"])
+    if snapshot["kind"] == "repository":
+        assert execution["inventory_sha256"] == snapshot["profile"]["expanded_text_sha256"]
+        assert execution["files_read"] == snapshot["profile"]["text_files"]
+    return data, snapshot
 
 
 def zip_headers(key):
     return {"Idempotency-Key": key, "X-Artifact-Name": "fixture.zip", "Content-Type": "application/zip",
             "X-Scope-Version": "0", "X-Acknowledge-Scope": "true"}
+
+
+def test_review_memory_only_reuses_scoped_categories_from_the_same_snapshot(personal_clients, monkeypatch):
+    monkeypatch.setenv("MARSAD_ALLOW_INLINE_ANALYSIS", "1")
+    owner, other = personal_clients
+    path, project_id = new_project(owner)
+    other_path, other_project_id = new_project(other)
+
+    def archive_for(html):
+        output = BytesIO()
+        with ZipFile(output, "w") as archive:
+            archive.writestr("index.html", html)
+        return output.getvalue()
+
+    raw = archive_for('<script src="http://example.invalid/javascript"></script>')
+    first = owner.post(path + "/intake/zip", content=raw, headers=zip_headers("memory-first"))
+    prior, _ = reported(owner, path, project_id, first)
+    review_url = path + "/reports/" + prior["id"] + "/review"
+    review = owner.get(review_url).json()["items"][0]
+    change = owner.post(review_url, json={
+        "fingerprint": review["fingerprint"], "action": "status", "status": "triaged",
+        "reason": "Owner note is not agent memory.",
+    })
+    assert change.status_code == 200, change.text
+    repeat = owner.post(path + "/intake/zip", content=raw, headers=zip_headers("memory-repeat"))
+    same, _ = reported(owner, path, project_id, repeat)
+    assert same["review_context"] == [{
+        "fingerprint": review["fingerprint"], "status": "triaged", "prior_scan_id": prior["id"],
+    }]
+    assert "Owner note" not in json.dumps(same)
+    revised = owner.post(path + "/intake/zip", content=archive_for(
+        '<script src="http://example.invalid/javascript"></script>\n<p>Different snapshot</p>'),
+        headers=zip_headers("memory-revised"))
+    different, _ = reported(owner, path, project_id, revised)
+    assert "review_context" not in different
+    separate = other.post(other_path + "/intake/zip", content=raw, headers=zip_headers("memory-separate"))
+    other_report, _ = reported(other, other_path, other_project_id, separate)
+    assert "review_context" not in other_report
 
 
 def test_zip_intake_retries_profile_and_rejections(personal_clients, monkeypatch):
@@ -149,6 +196,7 @@ def test_personal_github_oauth_rechecks_selected_repo_and_pins_commit(personal_c
             assert "authorization" not in request.headers
             return httpx.Response(200, stream=httpx.ByteStream(raw))
         if request.method == "DELETE":
+            assert request.url.path == "/applications/Iv1.Fixture/token"
             assert json.loads(request.content)["access_token"] == TOKEN
             return httpx.Response(204)
         assert request.headers["authorization"] == "Bearer " + TOKEN
@@ -271,6 +319,19 @@ def test_local_github_manifest_wizard_uses_one_time_state_and_saves_configuratio
     saved = json.loads(path.read_text(encoding="utf-8"))
     assert saved["callback_url"] == callback and saved["client_id"] == "Iv1.Fixture"
     assert Fernet(saved["credential_key"].encode())
+
+
+def test_github_installations_require_selected_readonly_scope(monkeypatch):
+    installations = [
+        {"id": 1, "repository_selection": "selected", "permissions": {"contents": "read", "metadata": "read"}},
+        {"id": 2, "repository_selection": "all", "permissions": {"contents": "read", "metadata": "read"}},
+        {"id": 3, "repository_selection": "selected", "suspended_at": "2026-01-01T00:00:00Z",
+         "permissions": {"contents": "read", "metadata": "read"}},
+        {"id": 4, "repository_selection": "selected", "permissions": {"contents": "write", "metadata": "read"}},
+        {"id": 5, "repository_selection": "selected", "permissions": {"contents": "read", "issues": "read"}},
+    ]
+    monkeypatch.setattr(personal_github, "pages", lambda *_args: iter(installations))
+    assert list(personal_github.available_installations(None, None)) == [1]
 
 
 class StaticResponse(BytesIO):

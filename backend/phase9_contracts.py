@@ -89,9 +89,15 @@ class ToolManifest(ToolPin):
     runner: Literal["builtin", "isolated_cli", "unregistered"] = "builtin"
     network: Literal[False] = False
     license: str
+    maintainer: str = "Marsad"
+    source_url: str | None = None
+    readiness_check: Literal["module-import", "bundle-version-and-cache", "shadow-fixture"] = "module-import"
     capabilities: list[str] = Field(default_factory=list)
     evidence_requires: list[str] = Field(default_factory=list)
+    supported_formats: list[str] = Field(default_factory=list)
     timeout_seconds: int | None = Field(default=None, gt=0)
+    worker_memory_mib: int | None = Field(default=None, gt=0)
+    worker_cpu_count: int | None = Field(default=None, gt=0)
     limitations: list[str] = Field(default_factory=list)
 
 
@@ -255,18 +261,27 @@ def analyzer_manifests():
             supported_inputs=SOURCE_KINDS, status="available" if tool in enabled else "disabled",
             reason=None if tool in enabled else "not_enabled", runner="isolated_cli",
             license="MIT" if secret_review else "Apache-2.0",
+            maintainer="Gitleaks project" if secret_review else "Google OSV",
+            source_url=("https://github.com/gitleaks/gitleaks" if secret_review else
+                        "https://github.com/google/osv-scanner") + "/releases/tag/v" + tool.version,
+            readiness_check="bundle-version-and-cache",
             capabilities=["credential-signatures" if secret_review else "dependency-advisories"],
             evidence_requires=["submitted text"] if secret_review else ["supported lockfile or exact PyPI pins"],
+            supported_formats=["UTF-8 snapshot files"] if secret_review else ["requirements.txt (exact pins)", "package-lock.json (v2/v3)"],
             timeout_seconds=SOURCE_TIMEOUTS[tool.id],
+            worker_memory_mib=400, worker_cpu_count=1,
             limitations=["snapshot only; no Git history"] if secret_review else ["bundled advisory ecosystems only"],
         ))
     tools.extend(ToolManifest(
         id=tool, version=version, title_en=title, title_ar=title, supported_inputs=SOURCE_KINDS,
         approval="shadow", runner="unregistered", status="disabled", reason="shadow_only",
-        license=license_name, capabilities=[capability], limitations=[limitation],
-    ) for tool, version, title, license_name, capability, limitation in (
-        ("semgrep", "1.186.0", "Semgrep CE", "LGPL-2.1", "source-patterns", "fixture rules only"),
-        ("trivy", "0.76.2", "Trivy", "Apache-2.0", "configuration-audit", "overlap with approved configuration and dependency checks"),
+        license=license_name, maintainer=maintainer, source_url=source_url, readiness_check="shadow-fixture",
+        capabilities=[capability], limitations=[limitation],
+    ) for tool, version, title, license_name, maintainer, source_url, capability, limitation in (
+        ("semgrep", "1.186.0", "Semgrep CE", "LGPL-2.1", "Semgrep", "https://github.com/semgrep/semgrep/tree/v1.186.0",
+         "source-patterns", "fixture rules only"),
+        ("trivy", "0.76.2", "Trivy", "Apache-2.0", "Aqua Security", "https://github.com/aquasecurity/trivy/releases/tag/v0.76.2",
+         "configuration-audit", "overlap with approved configuration and dependency checks"),
     ))
     return tools
 

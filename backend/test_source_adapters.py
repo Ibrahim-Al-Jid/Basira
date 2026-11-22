@@ -3,8 +3,10 @@ import base64
 import json
 import os
 from pathlib import Path
+import runpy
 import subprocess
 from dataclasses import replace
+from zipfile import ZipFile
 
 import pytest
 
@@ -138,9 +140,18 @@ def test_unavailable_osv_database_is_partial(monkeypatch, tmp_path):
 def test_osv_npm_scans_sanitized_lockfile_and_preserves_evidence_line(monkeypatch, tmp_path, lockfile_version):
     monkeypatch.setenv("MARSAD_SOURCE_ADAPTERS", "osv-scanner")
     monkeypatch.setenv("MARSAD_OSV_DB_DIRECTORY", str(tmp_path))
-    cache = tmp_path / "osv-scalibr" / "npm" / "all.zip"
-    cache.parent.mkdir(parents=True)
-    cache.touch()
+    build_index = runpy.run_path(str(Path(__file__).parent.parent / "ops/index-npm-advisories.py"))["build_index"]
+    with ZipFile(tmp_path / "official-fixture.zip", "w") as archive:
+        for identifier, names in {
+            "GHSA-FIXT-URES-0001": ("@demo/example", "related"),
+            "GHSA-FIXT-URES-0002": ("unrelated",),
+            "GHSA-FIXT-URES-0003": ("@demo/example",),
+        }.items():
+            archive.writestr(identifier + ".json", json.dumps({
+                "id": identifier, "affected": [{"package": {"ecosystem": "npm", "name": name},
+                                                 "versions": ["1.2.3", "9.9.9"]} for name in names],
+            }))
+    build_index(tmp_path / "official-fixture.zip", tmp_path / "npm-advisories.sqlite3")
     (tmp_path / "npm-database-date").write_text("2026-11-22", encoding="ascii")
     lock = json.dumps({
         "lockfileVersion": lockfile_version,
@@ -159,11 +170,14 @@ def test_osv_npm_scans_sanitized_lockfile_and_preserves_evidence_line(monkeypatc
     expected_line = next(index for index, line in enumerate(lock.splitlines(), 1)
                          if '"node_modules/@demo/example":' in line)
 
-    def cli(tool, args, _directory, _report, **_options):
+    def cli(tool, args, _directory, _report, **options):
         assert tool is adapters.OSV and "--offline" in args and "--no-resolve" in args
         path = Path(args[args.index("--lockfile") + 1])
         clean = json.loads(path.read_text(encoding="ascii"))
         assert clean == {"lockfileVersion": 3, "packages": {"node_modules/@demo/example": {"version": "1.2.3"}}}
+        with ZipFile(Path(options["env"]["OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY"]) / "osv-scalibr/npm/all.zip") as archive:
+            assert archive.namelist() == ["GHSA-FIXT-URES-0001.json", "GHSA-FIXT-URES-0003.json"]
+            assert "9.9.9" in archive.read("GHSA-FIXT-URES-0001.json").decode()
         return {"results": [{"source": {"path": str(path)}, "packages": [{
             "package": {"ecosystem": "npm", "name": "@demo/example", "version": "1.2.3"},
             "vulnerabilities": [{"id": "GHSA-FIXT-URES-0001"}],
@@ -175,6 +189,9 @@ def test_osv_npm_scans_sanitized_lockfile_and_preserves_evidence_line(monkeypatc
     assert (finding.path, finding.line) == ("frontend/package-lock.json", expected_line)
     assert finding.advisory.ecosystem == "npm" and finding.advisory.database_date.isoformat() == "2026-11-22"
     assert report.status == "partial"
+    monkeypatch.setattr(adapters, "MAX_NPM_ADVISORIES", 1)
+    overflow = adapters.review_source(adapters.OSV, {"frontend/package-lock.json": lock})
+    assert (overflow.status, overflow.reason, overflow.observations) == ("error", "adapter_output_limit", [])
 
 
 def test_duplicate_npm_json_keys_remain_partial_and_never_run_cli(monkeypatch):
@@ -215,6 +232,23 @@ def test_adapter_broker_rejects_equal_copies_and_excess_runtime(tmp_path):
         adapters.run_cli(copied, [], tmp_path, tmp_path / "report.json", timeout=1, success={0})
     with pytest.raises(adapters.AdapterError, match="adapter_budget_exceeded"):
         adapters.run_cli(adapters.GITLEAKS, [], tmp_path, tmp_path / "report.json", timeout=9, success={0})
+
+
+def test_adapter_broker_refuses_installed_unpinned_version(tmp_path, monkeypatch):
+    monkeypatch.setattr(adapters, "TOOLS_DIR", tmp_path)
+    executable = tmp_path / "gitleaks"
+    executable.touch()
+
+    def preflight(command, **options):
+        assert command == [str(executable), "--version"]
+        assert options["timeout"] <= 3
+        return subprocess.CompletedProcess(command, 0, stdout=b"gitleaks version 8.30.1-rc1\n")
+
+    monkeypatch.setattr(adapters.subprocess, "run", preflight)
+    report = tmp_path / "gitleaks.json"
+    with pytest.raises(adapters.AdapterError, match="adapter_version_mismatch"):
+        adapters.run_cli(adapters.GITLEAKS, adapters.gitleaks_command(tmp_path, report), tmp_path, report,
+                         timeout=8, success={0, 42})
 
 
 def test_adapter_broker_rejects_unreviewed_flags_and_paths(tmp_path, monkeypatch):

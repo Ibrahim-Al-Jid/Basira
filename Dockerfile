@@ -41,11 +41,14 @@ USER marsad
 EXPOSE 8000
 CMD ["python", "-m", "uvicorn", "backend.main:app", "--no-access-log", "--host", "0.0.0.0", "--port", "8000"]
 
+FROM python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90 AS npm-advisories
+ADD --checksum=sha256:64021a51406b00b341f9b5b4e8428cec210404db3a857d4f9ff8cb2767091e24 https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip?generation=1795332791486905 /tmp/npm.zip
+COPY ops/index-npm-advisories.py /tmp/index-npm-advisories.py
+RUN python /tmp/index-npm-advisories.py /tmp/npm.zip /index/npm-advisories.sqlite3 \
+    && printf '%s\n' '2026-11-22' > /index/npm-database-date \
+    && chmod 0444 /index/npm-advisories.sqlite3 /index/npm-database-date
+
 FROM runtime AS scanner-npm
-ADD --chmod=0444 --checksum=sha256:64021a51406b00b341f9b5b4e8428cec210404db3a857d4f9ff8cb2767091e24 https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip?generation=1795332791486905 /opt/marsad-osv/osv-scalibr/npm/all.zip
-USER root
-RUN printf '%s\n' '2026-11-22' > /opt/marsad-osv/npm-database-date \
-    && chmod 0444 /opt/marsad-osv/npm-database-date
-USER marsad
+COPY --from=npm-advisories /index/ /opt/marsad-osv/
 
 FROM runtime AS app

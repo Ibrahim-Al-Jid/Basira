@@ -1,4 +1,4 @@
-"""Provider gateway. Its outbound model request contains rule IDs and counts only."""
+"""Provider gateway for bounded suggestions over redacted, server-derived facts."""
 from base64 import b64encode
 from collections import Counter
 from decimal import Decimal, InvalidOperation
@@ -15,16 +15,23 @@ from pydantic import BaseModel, ConfigDict, Field
 import sqlalchemy as sa
 
 from .artifact_review import EXTENDED_IDS
+from .contracts import AgentAdvisory, Severity
 from .model_connections import (
     CONNECTION_ID, MAX_OUTPUT_TOKENS, MODEL_ID, OPERATOR_GENERATION, CatalogRequest, Generation, Identifier, ModelName, VerifyRequest,
     configured_model, connections, decrypt_key, encrypt_key, gateway_config, openrouter_secret,
     operator_enabled, vault,
 )
+from .phase9_contracts import ANALYZER_INPUTS
 from .platform_db import PlatformUnavailable, platform_session
 from .rules import RULES
+from .source_adapters import SOURCE_TOOLS
 
 app = FastAPI(title="Marsad provider gateway", docs_url=None, redoc_url=None, openapi_url=None)
 IDS = frozenset(EXTENDED_IDS) | RULES.keys()
+ADVISOR_RULES = IDS | {tool.rule for tool in SOURCE_TOOLS}
+ADVISOR_VERSION = "marsad-advisor-1"
+ADVISOR_EVIDENCE_LIMIT = 12
+ADVISOR_HINT_LIMIT = 3
 PROVIDER_URL = "https://openrouter.ai/api/v1"
 ServiceAuth = Annotated[str | None, Header(alias="Authorization")]
 
@@ -32,6 +39,50 @@ ServiceAuth = Annotated[str | None, Header(alias="Authorization")]
 @app.exception_handler(RequestValidationError)
 async def invalid_facts(_request, _error):
     return JSONResponse({"detail": "Invalid provider request"}, status_code=422)
+
+
+EvidenceLabel = Annotated[str, Field(pattern=r"^e([1-9]|1[0-2])$")]
+ToolLabel = Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]{0,63}$")]
+RuleLabel = Annotated[str, Field(min_length=1, max_length=64)]
+
+
+class AdvisorObject(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+
+class AdvisorEvidence(AdvisorObject):
+    id: EvidenceLabel
+    rule: RuleLabel
+    severity: Severity
+    assessment: Literal["observed", "review_required"]
+
+
+class AdvisorFacts(AdvisorObject):
+    input_kind: Literal["repository", "config"]
+    tools: list[ToolLabel] = Field(min_length=1, max_length=len(ANALYZER_INPUTS) + len(SOURCE_TOOLS))
+    evidence: list[AdvisorEvidence] = Field(min_length=1, max_length=ADVISOR_EVIDENCE_LIMIT)
+
+
+class PlanningHint(AdvisorObject):
+    tool: ToolLabel
+    label: Literal["review_tool_coverage", "review_tool_findings"]
+
+
+class ValidationHint(AdvisorObject):
+    evidence: EvidenceLabel
+    label: Literal["review_evidence", "review_context"]
+
+
+class ExplanationHint(AdvisorObject):
+    evidence: EvidenceLabel
+    label: Literal["read_remediation", "confirm_scope"]
+
+
+class AdvisorAnswer(AdvisorObject):
+    priority: list[RuleLabel] = Field(min_length=1, max_length=len(ADVISOR_RULES))
+    planning: list[PlanningHint] = Field(max_length=ADVISOR_HINT_LIMIT)
+    validation: list[ValidationHint] = Field(max_length=ADVISOR_HINT_LIMIT)
+    explanation: list[ExplanationHint] = Field(max_length=ADVISOR_HINT_LIMIT)
 
 
 class Facts(BaseModel):
@@ -44,7 +95,8 @@ class Facts(BaseModel):
     lease: Identifier
     generation: Generation
     source: Literal["account", "organization"] = "organization"
-    counts: dict[str, Annotated[int, Field(ge=1, le=100_000)]] = Field(min_length=1, max_length=len(IDS))
+    counts: dict[str, Annotated[int, Field(ge=1, le=100_000)]] = Field(min_length=1, max_length=len(ADVISOR_RULES))
+    advisor: AdvisorFacts | None = None
 
 
 def verify_service(authorization):
@@ -229,7 +281,7 @@ def start_model_call(body):
                 return db.execute(sa.text(
                     f"SELECT * FROM public.{procedure}("
                     ":org_id, :project_id, :scan_id, :lease, :generation, :model)"
-                ), body.model_dump(exclude={"counts", "connection", "source"})).one_or_none()
+                ), body.model_dump(exclude={"counts", "connection", "source", "advisor"})).one_or_none()
             return local_start_model_call(db, body)
     except (PlatformUnavailable, sa.exc.SQLAlchemyError):
         raise HTTPException(503, "Scan provider reservation is unavailable") from None
@@ -238,8 +290,11 @@ def start_model_call(body):
 @app.post("/priority")
 def priority(body: Facts, authorization: ServiceAuth = None):
     verify_service(authorization)
-    if not set(body.counts) <= IDS:
+    allowed_rules = ADVISOR_RULES if body.advisor else IDS
+    if not set(body.counts) <= allowed_rules:
         raise HTTPException(422, "Unsupported rule identifier")
+    if body.advisor and not valid_advisor_facts(body.advisor, body.counts):
+        raise HTTPException(422, "Unsupported advisor facts")
     operator = body.generation == OPERATOR_GENERATION
     if operator and body.source == "account":
         raise HTTPException(409, "Personal connection is no longer available")
@@ -255,10 +310,59 @@ def priority(body: Facts, authorization: ServiceAuth = None):
     key = openrouter_secret() if operator else decrypt_key(encryptor, started[0], namespace, body.generation)
     if not key:
         raise HTTPException(503, "Model enrichment is unavailable")
+    if body.advisor:
+        return provider_order(key, body.model, body.counts, advisor=body.advisor)
     return provider_order(key, body.model, body.counts)
 
 
-def provider_order(key, model, counts):
+ADVISOR_PROMPT = (
+    "Prioritize the listed rule IDs and suggest what a human should review for this static report. "
+    "Use only the IDs from the input. Never invent tools, findings, explanations, or instructions. "
+    "Return only a JSON object with priority (each rule ID once) and three arrays of up to three unique IDs each: "
+    '{"planning":[{"tool":"one supplied tool","label":"review_tool_coverage or review_tool_findings"}],'
+    '"validation":[{"evidence":"one supplied evidence ID","label":"review_evidence or review_context"}],'
+    '"explanation":[{"evidence":"one supplied evidence ID","label":"read_remediation or confirm_scope"}]}. '
+    "Use exactly one literal label per entry. Use an empty array when no suggestion is warranted."
+)
+
+
+def allowed_advisor_tools(kind):
+    return {tool for tool, inputs in ANALYZER_INPUTS.items() if kind in inputs} | {
+        tool.id for tool in SOURCE_TOOLS
+    }
+
+
+def valid_advisor_facts(advisor, counts):
+    references = {item.id for item in advisor.evidence}
+    observed = Counter(item.rule for item in advisor.evidence)
+    return (
+        len(advisor.tools) == len(set(advisor.tools))
+        and set(advisor.tools) <= allowed_advisor_tools(advisor.input_kind)
+        and len(advisor.evidence) == len(references)
+        and all(observed[rule] <= counts.get(rule, 0) for rule in observed)
+    )
+
+
+def advisor_answer(payload, counts, advisor):
+    answer = AdvisorAnswer.model_validate(payload)
+    references = {item.id for item in advisor.evidence}
+    groups = (
+        ([item.tool for item in answer.planning], set(advisor.tools)),
+        ([item.evidence for item in answer.validation], references),
+        ([item.evidence for item in answer.explanation], references),
+    )
+    if not valid_order(answer.priority, counts) or any(
+        len(set(selected)) != len(selected) or not set(selected) <= allowed for selected, allowed in groups
+    ):
+        raise ValueError("Advisor selected a reference outside the verified facts")
+    return answer
+
+
+def provider_order(key, model, counts, *, advisor=None):
+    facts = counts if advisor is None else {"counts": counts, **advisor.model_dump()}
+    prompt = ADVISOR_PROMPT if advisor else (
+        'Order rule IDs by priority. Reply only in JSON: {"priority":["each ID exactly once"]}'
+    )
     try:
         response = httpx.post(
             PROVIDER_URL + "/chat/completions", trust_env=False,
@@ -266,16 +370,19 @@ def provider_order(key, model, counts):
             json={"model": model, "max_tokens": MAX_OUTPUT_TOKENS,
                   "provider": {"data_collection": "deny", "allow_fallbacks": False},
                   "messages": [
-                      {"role": "system", "content": "Order rule IDs by priority. Reply only in JSON: "
-                                                   '{"priority":["each ID exactly once"]}'},
-                      {"role": "user", "content": json.dumps(counts)},
+                      {"role": "system", "content": prompt},
+                      {"role": "user", "content": json.dumps(facts)},
                   ]},
         )
         response.raise_for_status()
         answer = response.json()
-        order = json.loads(answer["choices"][0]["message"]["content"])["priority"]
-        if not valid_order(order, counts):
+        candidate = json.loads(answer["choices"][0]["message"]["content"])
+        if advisor:
+            result = advisor_answer(candidate, counts, advisor).model_dump()
+        elif not valid_order(candidate["priority"], counts):
             raise ValueError()
+        else:
+            result = {"priority": candidate["priority"]}
     except (ValueError, KeyError, AttributeError, IndexError, TypeError, RecursionError, httpx.HTTPError):
         raise HTTPException(502, "Model could not provide a valid order") from None
     usage = answer.get("usage")
@@ -285,7 +392,7 @@ def provider_order(key, model, counts):
             value = usage.get(field)
             if type(value) is int and 0 <= value <= 1_000_000:
                 observed[dest] = value
-    return {"priority": order, **({"usage": observed} if observed else {})}
+    return {**result, **({"usage": observed} if observed else {})}
 
 
 def valid_order(order, counts):
@@ -293,9 +400,41 @@ def valid_order(order, counts):
             and all(isinstance(value, str) for value in order) and set(order) == set(counts))
 
 
-def enrich(report, connection, *, org_id, project_id, scan_id, lease):
+def advisor_projection(report):
+    execution = report.get("execution")
+    kind = execution.get("input_kind") if isinstance(execution, dict) else None
+    if kind not in {"repository", "config"}:
+        return None, {}
+    approved = allowed_advisor_tools(kind)
+    tools = sorted({row["id"] for row in report.get("tool_selection", [])
+                    if row.get("status") == "selected" and row.get("id") in approved})
+    if not tools:
+        return None, {}
+    facts, references = [], {}
+    seen = set()
+    for item in report["findings"]:
+        fingerprint = item.get("fingerprint")
+        if (not isinstance(fingerprint, str) or len(fingerprint) != 64
+                or any(character not in "0123456789abcdef" for character in fingerprint)
+                or fingerprint in seen or item.get("rule") not in ADVISOR_RULES
+                or item.get("severity") not in {"high", "medium", "low"}
+                or item.get("assessment") not in {"observed", "review_required"}):
+            continue
+        seen.add(fingerprint)
+        reference = f"e{len(facts) + 1}"
+        references[reference] = fingerprint
+        facts.append(AdvisorEvidence(id=reference, rule=item["rule"], severity=item["severity"],
+                                     assessment=item["assessment"]))
+        if len(facts) == ADVISOR_EVIDENCE_LIMIT:
+            break
+    return (AdvisorFacts(input_kind=kind, tools=tools, evidence=facts), references) if facts else (None, {})
+
+
+def enrich(report, connection, *, org_id, project_id, scan_id, lease, execution_advice=False):
     url, headers = gateway_config()
-    counts = Counter(item["rule"] for item in report["findings"] if item["rule"] in IDS)
+    advisor, references = advisor_projection(report) if execution_advice else (None, {})
+    allowed_rules = ADVISOR_RULES if advisor else IDS
+    counts = Counter(item["rule"] for item in report["findings"] if item["rule"] in allowed_rules)
     report["enrichment"] = "fallback"
     if not url or not counts:
         return
@@ -304,12 +443,17 @@ def enrich(report, connection, *, org_id, project_id, scan_id, lease):
                "generation": connection["generation"]}
     if connection.get("source") == "account":
         payload["source"] = "account"
+    if advisor:
+        payload["advisor"] = advisor.model_dump()
     try:
         reply = httpx.post(url + "/priority", timeout=15, trust_env=False, headers=headers, json=payload)
         if reply.status_code not in (401, 403, 409, 422, 503):
             report["metrics"]["modelCalls"] = 1
         reply.raise_for_status()
-        apply_order(report, reply.json(), counts)
+        if advisor:
+            apply_advice(report, reply.json(), counts, advisor, references)
+        else:
+            apply_order(report, reply.json(), counts)
     except httpx.RequestError:
         # A transport failure can happen after the provider started handling the request.
         report["metrics"]["modelCalls"] = None
@@ -322,9 +466,25 @@ def apply_order(report, payload, counts):
         return
     position = {rule_id: index for index, rule_id in enumerate(order)}
     report["findings"].sort(key=lambda item: position.get(item["rule"], len(position)))
+    record_model_result(report, order, payload.get("usage"))
+
+
+def apply_advice(report, payload, counts, advisor, references):
+    if not isinstance(payload, dict):
+        return
+    answer = advisor_answer({key: value for key, value in payload.items() if key != "usage"}, counts, advisor)
+    report["agent_advisory"] = AgentAdvisory.model_validate({
+        "version": ADVISOR_VERSION,
+        "planning": [item.model_dump() for item in answer.planning],
+        "validation": [{"fingerprint": references[item.evidence], "label": item.label} for item in answer.validation],
+        "explanation": [{"fingerprint": references[item.evidence], "label": item.label} for item in answer.explanation],
+    }).model_dump()
+    record_model_result(report, answer.priority, payload.get("usage"))
+
+
+def record_model_result(report, order, usage):
     report["priority"] = order
     report["enrichment"] = "model"
-    usage = payload.get("usage")
     if isinstance(usage, dict):
         for field in ("inputTokens", "outputTokens"):
             if type(usage.get(field)) is int and 0 <= usage[field] <= 1_000_000:
