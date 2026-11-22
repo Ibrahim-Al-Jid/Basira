@@ -196,6 +196,7 @@ def test_personal_github_oauth_rechecks_selected_repo_and_pins_commit(personal_c
             assert "authorization" not in request.headers
             return httpx.Response(200, stream=httpx.ByteStream(raw))
         if request.method == "DELETE":
+            assert request.url.path == "/applications/Iv1.Fixture/token"
             assert json.loads(request.content)["access_token"] == TOKEN
             return httpx.Response(204)
         assert request.headers["authorization"] == "Bearer " + TOKEN
@@ -318,6 +319,19 @@ def test_local_github_manifest_wizard_uses_one_time_state_and_saves_configuratio
     saved = json.loads(path.read_text(encoding="utf-8"))
     assert saved["callback_url"] == callback and saved["client_id"] == "Iv1.Fixture"
     assert Fernet(saved["credential_key"].encode())
+
+
+def test_github_installations_require_selected_readonly_scope(monkeypatch):
+    installations = [
+        {"id": 1, "repository_selection": "selected", "permissions": {"contents": "read", "metadata": "read"}},
+        {"id": 2, "repository_selection": "all", "permissions": {"contents": "read", "metadata": "read"}},
+        {"id": 3, "repository_selection": "selected", "suspended_at": "2026-01-01T00:00:00Z",
+         "permissions": {"contents": "read", "metadata": "read"}},
+        {"id": 4, "repository_selection": "selected", "permissions": {"contents": "write", "metadata": "read"}},
+        {"id": 5, "repository_selection": "selected", "permissions": {"contents": "read", "issues": "read"}},
+    ]
+    monkeypatch.setattr(personal_github, "pages", lambda *_args: iter(installations))
+    assert list(personal_github.available_installations(None, None)) == [1]
 
 
 class StaticResponse(BytesIO):
