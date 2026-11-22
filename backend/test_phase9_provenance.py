@@ -47,6 +47,14 @@ def test_analyzer_registry_keeps_shadow_and_offline_decisions(monkeypatch):
     assert decisions["deployment-config"].status == "selected"
 
 
+def test_explicit_null_plan_cannot_fall_back_to_current_registry():
+    result = scan_payload({
+        "kind": "html", "name": "review.html", "content": "PHA+SGVsbG88L3A+",
+        "policy": {"_ruleset_version": RULESET_VERSION, "_analysis_plan": None},
+    }, external=True)
+    assert result == {"error": "نسخة خطة الفحص غير متوافقة. قدّم الملف من جديد."}
+
+
 def test_scoped_snapshot_pins_policy_and_tool_versions(platform):
     owner, stranger, ctx = platform
     path = root(ctx)

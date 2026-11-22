@@ -65,7 +65,10 @@ def test_zip_intake_retries_profile_and_rejections(personal_clients, monkeypatch
     owner, other = personal_clients
     monkeypatch.setenv("MARSAD_ALLOW_INLINE_ANALYSIS", "1")
     path, project_id = new_project(owner)
-    raw = b64decode(repository_submission()["content"])
+    sample = BytesIO(b64decode(repository_submission()["content"]))
+    with ZipFile(sample, "a") as archive:
+        archive.writestr("dist/output.js", "console.log('excluded build output');")
+    raw = sample.getvalue()
     zip_route = path + "/intake/zip"
     headers = zip_headers("zip-fixture-key")
     assert other.post(zip_route, content=raw, headers=headers).status_code == 404
@@ -76,6 +79,9 @@ def test_zip_intake_retries_profile_and_rejections(personal_clients, monkeypatch
     assert snapshot["sha256"] == sha256(raw).hexdigest()
     profile = report["input_artifact"]["profile"]
     assert profile["mode"] == "zip" and profile["text_files"] == 1
+    assert profile["skipped_files"] == 1
+    assert any(item["path"] == "dist/output.js" and item["reason"] == "build_artifact"
+               for item in report["input_manifest"])
     assert snapshot["profile"] == profile and len(profile["expanded_text_sha256"]) == 64
     assert owner.post(zip_route, content=b"plain", headers=zip_headers("invalid-zip-key")).status_code == 422
     archive = BytesIO()

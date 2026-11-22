@@ -70,11 +70,52 @@ def configured_tools():
     return tuple(tool for tool in SOURCE_TOOLS if tool.id in selected)
 
 
+def gitleaks_command(directory, report):
+    return [
+        "dir", str(directory / "snapshot"), "--config", str(directory / "gitleaks.toml"),
+        "--gitleaks-ignore-path", str(directory / ".gitleaksignore"), "--ignore-gitleaks-allow",
+        "--redact=100", "--no-banner", "--no-color", "--log-level=error",
+        "--max-archive-depth=0", "--max-decode-depth=0", "--max-target-megabytes=1",
+        "--exit-code=42", "--report-format=json", "--report-path", str(report),
+    ]
+
+
+def osv_command(directory, report, manifests=()):
+    return [
+        "scan", "source", "--offline", "--no-resolve", "--all-packages",
+        "--verbosity=error", "--format=json", "--output-file", str(report), "--config",
+        str(directory / "osv-scanner.toml"),
+        *(value for path in manifests for value in ("--lockfile", path)),
+    ]
+
+
+def approved_cli(tool, args, directory, report):
+    root = directory.resolve()
+    if tool is GITLEAKS:
+        return (report == directory / "gitleaks.json" and args == gitleaks_command(directory, report)
+                and all(path.resolve().is_relative_to(root) for path in (
+                    directory / "snapshot", directory / "gitleaks.toml", directory / ".gitleaksignore",
+                )))
+    if report != directory / "osv.json":
+        return False
+    prefix = osv_command(directory, report)
+    flags = args[len(prefix):]
+    manifests = flags[1::2]
+    return (args[:len(prefix)] == prefix and bool(manifests) and len(flags) % 2 == 0
+            and all(flag == "--lockfile" for flag in flags[::2])
+            and (directory / "osv-scanner.toml").resolve().is_relative_to(root)
+            and all(Path(path).is_absolute() and Path(path).resolve().is_relative_to(root)
+                    for path in manifests))
+
+
 def run_cli(tool, args, directory, report, *, timeout, success, env=None):
     if not any(tool is registered for registered in SOURCE_TOOLS):
         raise AdapterError("adapter_not_registered")
     if type(timeout) not in (int, float) or not 0 < timeout <= SOURCE_TIMEOUTS[tool.id]:
         raise AdapterError("adapter_budget_exceeded")
+    if (not report.resolve().is_relative_to(directory.resolve()) or not approved_cli(tool, args, directory, report)
+            or set(env or {}) - {"OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY", "GOMAXPROCS", "GOMEMLIMIT"}):
+        raise AdapterError("adapter_execution_denied")
     executable = TOOLS_DIR / tool.id
     if not executable.is_file():
         raise AdapterError("adapter_unavailable")
@@ -114,12 +155,8 @@ def gitleaks(files, directory):
     ignored = directory / ".gitleaksignore"
     ignored.touch()
     report = directory / "gitleaks.json"
-    output, code = run_cli(GITLEAKS, [
-        "dir", str(snapshot), "--config", str(config), "--gitleaks-ignore-path", str(ignored),
-        "--ignore-gitleaks-allow", "--redact=100", "--no-banner", "--no-color", "--log-level=error",
-        "--max-archive-depth=0", "--max-decode-depth=0", "--max-target-megabytes=1",
-        "--exit-code=42", "--report-format=json", "--report-path", str(report),
-    ], directory, report, timeout=SOURCE_TIMEOUTS[GITLEAKS.id], success={0, 42})
+    output, code = run_cli(GITLEAKS, gitleaks_command(directory, report), directory, report,
+                           timeout=SOURCE_TIMEOUTS[GITLEAKS.id], success={0, 42})
     if not isinstance(output, list) or bool(output) != (code == 42):
         raise AdapterError("adapter_invalid_output")
     if len(output) > MAX_OBSERVATIONS:
@@ -353,12 +390,8 @@ def osv(files, directory):
     config = directory / "osv-scanner.toml"
     config.touch()
     report = directory / "osv.json"
-    flags = [value for manifest in manifests for value in ("--lockfile", manifest)]
-    output, _ = run_cli(OSV, [
-        "scan", "source", "--offline", "--no-resolve", "--all-packages",
-        "--verbosity=error", "--format=json", "--output-file", str(report), "--config", str(config),
-        *flags,
-    ], directory, report, timeout=SOURCE_TIMEOUTS[OSV.id], success={0, 1}, env={
+    output, _ = run_cli(OSV, osv_command(directory, report, manifests),
+                        directory, report, timeout=SOURCE_TIMEOUTS[OSV.id], success={0, 1}, env={
         "OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY": str(cache),
     })
     if not isinstance(output, dict) or not isinstance(output.get("results"), list):

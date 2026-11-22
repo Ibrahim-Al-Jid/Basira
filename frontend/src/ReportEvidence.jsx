@@ -16,6 +16,7 @@ export function FileManifest({ entries, lang }) {
           <td><code dir="auto">{path}</code></td>
           <td>{status === "included" ? t("اتضمّن في الفحص", "Included in scan")
             : reason === "unsupported_extension" ? t("اتخطّى · امتداد غير مدعوم", "Skipped · unsupported extension")
+            : reason === "build_artifact" ? t("اتخطّى · ملف ناتج عن البناء أو تبعية مضمّنة", "Skipped · build output or vendored dependency")
             : t("اتخطّى", "Skipped")}</td>
         </tr>)}</tbody>
       </table>

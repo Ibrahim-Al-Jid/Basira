@@ -384,18 +384,48 @@ export function FindingReview({ reportApi, findings, lang, t, dateText }) {
   );
 }
 
-export function ToolRuns({ runs, lang, t, label, count }) {
+export function ToolRuns({ runs, selections, lang, t, label, count }) {
   const advanced = COPY[lang];
   const [selected, select] = useState(null);
+  const reasonCopy = {
+    eligible: ["مناسب لنوع المدخل", "Eligible for this input"],
+    unsupported_input: ["نوع المدخل خارج تغطية الأداة", "Input is outside this tool's coverage"],
+    adapter_unavailable: ["الأداة غير جاهزة في بيئة التشغيل", "Tool unavailable in this environment"],
+    not_enabled: ["الأداة غير مفعّلة في إعدادات التشغيل", "Tool disabled in runtime settings"],
+    shadow_only: ["أداة مرشحة قيد التقييم", "Candidate under evaluation"],
+    not_in_pinned_plan: ["خارج خطة الفحص المثبّتة", "Outside the pinned scan plan"],
+    offline_runner_required: ["يحتاج عامل التحليل المعزول", "Requires the isolated analysis worker"],
+    adapter_execution_denied: ["أمر التشغيل خارج السياسة المعتمدة", "Command denied by execution policy"],
+    adapter_failed: ["تعذّر تنفيذ الأداة", "Tool execution failed"],
+    adapter_invalid_output: ["مخرجات الأداة غير صالحة", "Invalid tool output"],
+    adapter_output_limit: ["مخرجات الأداة تجاوزت الحد", "Tool output exceeded its limit"],
+    database_unavailable: ["قاعدة التنبيهات غير متاحة", "Advisory database unavailable"],
+    adapter_timeout: ["الأداة تجاوزت مهلة التشغيل", "Tool exceeded its time limit"],
+    unsupported_dependency_pin: ["فيه إصدارات تبعيات تعذّر تحليلها", "Some dependency versions could not be analyzed"],
+    merged_observations: ["الأدلة اتدمجت مع نتائج موجودة", "Evidence merged with existing observations"],
+    imported_observations: ["ملاحظات مستوردة من تقرير محفوظ", "Observations imported from a saved report"],
+  };
+  const reasonText = (reason) => Object.hasOwn(reasonCopy, reason) ? t(...reasonCopy[reason]) : reason;
+  const present = t("اتحددت", "Selected");
   return (
     <section className="reports-panel reports-section reports-advanced">
       <h2>{advanced.toolRuns}</h2>
+      {!!selections?.length && <details className="reports-section">
+        <summary>{t("قرارات اختيار الأدوات", "Tool selection decisions")}</summary>
+        <ul className="reports-review-list">
+          {selections.map((selection) => <li key={selection.id}>
+            <bdi>{selection.id} · {selection.version}</bdi>
+            {" · "}{selection.status === "selected" ? present : label(t, "skipped")}
+            {" · "}{reasonText(selection.reason)}
+          </li>)}
+        </ul>
+      </details>}
       {!runs?.length ? <p className="reports-empty">{advanced.noTools}</p> : (
         <ul className="reports-review-list">
           {runs.map((run) => (
             <li className="reports-tool" key={run.id}>
               <div className="reports-tool-heading">
-                <code dir="ltr">{run.tool}</code>
+                <code dir="ltr">{run.tool}{run.version && " · " + run.version}</code>
                 <span className="reports-tag">{label(t, run.status)}</span>
               </div>
               <dl className="reports-metadata">
@@ -404,6 +434,7 @@ export function ToolRuns({ runs, lang, t, label, count }) {
                 <div><dt>{advanced.matches}</dt><dd>{count(run.matched ?? 0)}</dd></div>
                 {run.duration_ms != null && <div><dt>{advanced.duration}</dt><dd>{count(run.duration_ms)} {advanced.ms}</dd></div>}
               </dl>
+              {run.reason && <p dir="auto">{reasonText(run.reason)}</p>}
               {!!run.coverage?.length && (
                 <button type="button" className="reports-button" onClick={() => select(run)}
                   aria-label={advanced.runCoverage + " · " + run.tool}>{advanced.runCoverage} · {count(run.coverage.length)}</button>

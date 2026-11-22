@@ -652,7 +652,7 @@ function TechnicalDetails({ report, lang, t, count, projectApi }) {
       )}
       {projectApi && <Provenance projectApi={projectApi} reportId={report.id} t={t} lang={lang} count={count} />}
       {(projectApi || report.task_runs?.length > 0) && (
-        <ToolRuns runs={report.task_runs} lang={lang} t={t} label={label} count={count} />
+        <ToolRuns runs={report.task_runs} selections={report.tool_selection} lang={lang} t={t} label={label} count={count} />
       )}
       <section className="reports-section reports-advanced">
         <h2>{t.steps}</h2>
