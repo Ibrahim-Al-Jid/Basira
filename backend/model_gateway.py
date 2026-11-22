@@ -1,6 +1,7 @@
 """Provider gateway. Its outbound model request contains rule IDs and counts only."""
 from base64 import b64encode
 from collections import Counter
+from decimal import Decimal, InvalidOperation
 import hmac
 import json
 import os
@@ -15,7 +16,7 @@ import sqlalchemy as sa
 
 from .artifact_review import EXTENDED_IDS
 from .model_connections import (
-    CONNECTION_ID, MAX_OUTPUT_TOKENS, OPERATOR_GENERATION, Generation, Identifier, ModelName, VerifyRequest,
+    CONNECTION_ID, MAX_OUTPUT_TOKENS, MODEL_ID, OPERATOR_GENERATION, CatalogRequest, Generation, Identifier, ModelName, VerifyRequest,
     configured_model, connections, decrypt_key, encrypt_key, gateway_config, openrouter_secret,
     operator_enabled, vault,
 )
@@ -42,6 +43,7 @@ class Facts(BaseModel):
     scan_id: Identifier
     lease: Identifier
     generation: Generation
+    source: Literal["account", "organization"] = "organization"
     counts: dict[str, Annotated[int, Field(ge=1, le=100_000)]] = Field(min_length=1, max_length=len(IDS))
 
 
@@ -94,8 +96,16 @@ def verify_connection(body: VerifyRequest, response: Response, authorization: Se
     encryptor = vault()
     if not encryptor or not store_ready():
         raise HTTPException(503, "Credential store is unavailable")
+    key = credential(body, encryptor)
+    verify_provider(key, body.model)
+    ciphertext = encrypt_key(encryptor, key, body.org_id, body.generation)
+    response.headers["Cache-Control"] = "no-store"
+    return {"ciphertext": b64encode(ciphertext).decode("ascii")}
+
+
+def credential(body, encryptor):
     if body.api_key is not None:
-        key = body.api_key.get_secret_value()
+        return body.api_key.get_secret_value()
     elif body.previous_generation:
         try:
             with platform_session() as db:
@@ -107,13 +117,10 @@ def verify_connection(body: VerifyRequest, response: Response, authorization: Se
             raise HTTPException(409, "Current connection is no longer available")
     else:
         raise HTTPException(422, "An API key is required")
-    verify_provider(key, body.model)
-    ciphertext = encrypt_key(encryptor, key, body.org_id, body.generation)
-    response.headers["Cache-Control"] = "no-store"
-    return {"ciphertext": b64encode(ciphertext).decode("ascii")}
+    return key
 
 
-def verify_provider(key, model):
+def provider_models(key):
     headers = {"Authorization": "Bearer " + key}
     try:
         key_response = httpx.get(PROVIDER_URL + "/key", headers=headers, timeout=5.0, trust_env=False)
@@ -132,16 +139,57 @@ def verify_provider(key, model):
         available = models.json()["data"]
         if not isinstance(available, list):
             raise ValueError("Invalid model catalog")
-        if not any(isinstance(item, dict) and item.get("id") == model for item in available):
-            raise HTTPException(422, "Model is unavailable for this API key")
+        return available
     except (ValueError, KeyError, TypeError, RecursionError, httpx.HTTPError):
         raise HTTPException(503, "OpenRouter verification is unavailable") from None
+
+
+def verify_provider(key, model):
+    if not any(isinstance(item, dict) and item.get("id") == model for item in provider_models(key)):
+        raise HTTPException(422, "Model is unavailable for this API key")
+
+
+def free_text_model(item):
+    price = item.get("pricing")
+    if not isinstance(price, dict):
+        return False
+    try:
+        return all(Decimal(str(price.get(field, default))) == 0 for field, default in (
+            ("prompt", None), ("completion", None), ("request", 0), ("internal_reasoning", 0),
+        ))
+    except (InvalidOperation, ValueError):
+        return False
+
+
+@app.post("/models")
+def catalog(body: CatalogRequest, response: Response, authorization: ServiceAuth = None):
+    verify_service(authorization)
+    encryptor = vault()
+    if not encryptor:
+        raise HTTPException(503, "Credential store is unavailable")
+    models = {}
+    for item in provider_models(credential(body, encryptor)):
+        if not isinstance(item, dict):
+            continue
+        model = item.get("id")
+        if not isinstance(model, str) or len(model) > 160 or not MODEL_ID.fullmatch(model):
+            continue
+        architecture = item.get("architecture")
+        outputs = architecture.get("output_modalities") if isinstance(architecture, dict) else None
+        if isinstance(outputs, list) and "text" not in outputs:
+            continue
+        name = item.get("name")
+        models[model] = {"id": model, "name": name[:160] if isinstance(name, str) and name else model,
+                         "free": free_text_model(item)}
+    response.headers["Cache-Control"] = "no-store"
+    return {"models": sorted(models.values(), key=lambda item: (not item["free"], item["name"].casefold()))}
 
 
 def local_start_model_call(db, body):
     from . import platform_runtime as store
     from .identity import ROLE_ACTIONS, project_access
-    from .model_connections import public_connection
+    from .model_connections import account_connection, public_connection
+    from .platform_db import personal_namespace_id
 
     row = store.select_scan(db, body.org_id, body.project_id, body.scan_id, lock=True)
     if (not row or row["state"] != "running" or row["lease"] != body.lease
@@ -149,13 +197,19 @@ def local_start_model_call(db, body):
             or not row["source_expires_at"] or row["source_expires_at"] <= store.now()
             or not row["enrichment_reserved_at"] or row["enrichment_started_at"]
             or row["input_meta"].get("connection_generation") != body.generation
-            or row["input_meta"].get("connection_model") != body.model):
+            or row["input_meta"].get("connection_model") != body.model
+            or row["input_meta"].get("connection_source", "organization") != body.source):
         return None
     actor = project_access(db, body.project_id, row["user_id"])
     if not actor or actor.org_id != body.org_id or "scan" not in ROLE_ACTIONS[actor.role]:
         return None
     _, policy = store.project_policy(db, body.org_id, body.project_id)
-    current = public_connection(db, body.org_id, policy)
+    if body.source == "account":
+        current = account_connection(db, row["user_id"])
+        namespace = personal_namespace_id(db, row["user_id"])
+    else:
+        current = public_connection(db, body.org_id, policy)
+        namespace = body.org_id
     if not current or current["model"] != body.model or current["generation"] != body.generation:
         return None
     result = db.execute(store.scans.update().where(
@@ -163,17 +217,19 @@ def local_start_model_call(db, body):
     ).values(enrichment_started_at=store.now()))
     if result.rowcount != 1:
         return None
-    return (sealed_credential(db, body.org_id, body.generation),)
+    sealed = sealed_credential(db, namespace, body.generation)
+    return (sealed, namespace) if body.source == "account" else (sealed,)
 
 
 def start_model_call(body):
     try:
         with platform_session() as db:
             if db.bind.dialect.name == "postgresql":
+                procedure = "marsad_start_account_model_call" if body.source == "account" else "marsad_start_model_call"
                 return db.execute(sa.text(
-                    "SELECT * FROM public.marsad_start_model_call("
+                    f"SELECT * FROM public.{procedure}("
                     ":org_id, :project_id, :scan_id, :lease, :generation, :model)"
-                ), body.model_dump(exclude={"counts", "connection"})).one_or_none()
+                ), body.model_dump(exclude={"counts", "connection", "source"})).one_or_none()
             return local_start_model_call(db, body)
     except (PlatformUnavailable, sa.exc.SQLAlchemyError):
         raise HTTPException(503, "Scan provider reservation is unavailable") from None
@@ -185,6 +241,8 @@ def priority(body: Facts, authorization: ServiceAuth = None):
     if not set(body.counts) <= IDS:
         raise HTTPException(422, "Unsupported rule identifier")
     operator = body.generation == OPERATOR_GENERATION
+    if operator and body.source == "account":
+        raise HTTPException(409, "Personal connection is no longer available")
     if operator and operator_enabled(body.org_id) != body.model:
         raise HTTPException(409, "Operator connection is no longer available")
     encryptor = None if operator else vault()
@@ -193,7 +251,8 @@ def priority(body: Facts, authorization: ServiceAuth = None):
     started = start_model_call(body)
     if started is None:
         raise HTTPException(409, "Scan provider reservation was revoked or used")
-    key = openrouter_secret() if operator else decrypt_key(encryptor, started[0], body.org_id, body.generation)
+    namespace = started[1] if body.source == "account" else body.org_id
+    key = openrouter_secret() if operator else decrypt_key(encryptor, started[0], namespace, body.generation)
     if not key:
         raise HTTPException(503, "Model enrichment is unavailable")
     return provider_order(key, body.model, body.counts)
@@ -243,6 +302,8 @@ def enrich(report, connection, *, org_id, project_id, scan_id, lease):
     payload = {"counts": counts, "connection": CONNECTION_ID, "model": connection["model"],
                "org_id": org_id, "project_id": project_id, "scan_id": scan_id, "lease": lease,
                "generation": connection["generation"]}
+    if connection.get("source") == "account":
+        payload["source"] = "account"
     try:
         reply = httpx.post(url + "/priority", timeout=15, trust_env=False, headers=headers, json=payload)
         if reply.status_code not in (401, 403, 409, 422, 503):

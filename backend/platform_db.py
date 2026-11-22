@@ -7,8 +7,8 @@ import os
 from uuid import uuid4
 
 from sqlalchemy import (
-    CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, String,
-    UniqueConstraint, create_engine, event, text,
+    CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, LargeBinary, String,
+    UniqueConstraint, create_engine, event, select, text,
 )
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
@@ -65,10 +65,12 @@ class AuthSession(Base):
 
 class Organization(Base):
     __tablename__ = "organizations"
+    __table_args__ = (Index("ux_organizations_personal_owner", "personal_owner_id", unique=True),)
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
     name: Mapped[str] = mapped_column(String(120))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    personal_owner_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"))
 
 
 class Membership(Base):
@@ -90,12 +92,49 @@ class Project(Base):
     __table_args__ = (
         UniqueConstraint("org_id", "id", name="uq_projects_org_id"),
         Index("ix_projects_org", "org_id"),
+        Index("ix_projects_owner_active", "owner_user_id", "deleted_at"),
     )
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
     org_id: Mapped[str] = mapped_column(ForeignKey("organizations.id"))
     name: Mapped[str] = mapped_column(String(120))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    owner_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"))
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class GitHubConnection(Base):
+    __tablename__ = "github_connections"
+    __table_args__ = (
+        CheckConstraint("status IN ('verified', 'revoked')", name="ck_github_connections_status"),
+    )
+
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    installation_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    provider_account_id: Mapped[str] = mapped_column(String(32))
+    status: Mapped[str] = mapped_column(String(12))
+    verified_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class PersonalGitHubGrant(Base):
+    __tablename__ = "personal_github_grants"
+
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    provider_user_id: Mapped[str] = mapped_column(String(32))
+    generation: Mapped[str] = mapped_column(String(32))
+    ciphertext: Mapped[bytes] = mapped_column(LargeBinary)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class PersonalGitHubState(Base):
+    __tablename__ = "personal_github_states"
+
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    state_digest: Mapped[str] = mapped_column(String(64))
+    session_digest: Mapped[str] = mapped_column(String(64))
+    ciphertext: Mapped[bytes] = mapped_column(LargeBinary)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class ProjectGrant(Base):
@@ -150,16 +189,58 @@ def platform_session():
         yield db
 
 
-def bind_project(db, org_id, project_id):
+def personal_projects_enabled():
+    return os.environ.get("MARSAD_PERSONAL_PROJECTS") == "1"
+
+
+def personal_namespace_id(db, user_id, *, create=False):
+    if create and not db.scalar(select(User.id).where(
+        User.id == user_id, User.disabled_at.is_(None),
+    ).with_for_update()):
+        return None
+    namespace = db.scalar(select(Organization.id).where(Organization.personal_owner_id == user_id))
+    if namespace is None and create:
+        organization = Organization(name="Personal projects", personal_owner_id=user_id)
+        db.add(organization)
+        db.flush()
+        namespace = organization.id
+        db.add(Membership(org_id=namespace, user_id=user_id, role="owner"))
+    return namespace
+
+
+def bind_owner(db, user_id):
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(text("SELECT set_config('marsad.owner_user_id', :owner, true)"), {"owner": user_id})
+
+
+def bind_project(db, org_id, project_id, *, owner_user_id=None):
     """Bind trusted IDs for the current transaction; resetting happens on commit/rollback."""
     if db.get_bind().dialect.name == "postgresql":
         db.execute(text("SELECT set_config('marsad.org_id', :org_id, true), "
-                        "set_config('marsad.project_id', :project_id, true)"),
-                   {"org_id": org_id, "project_id": project_id})
+                        "set_config('marsad.project_id', :project_id, true), "
+                        "set_config('marsad.owner_user_id', :owner, true), "
+                        "set_config('marsad.legacy_project_access', :legacy, true)"),
+                   {"org_id": org_id, "project_id": project_id, "owner": owner_user_id or "",
+                    "legacy": "0" if personal_projects_enabled() else "1"})
+
+
+def bind_project_context(db, context):
+    bind_project(db, context.org_id, context.project_id, owner_user_id=context.owner_user_id)
+
+
+def bind_job_project(db, org_id, project_id):
+    # The queue contains IDs only. Resolve ownership from the project in the database.
+    project = db.get(Project, project_id)
+    if not project or project.org_id != org_id or project.deleted_at is not None:
+        return None
+    if personal_projects_enabled() and not project.owner_user_id:
+        return None
+    bind_project(db, org_id, project_id, owner_user_id=project.owner_user_id)
+    return project
 
 
 @contextmanager
 def tenant_session(context):
     with platform_session() as db:
-        bind_project(db, context.org_id, context.project_id)
+        bind_project_context(db, context)
         yield db

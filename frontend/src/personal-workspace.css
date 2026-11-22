@@ -1,0 +1,132 @@
+.personal-shell {
+  display: grid;
+  grid-template-columns: clamp(12.75rem, 17vw, 15rem) minmax(0, 1fr);
+  align-items: start;
+  gap: clamp(1.25rem, 2.8vw, 2.75rem);
+  max-inline-size: var(--workspace-max);
+  margin-inline: auto;
+  padding: var(--workspace-top) var(--workspace-gutter) 0;
+}
+
+.personal-shell > main.site-workspace-main {
+  grid-column: 2;
+  inline-size: 100%;
+  max-inline-size: none;
+  min-block-size: 0;
+  margin: 0;
+  padding: 0;
+  container-type: inline-size;
+}
+
+.personal-sidebar {
+  display: block;
+  position: sticky;
+  inset-block-start: 1.25rem;
+  max-block-size: calc(100dvh - 2.5rem);
+  scrollbar-gutter: stable;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--panel-radius);
+  padding: .85rem;
+  background: var(--surface);
+}
+
+.personal-links, .personal-links ul { display: grid; gap: .25rem; }
+.personal-links ul { list-style: none; padding: 0; margin: 0; }
+.personal-links .personal-nav-group {
+  padding-block: .7rem;
+  margin-block: .5rem;
+  border-block: 1px solid var(--line);
+}
+.personal-nav-label {
+  color: var(--muted);
+  font-size: .78rem;
+  padding-inline: .7rem;
+  margin-block-end: .3rem;
+}
+.personal-links :is(a, button) {
+  display: flex;
+  gap: .65rem;
+  align-items: center;
+  inline-size: 100%;
+  min-block-size: 2.75rem;
+  padding: .48rem .7rem;
+  border-radius: var(--control-radius);
+  color: var(--muted);
+  text-decoration: none;
+  font-size: .88rem;
+  font-weight: 600;
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+.personal-links :is(a, button):hover { background: var(--surface-alt); color: var(--ink); }
+.personal-links [aria-current] { background: var(--tint); color: var(--accent); }
+.personal-links .personal-new-project {
+  border: 1px solid var(--line);
+  color: var(--ink);
+  margin-block-end: .35rem;
+}
+.personal-sidebar[data-project-directory] .personal-new-project {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+.personal-sidebar[data-project-directory] .personal-new-project:hover { background: var(--accent); color: var(--on-accent); }
+.personal-links .personal-nav-account { border-block-start: 1px solid var(--line); padding-block-start: .65rem; margin-block-start: .45rem; }
+.personal-links svg { flex: none; }
+.personal-sidebar .personal-menu { display: none; }
+
+.personal-project-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15.75rem), 1fr));
+  gap: .95rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.personal-project-list li { display: grid; min-inline-size: 0; }
+.personal-project-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .75rem;
+  min-block-size: 6.5rem;
+  padding: 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--panel-radius);
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+}
+.personal-project-card:hover { border-color: var(--accent); background: var(--surface-alt); }
+.personal-project-card > span:nth-child(2) { display: grid; gap: .35rem; min-inline-size: 0; overflow-wrap: anywhere; }
+.personal-project-card bdi { font-weight: 700; }
+.personal-project-card time { font-size: .8rem; color: var(--muted); }
+.personal-project-marker {
+  display: grid;
+  place-items: center;
+  inline-size: 2.45rem;
+  block-size: 2.45rem;
+  border-radius: var(--control-radius);
+  background: var(--tint);
+  color: var(--accent);
+}
+.personal-project-editor { inline-size: min(100%, 44rem); }
+.personal-project-editor .project-form { max-inline-size: 35rem; }
+.personal-project-empty { min-block-size: 10rem; align-content: center; }
+.personal-project-empty h2 { font-size: 1.3rem; }
+.personal-project-empty p { max-inline-size: 55ch; }
+.personal-project-management { display: grid; gap: var(--section-gap); }
+.personal-project-management .project-form { max-inline-size: 38rem; }
+.project-panel .danger-action { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 42%, var(--line)); }
+.personal-github { inline-size: min(100%, 46rem); }
+.personal-github p { max-inline-size: 60ch; }
+
+@media (max-width: 760px) {
+  .personal-shell { grid-template-columns: minmax(0, 1fr); }
+  .personal-shell > main.site-workspace-main { grid-column: 1; }
+  .personal-sidebar { position: static; max-block-size: none; }
+  .personal-sidebar .personal-menu { display: inline-flex; }
+  .personal-links { display: none; }
+  .personal-links.is-open { display: grid; margin-block-start: .5rem; }
+}

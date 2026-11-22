@@ -10,7 +10,9 @@ from pathlib import PurePosixPath
 import re
 import stat
 import time
-from zipfile import BadZipFile, ZipFile
+import unicodedata
+from zipfile import BadZipFile, ZIP_DEFLATED, ZIP_STORED, ZipFile
+import zlib
 
 from .checks import openapi_contract, zap_passive
 from .contracts import Finding, RuleCoverage
@@ -115,45 +117,60 @@ def read_object(raw, *, limit=MAX_FILE, strict=False):
     return result
 
 
-def zip_texts(raw, *, manifest=None):
+def zip_texts(raw, *, manifest=None, metrics=None):
     files = {}
     seen = set()
     total = 0
+    executable_entries = 0
     try:
-        with ZipFile(io.BytesIO(raw)) as archive:
+        with ZipFile(io.BytesIO(raw) if isinstance(raw, bytes) else raw) as archive:
             entries = archive.infolist()
             if not entries or len(entries) > MAX_FILES:
                 raise InputError("عدد عناصر ZIP لازم يكون بين ١ و٢٠٠.")
             for entry in entries:
                 original = entry.orig_filename
                 path = safe_path(original.removesuffix("/") if entry.is_dir() else original)
-                stamp = path.casefold()
+                stamp = unicodedata.normalize("NFKC", path).casefold()
+                safe_path(stamp)
                 if stamp in seen:
                     raise InputError("ZIP فيه أسماء مكررة.")
                 seen.add(stamp)
                 mode = entry.external_attr >> 16
-                if stat.S_ISLNK(mode) or entry.flag_bits & 1:
-                    raise InputError("الروابط الرمزية والملفات المشفرة غير مدعومة.")
+                if (stat.S_IFMT(mode) not in {0, stat.S_IFDIR if entry.is_dir() else stat.S_IFREG}
+                        or entry.flag_bits & 1 or entry.compress_type not in {ZIP_STORED, ZIP_DEFLATED}):
+                    raise InputError("ZIP يحتوي على رابط أو ملف خاص أو طريقة ضغط غير مدعومة.")
                 if entry.is_dir():
+                    if entry.file_size:
+                        raise InputError("عنصر مجلد ZIP غير صالح.")
                     continue
                 parsed = PurePosixPath(path)
+                executable_entries += bool(mode & 0o111) or parsed.suffix.lower() in {".exe", ".dll", ".sh", ".bat", ".ps1"}
                 if parsed.suffix.lower() in ARCHIVE_SUFFIXES:
                     raise InputError("الأرشيفات المتداخلة غير مدعومة.")
                 total += entry.file_size
                 if total > MAX_EXPANDED or entry.file_size > MAX_FILE:
                     raise InputError("حجم ملفات ZIP بعد الفك تجاوز الحد.")
+                if entry.file_size > 100_000 and entry.file_size > 200 * entry.compress_size:
+                    raise InputError("نسبة ضغط ملف داخل ZIP تجاوزت الحد.")
                 supported = (parsed.suffix.lower() in TEXT_SUFFIXES or parsed.name.lower() == ".npmrc"
                              or parsed.name.lower().startswith(("dockerfile", ".env")))
+                with archive.open(entry) as stream:
+                    payload = stream.read(MAX_FILE + 1)
+                if len(payload) != entry.file_size or payload.startswith((b"PK\x03\x04", b"\x1f\x8b", b"7z\xbc\xaf\x27\x1c", b"Rar!")):
+                    raise InputError("محتوى ZIP تالف أو يحتوي على أرشيف متداخل.")
+                build = bool({".git", "node_modules", "dist", "build", "__pycache__", "vendor"} & set(parsed.parts[:-1]))
+                supported = supported and not build
                 if supported:
-                    with archive.open(entry) as stream:
-                        files[path] = plain_text(stream.read(MAX_FILE + 1))
+                    files[path] = plain_text(payload)
                 if manifest is not None:
                     manifest.append({"path": redact_label(path), "status": "included" if supported else "skipped",
-                                     "reason": None if supported else "unsupported_extension"})
-    except (BadZipFile, NotImplementedError, RuntimeError, OSError):
+                                     "reason": None if supported else ("build_artifact" if build else "unsupported_extension")})
+    except (BadZipFile, NotImplementedError, RuntimeError, OSError, UnicodeError, zlib.error):
         raise InputError("لقطة المستودع لازم تكون ZIP صالح.") from None
     if not files:
         raise InputError("اللقطة خالية من الملفات النصية المدعومة.")
+    if metrics is not None:
+        metrics["executable_entries"] = executable_entries
     return files
 
 
@@ -167,10 +184,11 @@ def decode_payload(content):
     return raw
 
 
-def prepare(kind, name, raw):
+def prepare(kind, name, raw, *, archive_metrics=None):
     if kind == "repository":
         manifest = []
-        return zip_texts(raw, manifest=manifest), None, [], sorted(manifest, key=lambda row: row["path"])
+        files = zip_texts(raw, manifest=manifest, metrics=archive_metrics)
+        return files, None, [], sorted(manifest, key=lambda row: row["path"])
     if kind == "openapi":
         document = read_object(raw, limit=MAX_ARTIFACT, strict=True)
         try:

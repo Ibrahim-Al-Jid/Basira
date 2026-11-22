@@ -215,26 +215,30 @@ def snapshot(source, commit):
         commit_response = session.get(f"{API}/repos/{repo}/commits/{commit}", headers=headers(token))
         if provider_json(commit_response, 200).get("sha") != commit:
             raise GitHubFailure(409, "GitHub لم يؤكد معرّف النسخة المطلوب.")
-        redirect = session.get(f"{API}/repos/{repo}/zipball/{commit}", headers=headers(token))
-        destination = archive_url(redirect, repo, commit)
-        # The signed codeload URL carries its own capability. The API token is never forwarded.
-        started = monotonic()
-        result = bytearray()
-        with session.stream("GET", destination, headers={"Accept-Encoding": "identity"}) as response:
-            accepted(response, 200)
-            length = response.headers.get("content-length")
-            if length is not None and int(length) > MAX_ARTIFACT:
+        return download_archive(session, token, repo, commit)
+
+
+def download_archive(session, token, repo, commit):
+    redirect = session.get(f"{API}/repos/{repo}/zipball/{commit}", headers=headers(token))
+    destination = archive_url(redirect, repo, commit)
+    # The signed codeload URL carries its own capability. The API token is never forwarded.
+    started = monotonic()
+    result = bytearray()
+    with session.stream("GET", destination, headers={"Accept-Encoding": "identity"}) as response:
+        accepted(response, 200)
+        length = response.headers.get("content-length")
+        if length is not None and int(length) > MAX_ARTIFACT:
+            raise GitHubFailure(413, "لقطة GitHub أكبر من حد الرفع.")
+        for block in response.iter_raw():
+            if monotonic() - started > MAX_ARCHIVE_SECONDS:
+                raise GitHubFailure(504, "انتهت مهلة تنزيل لقطة GitHub.")
+            if len(result) + len(block) > MAX_ARTIFACT:
                 raise GitHubFailure(413, "لقطة GitHub أكبر من حد الرفع.")
-            for block in response.iter_raw():
-                if monotonic() - started > MAX_ARCHIVE_SECONDS:
-                    raise GitHubFailure(504, "انتهت مهلة تنزيل لقطة GitHub.")
-                if len(result) + len(block) > MAX_ARTIFACT:
-                    raise GitHubFailure(413, "لقطة GitHub أكبر من حد الرفع.")
-                result.extend(block)
-        raw = bytes(result)
-        if not raw.startswith(b"PK\x03\x04"):
-            raise GitHubFailure(502, "GitHub لم يرجع ملف ZIP صالح.")
-        return raw
+            result.extend(block)
+    raw = bytes(result)
+    if not raw.startswith(b"PK\x03\x04"):
+        raise GitHubFailure(502, "GitHub لم يرجع ملف ZIP صالح.")
+    return raw
 
 
 def provider_call(operation, *args):

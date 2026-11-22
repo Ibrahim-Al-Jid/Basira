@@ -123,6 +123,12 @@ def test_signup_names_and_private_profile_updates(accounts):
     incomplete = dict(named)
     incomplete.pop("last_name")
     assert owner.post(AUTH + "/password/register", json=incomplete).status_code == 422
+    invalid_name = "_Surname12"
+    rejected = owner.post(AUTH + "/password/register", json={**named, "last_name": invalid_name})
+    assert rejected.status_code == 422
+    assert rejected.json()["fields"] == ["last_name"]
+    assert "اسم العائلة" in rejected.json()["detail"]
+    assert invalid_name not in rejected.text and PASSWORD not in rejected.text
     created = owner.post(AUTH + "/password/register", json=named)
     assert created.status_code == 201
     account = created.json()

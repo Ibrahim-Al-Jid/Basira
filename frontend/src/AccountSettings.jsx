@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { KeyRound, Languages, LogOut, Palette, Pencil, UserPlus, UserRound } from "lucide-react";
 import { Modal } from "./Dialogs";
 import { GitHubConnections } from "./GitHubSources";
+import { ProviderSettings } from "./ProviderSettings";
 import { post } from "./data";
 import { api, action, errorText, json, translate } from "./platformClient";
 import "./accountSettings.css";
@@ -361,21 +362,21 @@ function OrganizationConnections({ lang, revision }) {
   </section>;
 }
 
-export function AccountSettings({ lang, user, preferences, invitation, clearInvite, onJoined, onLogout, onProfileChange }) {
+export function AccountSettings({ lang, user, preferences, invitation, clearInvite, onJoined, onLogout, onProfileChange, personal }) {
   const t = translate(lang);
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState(null);
   const [organizationsRevision, setOrganizationsRevision] = useState(0);
   return <div className="project-workspace account-workspace">
-    <div className="project-header"><h1>{t("الحساب", "Account")}</h1>
-      <button className="btn" type="button" onClick={async () => {
+    <div className="project-header"><h1>{personal ? t("الإعدادات", "Settings") : t("الحساب", "Account")}</h1>
+      {!personal && <button className="btn" type="button" onClick={async () => {
         if (pending) return;
         setPending(true);
         setFailure(null);
         try { await action(api + "/auth/logout", { method: "POST" }); onLogout(); }
         catch (error) { setFailure(error); }
         finally { setPending(false); }
-      }} disabled={pending}><LogOut size={16} aria-hidden="true" />{t("تسجيل الخروج", "Sign out")}</button>
+      }} disabled={pending}><LogOut size={16} aria-hidden="true" />{t("تسجيل الخروج", "Sign out")}</button>}
     </div>
     {failure && <p className="workspace-error" role="alert">{errorText(failure, t)}</p>}
     <div className="account-settings-grid">
@@ -398,10 +399,10 @@ export function AccountSettings({ lang, user, preferences, invitation, clearInvi
       </div>
       </section>
     </div>
-    <JoinOrganization invitation={invitation} clearInvite={clearInvite} lang={lang} onJoined={() => {
+    {personal ? <ProviderSettings lang={lang} /> : <><JoinOrganization invitation={invitation} clearInvite={clearInvite} lang={lang} onJoined={() => {
       setOrganizationsRevision((value) => value + 1);
       onJoined();
     }} />
-    <OrganizationConnections lang={lang} revision={organizationsRevision} />
+    <OrganizationConnections lang={lang} revision={organizationsRevision} /></>}
   </div>;
 }

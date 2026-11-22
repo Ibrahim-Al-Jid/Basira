@@ -8,7 +8,7 @@ from uuid import uuid4
 import sqlalchemy as sa
 from sqlalchemy.exc import IntegrityError
 
-from .platform_db import Base, bind_project, platform_session
+from .platform_db import Base, bind_job_project, bind_project_context, personal_projects_enabled, platform_session
 from .contracts import Report, history_item
 from .phase9_contracts import (
     DEFAULT_INPUTS, PROFILE, RAW_RETENTION_MINUTES, Asset, FindingObservation, ScanProvenance,
@@ -207,8 +207,9 @@ def project_policy(db, org_id, project_id):
 
 def lock_project(db, org_id, project_id):
     projects = metadata.tables["projects"]
-    db.execute(sa.select(projects.c.id).where(projects.c.org_id == org_id,
-                                               projects.c.id == project_id).with_for_update()).one()
+    return db.scalar(sa.select(projects.c.id).where(
+        projects.c.org_id == org_id, projects.c.id == project_id, projects.c.deleted_at.is_(None),
+    ).with_for_update())
 
 
 def web_origin(ref):
@@ -246,18 +247,22 @@ def declared_asset(db, ids, ref, clock):
     return asset_id
 
 
-def create_scan(ctx, envelope, raw, idempotency_key, *, scope_version=None, model_connection=None,
-                target_reference=None, before_create=None):
-    from .artifact_review import RULESET_VERSION
-    from .model_connections import public_connection
-
+def scan_request_digest(envelope, raw, scope_version, model_connection, target_reference=None):
     request = {**envelope, "scope_version": scope_version, "model_connection": model_connection} if scope_version is not None else envelope
     if target_reference:
         request = {**request, "target_reference": target_reference}
-    digest = hashlib.sha256(json.dumps(request, sort_keys=True).encode() + b"\x00" + raw).hexdigest()
+    return hashlib.sha256(json.dumps(request, sort_keys=True).encode() + b"\x00" + raw).hexdigest()
+
+
+def create_scan(ctx, envelope, raw, idempotency_key, *, scope_version=None, model_connection=None,
+                target_reference=None, before_create=None, intake_digest=None):
+    from .artifact_review import RULESET_VERSION
+    from .model_connections import scan_connection
+
+    digest = intake_digest or scan_request_digest(envelope, raw, scope_version, model_connection, target_reference)
     ids = {"org_id": ctx.org_id, "project_id": ctx.project_id}
     with platform_session() as db:
-        bind_project(db, **ids)
+        bind_project_context(db, ctx)
         def find_existing():
             return db.execute(sa.select(scans).where(
                 scope(scans, **ids), scans.c.user_id == ctx.user_id, scans.c.idempotency_key == idempotency_key,
@@ -267,7 +272,8 @@ def create_scan(ctx, envelope, raw, idempotency_key, *, scope_version=None, mode
             if found["request_digest"] != digest:
                 raise Conflict("المفتاح ده مرتبط بطلب مختلف.")
             return scan_view(found)
-        lock_project(db, **ids)
+        if not lock_project(db, **ids):
+            raise Conflict("المشروع غير متاح.")
         found = find_existing()
         if found:
             if found["request_digest"] != digest:
@@ -287,7 +293,10 @@ def create_scan(ctx, envelope, raw, idempotency_key, *, scope_version=None, mode
         version, policy = project_policy(db, **ids)
         if scope_version is not None and scope_version != version:
             raise Conflict("سياسة المشروع اتغيّرت. راجع النطاق مرة تانية قبل الفحص.")
-        if envelope["kind"] not in policy.get("allowed_kinds", DEFAULT_INPUTS):
+        kinds = policy.get("allowed_kinds", DEFAULT_INPUTS)
+        website_intake = ctx.owner_user_id and envelope.get("profile", {}).get("mode") == "website"
+        policy_kind = "repository" if website_intake else envelope["kind"]
+        if policy_kind not in kinds:
             raise Conflict("نوع المدخل خارج السياسة الحالية للمشروع.")
         if target_reference:
             configured_origin = web_origin(policy.get("base_url"))
@@ -295,9 +304,12 @@ def create_scan(ctx, envelope, raw, idempotency_key, *, scope_version=None, mode
                 raise Conflict("عنوان الموقع لازم يطابق الأصل المحدد في سياسة المشروع.")
             if not configured_origin:
                 policy = {**policy, "base_url": target_reference}
+        if website_intake:
+            # Capture includes a redacted allowlist of header values, not a complete HAR.
+            policy = {**policy, "har_headers_complete": False}
         if envelope["kind"] == "zap" and not web_origin(policy.get("base_url")):
             raise Conflict("تقرير ZAP يحتاج عنوان موقع مطابق للأدلة المحفوظة.")
-        connection = public_connection(db, ctx.org_id, policy) if model_connection else None
+        connection = scan_connection(db, ctx, policy) if model_connection else None
         if model_connection and (not connection or model_connection != connection["id"]):
             raise Conflict("اتصال الموديل مش متاح في سياسة المشروع.")
         tools = analyzer_plan(envelope["kind"])
@@ -309,6 +321,8 @@ def create_scan(ctx, envelope, raw, idempotency_key, *, scope_version=None, mode
         if connection:
             artifact.update(model_connection=connection["id"], connection_model=connection["model"],
                             connection_generation=connection["generation"])
+            if ctx.owner_user_id:
+                artifact["connection_source"] = "account"
         data = {
             **ids, "id": scan_id, "user_id": ctx.user_id, "state": "queued", "cursor": 0,
             "idempotency_key": idempotency_key, "request_digest": digest, "input_meta": artifact, "raw": raw,
@@ -338,7 +352,8 @@ def create_scan(ctx, envelope, raw, idempotency_key, *, scope_version=None, mode
 
 
 def scan_view(row):
-    artifact = {key: value for key, value in row["input_meta"].items() if key not in {"connection_generation", "connection_model", "model_connection"}}
+    internal = {"connection_generation", "connection_model", "model_connection", "connection_source"}
+    artifact = {key: value for key, value in row["input_meta"].items() if key not in internal}
     return {
         "id": row["id"], "state": row["state"], "artifact": artifact, "attempt": row["attempt"],
         "cursor": row["cursor"], "created_at": timestamp(row["created_at"]),
@@ -364,9 +379,14 @@ def intact_input(db, row):
 
 def claim(org_id, project_id, scan_id):
     with platform_session() as db:
-        bind_project(db, org_id, project_id)
+        project = bind_job_project(db, org_id, project_id)
+        if project is None:
+            return None
         row = select_scan(db, org_id, project_id, scan_id, lock=True)
         if not row or row["state"] in TERMINAL:
+            return None
+        if personal_projects_enabled() and row["user_id"] != project.owner_user_id:
+            close_scan(db, row, "cancelled", "اتلغى الفحص لأن صلاحية مقدم الطلب اتغيّرت.")
             return None
         if row["source_expires_at"] and row["source_expires_at"] <= now():
             close_scan(db, row, "failed", EXPIRED_MESSAGE)
@@ -403,7 +423,8 @@ def close_scan(db, row, state, detail, report=None):
 
 def finish(org_id, project_id, scan_id, lease, *, report=None, message=None):
     with platform_session() as db:
-        bind_project(db, org_id, project_id)
+        if not bind_job_project(db, org_id, project_id):
+            return False
         row = select_scan(db, org_id, project_id, scan_id, lock=True)
         if (not row or row["state"] != "running" or row["lease"] != lease or row["lease_until"] <= now()):
             return False
@@ -444,7 +465,8 @@ def finish(org_id, project_id, scan_id, lease, *, report=None, message=None):
 def reserve_enrichment(org_id, project_id, scan_id, lease):
     """At most one paid-provider attempt per scan, even after worker loss."""
     with platform_session() as db:
-        bind_project(db, org_id, project_id)
+        if not bind_job_project(db, org_id, project_id):
+            return False
         updated = db.execute(scans.update().where(
             scope(scans, org_id, project_id), scans.c.id == scan_id, scans.c.lease == lease,
             scans.c.lease_until > now(), scans.c.state == "running", scans.c.enrichment_reserved_at.is_(None),
@@ -455,11 +477,11 @@ def reserve_enrichment(org_id, project_id, scan_id, lease):
 def reserve_model_connection(org_id, project_id, scan_id, lease):
     """Recheck the pinned provider and current manager opt-in before reserving budget."""
     from .identity import ROLE_ACTIONS, project_access
-    from .model_connections import public_connection
+    from .model_connections import account_connection, public_connection
 
     with platform_session() as db:
-        bind_project(db, org_id, project_id)
-        lock_project(db, org_id, project_id)
+        if not bind_job_project(db, org_id, project_id) or not lock_project(db, org_id, project_id):
+            return None
         row = select_scan(db, org_id, project_id, scan_id, lock=True)
         if (not row or row["state"] != "running" or row["lease"] != lease or row["lease_until"] <= now() or
                 row["enrichment_reserved_at"] or (row["source_expires_at"] and row["source_expires_at"] <= now())):
@@ -468,7 +490,10 @@ def reserve_model_connection(org_id, project_id, scan_id, lease):
         if not actor or actor.org_id != org_id or "scan" not in ROLE_ACTIONS[actor.role]:
             return None
         _, policy = project_policy(db, org_id, project_id)
-        connection = public_connection(db, org_id, policy)
+        personal = personal_projects_enabled()
+        if personal != (row["input_meta"].get("connection_source") == "account"):
+            return None
+        connection = account_connection(db, row["user_id"]) if personal else public_connection(db, org_id, policy)
         if (not connection or row["input_meta"].get("model_connection") != connection["id"] or
                 row["input_meta"].get("connection_model") != connection["model"] or
                 row["input_meta"].get("connection_generation") != connection["generation"]):
@@ -492,7 +517,7 @@ def expire_pending_artifacts():
 def scan_provenance(ctx, scan_id):
     ids = {"org_id": ctx.org_id, "project_id": ctx.project_id}
     with platform_session() as db:
-        bind_project(db, **ids)
+        bind_project_context(db, ctx)
         sidecar = db.execute(sa.select(provenance).where(
             scope(provenance, **ids), provenance.c.scan_id == scan_id,
         )).mappings().first()
@@ -515,7 +540,8 @@ def scan_provenance(ctx, scan_id):
             snapshot=SourceSnapshot(id=scan_id, sha256=sidecar["source_sha256"], kind=row["input_meta"]["kind"],
                                     bytes=row["input_meta"]["bytes"], created_at=timestamp(row["created_at"]),
                                     raw_expires_at=timestamp(row["source_expires_at"]),
-                                    github=row["input_meta"].get("github")),
+                                    github=row["input_meta"].get("github"),
+                                    profile=row["input_meta"].get("profile")),
             scope=sidecar["scope"], asset=asset, tools=sidecar["tools"], evidence_count=count,
         )
 
@@ -523,7 +549,7 @@ def scan_provenance(ctx, scan_id):
 def scan_evidence(ctx, scan_id, offset, limit):
     ids = {"org_id": ctx.org_id, "project_id": ctx.project_id}
     with platform_session() as db:
-        bind_project(db, **ids)
+        bind_project_context(db, ctx)
         if db.execute(sa.select(provenance.c.scan_id).where(
             scope(provenance, **ids), provenance.c.scan_id == scan_id,
         )).scalar_one_or_none() is None:
@@ -536,7 +562,7 @@ def scan_evidence(ctx, scan_id, offset, limit):
 
 def cancel(ctx, scan_id):
     with platform_session() as db:
-        bind_project(db, ctx.org_id, ctx.project_id)
+        bind_project_context(db, ctx)
         row = select_scan(db, ctx.org_id, ctx.project_id, scan_id, lock=True)
         if not row:
             return None
@@ -547,7 +573,7 @@ def cancel(ctx, scan_id):
 
 def scan_status(ctx, scan_id, after):
     with platform_session() as db:
-        bind_project(db, ctx.org_id, ctx.project_id)
+        bind_project_context(db, ctx)
         row = select_scan(db, ctx.org_id, ctx.project_id, scan_id)
         if not row:
             return None

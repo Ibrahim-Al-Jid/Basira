@@ -1,0 +1,10 @@
+{
+  "Rules": [
+    {
+      "ID": "marsad-quarantine-expiration",
+      "Status": "Enabled",
+      "Filter": {"Prefix": "quarantine/"},
+      "Expiration": {"Days": 1}
+    }
+  ]
+}

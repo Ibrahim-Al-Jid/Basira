@@ -16,6 +16,8 @@ from . import advanced_reporting as advanced
 from .artifact_review import EXTENDED_IDS, MAX_ARTIFACT, InputError, RULESET_VERSION, decode_payload, redact_label, safe_path
 from .contracts import History, HistoryItem, Report, history_item
 from .identity import ROLE_ACTIONS, require_project
+from .intake_storage import StorageUnavailable
+from .personal_intake import compatible_zip
 from .phase9_contracts import (
     ArtifactKind, DEFAULT_INPUTS, FindingObservation, ModelConnection, ScanProfile, ScanProvenance,
     TechnicalRegistry, analyzer_plan, manifests,
@@ -104,14 +106,21 @@ def project(request, project_id, action):
 def submit(project_id: str, body: Submission, request: Request,
            key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=100)]):
     ctx = project(request, project_id, "scan")
+    if ctx.owner_user_id and (body.kind != "repository" or body.enrich):
+        raise HTTPException(422, "المدخل المتاح حاليًا للمشاريع الشخصية هو ZIP.")
     try:
         raw = decode_payload(body.content)
-        return store.create_scan(ctx, {"kind": body.kind, "name": redact_label(body.name), "bytes": len(raw),
-                                       "enrich": body.enrich}, raw, key,
+        envelope = {"kind": body.kind, "name": redact_label(body.name), "bytes": len(raw), "enrich": body.enrich}
+        if ctx.owner_user_id:
+            return compatible_zip(ctx, envelope, raw, key, scope_version=body.scope_version,
+                                  model_connection=body.model_connection)
+        return store.create_scan(ctx, envelope, raw, key,
                                  scope_version=body.scope_version, model_connection=body.model_connection,
                                  target_reference=body.target_reference)
     except InputError as exc:
         raise HTTPException(422, str(exc)) from None
+    except StorageUnavailable:
+        raise HTTPException(503, "تخزين اللقطات غير متاح مؤقتًا.") from None
     except store.Conflict as exc:
         raise HTTPException(409, str(exc)) from None
     except store.QueueLimit:
@@ -123,7 +132,7 @@ def submit(project_id: str, body: Submission, request: Request,
 def list_scans(project_id: str, request: Request):
     ctx = project(request, project_id, "read")
     with store.platform_session() as db:
-        store.bind_project(db, ctx.org_id, ctx.project_id)
+        store.bind_project_context(db, ctx)
         names = ["id", "state", "input_meta", "attempt", "cursor", "created_at", "updated_at"]
         rows = db.execute(sa.select(*(store.scans.c[name] for name in names)).where(
             store.scope(store.scans, ctx.org_id, ctx.project_id),
@@ -165,7 +174,7 @@ def read_policy(project_id: str, request: Request):
     from .model_connections import public_connection
 
     with store.platform_session() as db:
-        store.bind_project(db, ctx.org_id, ctx.project_id)
+        store.bind_project_context(db, ctx)
         version, policy = store.project_policy(db, ctx.org_id, ctx.project_id)
         connection = public_connection(db, ctx.org_id, policy)
     return policy_view(version, policy, connection)
@@ -180,15 +189,17 @@ def policy_view(version, policy, connection):
 
 @router.get("/scan-profile", response_model=ScanProfile)
 def scan_profile(project_id: str, request: Request):
-    from .model_connections import connection_is_ready, public_connection
+    from .model_connections import connection_is_ready, scan_connection
 
     ctx = project(request, project_id, "read")
     with store.platform_session() as db:
-        store.bind_project(db, ctx.org_id, ctx.project_id)
+        store.bind_project_context(db, ctx)
         version, policy = store.project_policy(db, ctx.org_id, ctx.project_id)
-        connection = public_connection(db, ctx.org_id, policy)
+        connection = scan_connection(db, ctx, policy)
     can_enrich = "scan" in ROLE_ACTIONS[ctx.role] and connection_is_ready(connection)
     configured_tools = {kind: analyzer_plan(kind) for kind in policy.get("allowed_kinds", DEFAULT_INPUTS)}
+    if ctx.owner_user_id:
+        configured_tools = {kind: tools for kind, tools in configured_tools.items() if kind == "repository"}
     return ScanProfile(scope_version=version, allowed_kinds=[kind for kind, plans in configured_tools.items() if plans],
                        max_bytes=MAX_ARTIFACT, asset_linked=bool(policy.get("base_url")),
                        enrichment_available=can_enrich, model_connection=connection if can_enrich else None,
@@ -201,7 +212,7 @@ def technical(project_id: str, request: Request):
 
     ctx = project(request, project_id, "manage")
     with store.platform_session() as db:
-        store.bind_project(db, ctx.org_id, ctx.project_id)
+        store.bind_project_context(db, ctx)
         version, policy = store.project_policy(db, ctx.org_id, ctx.project_id)
         connection = public_connection(db, ctx.org_id, policy)
         server = public_connection(db, ctx.org_id)
@@ -216,10 +227,13 @@ def update_policy(project_id: str, request: Request, body: Policy):
     from .model_connections import public_connection
 
     ctx = project(request, project_id, "manage")
+    if ctx.owner_user_id and (body.allowed_kinds != ["repository"] or body.model_connection):
+        raise HTTPException(422, "سياسة المشروع الشخصي تقبل ZIP بالفحص المحلي حاليًا.")
     policy = {"allowed_kinds": list(dict.fromkeys(body.allowed_kinds)), "base_url": body.base_url, **body.rules}
     with store.platform_session() as db:
-        store.bind_project(db, ctx.org_id, ctx.project_id)
-        store.lock_project(db, ctx.org_id, ctx.project_id)
+        store.bind_project_context(db, ctx)
+        if not store.lock_project(db, ctx.org_id, ctx.project_id):
+            missing()
         condition = store.scope(store.settings, ctx.org_id, ctx.project_id)
         version, existing = store.project_policy(db, ctx.org_id, ctx.project_id)
         if body.expected_version is not None and body.expected_version != version:
@@ -249,7 +263,7 @@ def load(ctx, report_id):
 def reports(project_id: str, request: Request):
     ctx = project(request, project_id, "read")
     with store.platform_session() as db:
-        store.bind_project(db, ctx.org_id, ctx.project_id)
+        store.bind_project_context(db, ctx)
         selection = sa.select(store.scans.c.report_index, store.scans.c.updated_at.label("sort_at")).where(
             store.scope(store.scans, ctx.org_id, ctx.project_id), store.scans.c.state.in_(["completed", "partial"]),
         ).union_all(sa.select(store.legacy.c.report_index, store.legacy.c.claimed_at.label("sort_at")).where(
@@ -311,7 +325,7 @@ def claim_report(project_id: str, report_id: str, request: Request, body: Claim)
     report = claimable_legacy_report(request, report_id)
     try:
         with store.platform_session() as db:
-            store.bind_project(db, ctx.org_id, ctx.project_id)
+            store.bind_project_context(db, ctx)
             existing = db.execute(sa.select(store.legacy.c.legacy_id).where(
                 store.scope(store.legacy, ctx.org_id, ctx.project_id), store.legacy.c.legacy_id == report_id,
             )).first()
@@ -329,7 +343,7 @@ def claim_report(project_id: str, report_id: str, request: Request, body: Claim)
 def memory(project_id: str, request: Request):
     ctx = project(request, project_id, "read")
     with store.platform_session() as db:
-        store.bind_project(db, ctx.org_id, ctx.project_id)
+        store.bind_project_context(db, ctx)
         def scoped(table):
             return store.scope(table, ctx.org_id, ctx.project_id)
         scans = store.scans
@@ -365,7 +379,7 @@ def add_note(project_id: str, request: Request, body: Knowledge):
     ctx = project(request, project_id, "manage")
     identifier = uuid4().hex
     with store.platform_session() as db:
-        store.bind_project(db, ctx.org_id, ctx.project_id)
+        store.bind_project_context(db, ctx)
         db.execute(store.notes.insert().values(id=identifier, org_id=ctx.org_id, project_id=ctx.project_id,
                    reviewer_id=ctx.user_id, created_at=store.now(), **body.model_dump()))
     return {"id": identifier}
@@ -375,7 +389,7 @@ def add_note(project_id: str, request: Request, body: Knowledge):
 def delete_note(project_id: str, note_id: str, request: Request):
     ctx = project(request, project_id, "manage")
     with store.platform_session() as db:
-        store.bind_project(db, ctx.org_id, ctx.project_id)
+        store.bind_project_context(db, ctx)
         row = db.execute(store.notes.update().where(
             store.scope(store.notes, ctx.org_id, ctx.project_id), store.notes.c.id == note_id,
             store.notes.c.revoked_at.is_(None),

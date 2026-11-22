@@ -1,5 +1,36 @@
 # تشغيل مشاريع مرصد وفحص الملفات
 
+## تفعيل المشاريع الشخصية · Phase 13
+
+تفعيل المسار الشخصي قرار تشغيل بعد مراجعة نسخة البيانات. جهّز نافذة صيانة توقف الكتابة والـDispatcher والعامل، وانتظر نهاية الفحوصات الجارية. جمّد مرجع الكود وملف الإعداد وتحقق من عدم وجود وظائف معلقة. خذ نسخة PostgreSQL بصيغة `pg_dump -Fc` ونسخة SQLite عبر `python -m backend.legacy_backup <source> <backup>`. احفظ النسخ وإعداداتها في مكان خاص. استعد PostgreSQL في قاعدة منفصلة وفارغة باستخدام `pg_restore --exit-on-error --single-transaction`، وقارن أعداد الحسابات والمشاريع والفحوصات ومعرّفات التقارير وبصمات محتواها، وتحقق من أدوار قاعدة البيانات. [PostgreSQL pg_dump](https://www.postgresql.org/docs/18/app-pgdump.html) · [PostgreSQL pg_restore](https://www.postgresql.org/docs/18/app-pgrestore.html)
+
+1. شغّل `alembic upgrade head` بحساب الترحيل على النسخة المستعادة أولًا. تحقق من تطبيق `platform_personal_0012` ومن أن كل مشروع ظاهر مرتبط بالمالك الذي اعتمدته الخريطة.
+2. استخدم `python ops/review-project-ownership.py` مع `MARSAD_PLATFORM_MIGRATION_URL` لعرض الحالات الملتبسة. أمّن قرارًا إداريًا مستقلًا قبل استخدام `--project <id> --owner <user-id> --decision-ref <ref>`. قارن الحالات التي ينقصها مالك بقائمة المراجعة. لو حصلت كتابة بالنسخة القديمة بعد اللقطة، أعد التحقق قبل التفعيل.
+3. تحقق من منع حساب مختلف وغياب سياق المعاملة من الوصول إلى تقرير. شغّل `python -m pytest -q backend`، وبناء الواجهة، و`python tests/browser_phase13.py` ضد نسخة محلية منفصلة عبر `MARSAD_PHASE13_QA_ORIGIN=http://127.0.0.1:8776`. يمكن اختيار Microsoft Edge عبر `MARSAD_BROWSER_CHANNEL=msedge`.
+4. بعد قبول النسخة المستعادة، كرر الترحيل على قاعدة التشغيل وفعّل `MARSAD_PERSONAL_PROJECTS=1` في نفس النافذة لكل خدمات منصة التطبيق والعامل والـDispatcher. رابط الدخول يفتح المشاريع الشخصية. الترحيل يحافظ على التقارير المرتبطة بمشاريع، وقاعدة SQLite الخاصة بالمختبر تظل محفوظة. تأكد إن الوضع فعال من `GET /api/product`.
+
+الرجوع التشغيلي يكون بإرجاع قيمة الإعداد إلى `0` وإعادة تشغيل الخدمات على الكود المتوافق مع المخطط الموسّع، مع إبقاء التقارير محفوظة. قبل الإتاحة مجددًا، راجع أي مشاريع أو صلاحيات تغيّرت أثناء هذه الفترة. الرجوع عن المخطط بعد بدء كتابة بيانات شخصية يتطلب خطة استعادة لنسخة سبق اختبارها وقرارًا بشأن التغييرات الأحدث، لأن الاسترجاع يعيد القاعدة لنقطة النسخة. ترحيل Alembic التراكمي يحمي المخطط السابق ويمنع `downgrade` لو ظهر ما يستلزم الاحتفاظ به. [استراتيجيات ترحيل البيانات في Alembic](https://alembic.sqlalchemy.org/en/latest/cookbook.html#data-migrations-general-techniques)
+
+## تشغيل مدخلات الفحص · Phase 14
+
+1. شغّل ترحيل PostgreSQL حتى `platform_personal_github_0014` وفعّل `MARSAD_PERSONAL_PROJECTS=1`. من تفاصيل المشروع افتح «فحص جديد»، واختار ZIP أو GitHub أو رابط موقع، ثم راجع النطاق ووافق عليه. تتوحّد المصادر في نفس حالة الفحص وسجل الأدلة، وتظل التقارير السابقة قابلة للفتح.
+2. لاستخدام S3 أو MinIO جهّز bucket خاصة مخصصة للحجر بتشفير واحتفاظ حسب بيئتك، ومن غير وصول عام. طبّق [قاعدة دورة الحياة](../ops/intake-quarantine-lifecycle.json) على `quarantine/` لتنظيف البقايا بعد تعطل العملية. امنح حساب التطبيق `s3:PutObject` و`s3:GetObject` و`s3:DeleteObject` على البادئة فقط. اضبط `MARSAD_INTAKE_S3_BUCKET` و`MARSAD_INTAKE_S3_ENDPOINT` للـMinIO وأسرار الاعتماد الخاصة بالخدمة. اضبط `MARSAD_INTAKE_STORAGE_REQUIRED=1` لإرجاع خطأ قابل لإعادة المحاولة عند غياب التخزين. وضع التطوير يدعم حجرًا مؤقتًا محليًا. لا تشارك بيانات تشغيل MinIO بين الاستضافة والاختبار. [صلاحيات S3](https://docs.aws.amazon.com/service-authorization/latest/reference/list_s3.html) · [دورة حياة كائنات S3](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html) · [MinIO](https://github.com/minio/minio/releases)
+3. اربط GitHub App بقراءة `Contents` و`Metadata` فقط، وفعّل انتهاء صلاحية التوكنات واختار **Only select repositories** عند التثبيت. سجّل Callback مطابقًا لقيمة `MARSAD_GITHUB_CALLBACK_URL` واضبط `MARSAD_GITHUB_CLIENT_ID` و`MARSAD_GITHUB_CLIENT_SECRET` و`MARSAD_GITHUB_CREDENTIAL_KEY` بمفتاح Fernet مستقل محفوظ كسر خادمي. بعد التثبيت افتح «اتصال GitHub» من الإعدادات. اختبر مستودعين، واحد مصرح والثاني خارج الاختيار. عند انتهاء رمز المستخدم يلزم الربط من جديد. لا تُحفظ رموز التحديث. فعّل تنقيح سجل طلبات الـCallback في أي proxy خارجي. [إعداد Callback](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/about-the-user-authorization-callback-url) · [رموز المستخدم](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-a-user-access-token-for-a-github-app)
+4. لجمع أدلة الموقع في بيئة اختبار، وثّق موافقة مالك الموقع وحدد عنوان الصفحة ومرجع الموافقة. اضبط `MARSAD_APPROVED_WEBSITE_PAGES` كخريطة JSON من معرّف المشروع إلى قائمة عناوين HTTPS كاملة، مثال `{"project_id":["https://example.com/"]}`. اختار مسارًا عامًا ثابتًا من غير معاملات أو معرّفات أشخاص، وبلا تحويلات. أزل الصفحة من القائمة عند سحب التفويض. الإتاحة العامة تتطلب ضبط وتحقق سياسة منع الخروج إلى الشبكات الخاصة في الاستضافة نفسها.
+
+لاختبار الرحلات، شغّل `python -m pytest -q backend/test_personal_intake.py backend/test_github_import.py`. اختبارات GitHub تستخدم مزودًا محاكى، وتشمل رفض مستودع خارج الإذن وتكرار callback. استخدم bucket اختبار منفصلة بتشغيل نفس المجموعة مع إعدادات S3 للتحقق من SHA-256 وتنظيف الحجر. مكوّن التحليل يستقبل المدخل المقبول من الطابور، وتظل حدود حجمه كما هي.
+
+### تجربة GitHub على Windows
+
+1. افتحي [صفحة اتصال GitHub](http://127.0.0.1:8765/settings?tab=github) بعد تسجيل الدخول إلى مرصد، واضغطي «افتح إعداد GitHub App». صفحة GitHub تفتح بالـCallback المحلي وصلاحية Contents للقراءة وإعداد Webhook مغلق. راجعي الإعدادات وسجّلي التطبيق باسم فريد لحسابك. [إعداد GitHub App بالروابط](https://docs.github.com/en/apps/sharing-github-apps/registering-a-github-app-using-url-parameters)
+2. من إعدادات التطبيق على GitHub هاتي الـClient ID، وأنشئي Client Secret، وخدي الـslug من رابط التطبيق. من جذر المشروع شغّلي `.venv\Scripts\python.exe ops/configure-local-github.py`. الأمر يطلب السر في حقل مخفي ويحفظه في مجلد التشغيل المحلي المتجاهَل في Git. حدّثي صفحة مرصد بعد الحفظ.
+3. من «اختاري المستودعات على GitHub» ثبّتي التطبيق على حساب يملك صلاحية التثبيت، واختاري المستودع المطلوب تحديدًا. ارجعي لمرصد واختاري «اربطي GitHub» ثم «جرّبي الاتصال». ظهور المستودع يؤكد إن GitHub رجّع صلاحية قراءته فعليًا.
+4. افتحي «فحص جديد» واختاري GitHub والمستودع والفرع، وراجعي النطاق. بعد اكتمال الفحص تحققي من اسم المستودع وCommit SHA وبصمة ZIP في «مصدر الفحص».
+
+جمع أدلة HTTPS يراجع حتى ثلاث صفحات محددة مسبقًا لنفس أصل الصفحة المختارة. كل عنوان لازم يكون موجودًا في إعداد المشروع، وبطلب GET واحد لكل صفحة وحد ٢٥٠٬٠٠٠ بايت للاستجابة. الروابط داخل الصفحات تُحسب كجزء من التغطية وتظل خارج قائمة العناوين المطلوبة.
+
+## التشغيل التقليدي
+
 صفحة `/dashboard` تعرض النشاط، و`/projects` للمؤسسات والمشاريع والسياسات والصلاحيات، و`/new-scan` لمراجعة الملف والنطاق قبل التشغيل. المختبر على `/demo` يشتغل من غير تسجيل دخول وتقاريره مرتبطة بجلسة المتصفح في SQLite. فحوصات المشاريع بتستخدم PostgreSQL وطابور Redis/Celery. [خريطة مساحة العمل](WORKSPACE.md)
 
 ## تشغيل بيئة المشاريع محليًا

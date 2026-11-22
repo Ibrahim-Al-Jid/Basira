@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from .phase9_contracts import ArtifactKind, CoverageStatus
+from .phase9_contracts import ArtifactKind, CoverageStatus, GitHubSnapshotRef, TargetProfile
 
 MAX_SOURCE_BYTES = 1_000_000
 MAX_SOURCE_CHARS = 250_000
@@ -99,6 +99,8 @@ class ArtifactInfo(BaseModel):
     kind: ArtifactKind
     name: str
     bytes: int = Field(ge=1)
+    github: GitHubSnapshotRef | None = Field(default=None, exclude_if=lambda value: value is None)
+    profile: TargetProfile | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class Benchmark(BaseModel):

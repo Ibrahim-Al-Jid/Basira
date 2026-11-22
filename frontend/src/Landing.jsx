@@ -92,7 +92,19 @@ function PipelinePreview({ copy }) {
   );
 }
 
-function CoverageTicker({ copy, language }) {
+function CoverageDomains({ copy, language, personal }) {
+  if (personal) return (
+    <section className="landing-coverage" aria-labelledby="landing-coverage-title">
+      <div className="landing-inner">
+        <h2 id="landing-coverage-title">{copy.coverage}</h2>
+        <ul className="landing-domain-grid">
+          {domains.map(({ id, names, icon: Icon }) => (
+            <li key={id}><Icon size={20} aria-hidden="true" />{names[language]}</li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
   const group = (duplicate) => (
     <ul aria-hidden={duplicate || undefined} className="landing-marquee-group">
       {domains.map(({ id, names, icon: Icon }) => (
@@ -114,13 +126,18 @@ function CoverageTicker({ copy, language }) {
   );
 }
 
-export function Landing({ follow, lang, theme, authenticated }) {
+export function Landing({ follow, lang, theme, authenticated, personal }) {
   const language = lang === "en" ? 1 : 0;
   const copy = language ? content.en : content.ar;
-  const start = authenticated ? "/projects" : "/signin";
+  const workflow = personal ? [
+    language ? ["Choose a source", "Upload a source ZIP. GitHub and authorized website evidence are planned."]
+      : ["اختار المصدر", "ارفع كود المشروع بصيغة ZIP. ربط GitHub وجمع أدلة الموقع قيد التجهيز."],
+    ...copy.workflow.slice(1),
+  ] : copy.workflow;
+  const start = authenticated ? "/projects" : personal ? "/signin?mode=register" : "/signin";
   const Arrow = language ? ArrowRight : ArrowLeft;
   return (
-    <div className="marsad-landing" data-landing-theme={theme || "dark"}
+    <div className="marsad-landing" data-landing-theme={theme || "dark"} data-personal={personal || undefined}
       lang={language ? "en" : "ar"} dir={language ? "ltr" : "rtl"}>
       <section className="landing-hero landing-inner" aria-labelledby="landing-title">
         <div className="landing-intro">
@@ -129,24 +146,24 @@ export function Landing({ follow, lang, theme, authenticated }) {
           <p className="landing-lead">{copy.lead}</p>
           <div className="landing-actions">
             <a className="landing-button landing-primary" href={start} onClick={(event) => follow(event, start)}>
-              {copy.start} <Arrow size={19} aria-hidden="true" />
+              {authenticated ? (language ? "Open projects" : "افتح مشاريعي") : copy.start} <Arrow size={19} aria-hidden="true" />
             </a>
           </div>
         </div>
         <PipelinePreview copy={copy} />
       </section>
-      <CoverageTicker copy={copy} language={language} />
+      <CoverageDomains copy={copy} language={language} personal={personal} />
       <section className="landing-inner landing-workflow" id="workflow" aria-labelledby="landing-workflow-title">
         <div className="landing-section-head">
-          <p className="landing-eyebrow"><span aria-hidden="true" />{copy.workflowTag}</p>
-          <h2 id="landing-workflow-title">{copy.workflowTitle}</h2>
+          {!personal && <p className="landing-eyebrow"><span aria-hidden="true" />{copy.workflowTag}</p>}
+          <h2 id="landing-workflow-title">{personal ? copy.workflowTag : copy.workflowTitle}</h2>
         </div>
         <ol className="landing-steps">
-          {copy.workflow.map(([title, detail], index) => {
+          {workflow.map(([title, detail], index) => {
             const Icon = steps[index];
             return (
               <li key={title}>
-                <div className="landing-step-top"><Icon size={24} aria-hidden="true" /><ArrowDownRight size={20} aria-hidden="true" /></div>
+                <div className="landing-step-top"><Icon size={24} aria-hidden="true" />{!personal && <ArrowDownRight size={20} aria-hidden="true" />}</div>
                 <h3>{title}</h3><p>{detail}</p>
               </li>
             );
