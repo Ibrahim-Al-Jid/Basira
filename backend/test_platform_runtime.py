@@ -96,7 +96,7 @@ def test_project_job_delivery_report_recovery_and_scope(platform):
     assert [row["kind"] for row in after["events"]] == ["running", "stage_start", "running", *["agent_done"] * 5, "completed"]
     assert [row["sequence"] for row in after["events"]] == list(range(2, 11))
     report = owner.get(root + "/reports/" + scan_id).json()
-    assert len(report["coverage"]) == 100
+    assert len(report["coverage"]) == 114
     assert {step["role"] for step in report["steps"] if step["status"] == "done"} == {
         "orchestrator", "planning", "analysis", "validation", "reporting",
     }
@@ -138,7 +138,7 @@ def test_cancel_invalid_input_policy_and_six_memory_types(platform):
     jobs.execute_scan(ctx.org_id, ctx.project_id, done)
     memory = owner.get(root + "/memory").json()
     assert set(memory) == {"working", "episodic", "semantic", "procedural", "project", "finding"}
-    assert len(memory["procedural"]["rules"]) == 100
+    assert len(memory["procedural"]["rules"]) == 114
     assert {item["rule"] for item in memory["finding"]} >= {"INF-01"}
     assert memory["semantic"][0]["id"] == note
     assert stranger.get(root + "/memory").status_code == 404
@@ -228,7 +228,7 @@ def test_repository_bounds_and_combined_coverage():
         zip_file.writestr("app/web/index.html", '<form action="http://example.test/"></form>')
         zip_file.writestr("Dockerfile", "FROM python:3\nUSER 0\n")
     report = defensive_review("repository", "snapshot.zip", archive.getvalue(), {})
-    assert len(report["coverage"]) == len({item["rule"] for item in report["coverage"]}) == 100
+    assert len(report["coverage"]) == len({item["rule"] for item in report["coverage"]}) == 114
     assert statuses(report, "http-form", "INF-01") == ("matched", "matched")
     for bad_name in ("../outside.html", "directory/nested.zip", "C:/outside.html", "foo\\bar.html"):
         bad = io.BytesIO()

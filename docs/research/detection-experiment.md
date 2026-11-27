@@ -12,7 +12,7 @@ Labeling limit: one reader. A second reader must confirm the labels before any h
 
 | Id | Configuration | Status |
 |---|---|---|
-| C1 | Static checks only (Basira's 100 deterministic checks, real ZIP path) | run |
+| C1 | Static checks only (Basira's deterministic checks, real ZIP path) | run: 100 checks, then 114 with source-code checks |
 | C2 | One agent, no tools | run |
 | C3 | Several agents, no tools | code written, run incomplete (daily request cap) |
 | C4 | Several agents with tools | code written, not run |
@@ -26,6 +26,8 @@ A vulnerability is found when a finding on its file maps through the taxonomy to
 ## Results
 
 C1, run 27 November 2026: 0 of 13 vulnerabilities found (0%), 0 findings in total, 0 of 13 clean files flagged, 0.02 s. This is expected: the 100 checks inspect HTML, headers, manifests and configuration, not PHP application code. It confirms the gap that [taxonomy](../taxonomy.md) lists for injection, XSS and access control, and is the baseline the agent configurations must beat.
+
+C1 after P19 (114 checks, 14 of them source-code checks), run 27 November 2026 offline on the same 26 pinned files (digests verified, harness `run_static` unchanged): 8 of 13 vulnerabilities found (61.5%, was 0 of 13), 1 of 13 clean files flagged, 19 findings, 0.15 s. Found: exec, csrf, upload, sqli, sqli_blind, weak_id, xss_r, open_redirect. Missed: brute (D02.3, lockout is absence of code), fi (low.php only assigns `$_GET['page']`, the include is in another file), xss_d and authbypass (the vulnerable files contain only a comment, the flaw is elsewhere), xss_s (the unsafe output is in a different file). The one flag on a fixed file is `brute/impossible.php` line 67: `$user` is SQL-escaped and then written into HTML without encoding, which looks like a real residual XSS; the single labeler has not reviewed it. Caveat that matters: the rules were written after reading these same 26 files, so this is a development score, not an unseen-data score. Two checks outside DVWA: the 87 non-test source files of this repository raise 0 findings (not a proof of absence), and the 25 files of OWASP NodeGoat `app/` (commit `c5cb68a7084e4ae7dcc60e6a98768720a81841e8`, not used during development except to read it afterwards) raise 5 findings, all confirmed by reading the lines: three `eval(req.body...)`, one redirect from `req.query.url`, one request URL from `req.query.url`. NodeGoat's NoSQL `$where` injection is missed. No labels were made for NodeGoat, so no recall number is claimed for it.
 
 C2, one agent without tools, run 27 November 2026 with `nvidia/nemotron-3-ultra-550b-a55b:free` (temperature 0, 3000 token limit): 8 of 13 vulnerabilities found (61.5%), 5 of 13 clean `impossible.php` files flagged. 26 requests, no errors, cost 0. Raw findings and the request log are in `detection-runs/`. Caveats: one run, one model, one reader for labels, so no confidence interval; some flags on `impossible.php` may be real residual issues rather than errors, which the single labeler has not reviewed. Runtime per case was tens of seconds because the model reasons before answering; no clean total was recorded because the run was resumed in pieces.
 

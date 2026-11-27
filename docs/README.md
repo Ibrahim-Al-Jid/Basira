@@ -10,7 +10,7 @@ One topic, one file. If two files say different things, the one in this table wi
 | Live demo runbook and fallback | [DEMO.md](DEMO.md) |
 | Running and operating the platform | [PLATFORM.md](PLATFORM.md) |
 | Using the workspace: journeys, themes, tests | [WORKSPACE.md](WORKSPACE.md) |
-| The 100 checks (and the HTML/HAR and config extensions) | [checks/README.md](checks/README.md), [checks/web-extra.md](checks/web-extra.md), [checks/config-extra.md](checks/config-extra.md) |
+| The 114 checks (and the HTML/HAR, config and source-code extensions) | [checks/README.md](checks/README.md), [checks/web-extra.md](checks/web-extra.md), [checks/config-extra.md](checks/config-extra.md), [checks/source-code.md](checks/source-code.md) |
 | Vulnerability taxonomy (generated) | [taxonomy.md](taxonomy.md) |
 | Thesis and defense package (chapters, slides outline, questions) | [thesis/README.md](thesis/README.md) |
 | Release acceptance | [RELEASE.md](RELEASE.md) |

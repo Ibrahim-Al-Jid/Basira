@@ -30,6 +30,23 @@ TOOLS = [
 ]
 
 
+NESTED_QUANTIFIER = re.compile(r"\([^()]*[+*][^()]*\)\s*(?:[+*]|\{\d*,\d*\})|\\[1-9]")
+
+
+def search_lines(source, pattern):
+    """Regex search for the search_code tool. The pattern comes from a model, so it is bounded:
+    short, no nested quantifiers or backreferences (the usual catastrophic-backtracking shapes), no
+    more than 2000 lines. This is a heuristic guard, not a proof against every slow pattern."""
+    if not isinstance(pattern, str) or not pattern or len(pattern) > 200 or NESTED_QUANTIFIER.search(pattern):
+        return "pattern rejected"
+    try:
+        compiled = re.compile(pattern)
+    except re.error:
+        return "invalid pattern"
+    lines = source.splitlines()[:2000]
+    return "\n".join(f"{n}: {line[:400]}" for n, line in enumerate(lines, 1) if compiled.search(line))[:2000] or "no match"
+
+
 def taxonomy_text(domain_ids=None):
     lines = []
     for domain in DOMAINS:
@@ -111,10 +128,7 @@ def run_team(client, source, tools_enabled=False, static_hook=None):
                 except ValueError:
                     args = {}
                 if name == "search_code":
-                    try:
-                        out = "\n".join(f"{n}: {line}" for n, line in enumerate(source.splitlines(), 1) if re.search(args.get("pattern", ""), line))[:2000] or "no match"
-                    except re.error:
-                        out = "invalid pattern"
+                    out = search_lines(source, args.get("pattern", ""))
                 elif name == "static_review" and static_hook:
                     out = static_hook()
                 else:

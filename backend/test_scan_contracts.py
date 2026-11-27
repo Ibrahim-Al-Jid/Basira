@@ -186,7 +186,7 @@ def test_missing_eligible_adapter_is_skipped_without_changing_the_catalog(platfo
     jobs.execute_scan(ctx.org_id, ctx.project_id, scan_id)
     report = owner.get(path + "/reports/" + scan_id).json()
     assert report["status"] == "partial"
-    assert len(report["coverage"]) == 100
+    assert len(report["coverage"]) == 114
     assert len([rule for rule in report["coverage"] if rule["status"] == "skipped"]) == 17
     assert any(rule["reason"] == "unsupported_input" for rule in report["coverage"])
 

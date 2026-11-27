@@ -28,6 +28,7 @@ ANALYZER_INPUTS = {
     "deployment-config": ("repository", "config"),
     "browser-controls-extra": ("html", "repository", "har", "config"),
     "deployment-config-extra": ("repository", "config"),
+    "source-code": ("repository", "config"),
     "openapi-contract": ("openapi",),
     "zap-passive-report": ("zap",),
 }
@@ -38,6 +39,7 @@ ANALYZER_TITLES = {
     "deployment-config": "Deployment configuration",
     "browser-controls-extra": "Extended browser and response controls",
     "deployment-config-extra": "Extended dependency and deployment controls",
+    "source-code": "Source-code analysis (PHP, JavaScript, Python)",
     "openapi-contract": "Offline API contract",
     "zap-passive-report": "Saved ZAP passive evidence",
 }

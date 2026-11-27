@@ -60,7 +60,7 @@ def test_gitleaks_fixture_merges_builtin_observation_and_keeps_provenance(monkey
 
     monkeypatch.setattr(adapters, "run_cli", cli)
     data = scan(POSITIVE)
-    assert len(catalog()["rules"]) == 100
+    assert len(catalog()["rules"]) == 114
     assert len(data["findings"]) == 2
     merged = next(item for item in data["findings"] if item["rule"] == "APP-02")
     assert {item["tool"] for item in merged["origins"]} == {"deployment-config", "gitleaks"}
