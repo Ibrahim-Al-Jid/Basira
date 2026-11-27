@@ -229,6 +229,7 @@ def docker_instructions(text):
 def check_dockerfile(path, text, policy, results):
     stages = {}
     last_user = None
+    current_alias = None
     has_stage = False
     for instruction, value, line in docker_instructions(text):
         if instruction not in {"FROM", "USER"}:
