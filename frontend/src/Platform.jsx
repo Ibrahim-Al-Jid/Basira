@@ -348,7 +348,7 @@ function ScanStatus({ projectId, scanId, lang }) {
         <ReplayPanel scan={scan} events={events} t={t} lang={lang} reportHref={scan.report_available ? reportLink(projectId, scan.id) : ""} />
         {!!events.length && <section className="workspace-management">
           <h3>{t("سجل الفحص", "Scan activity")}</h3>
-          <ol className="workspace-timeline" aria-label={t("سجل الفحص", "Scan events")}>{events.filter((item) => item.kind !== "agent_done" && item.kind !== "stage_start").map((item) => <li key={item.sequence}>
+          <ol className="workspace-timeline" aria-label={t("سجل الفحص", "Scan events")}>{events.filter((item) => !["agent_done", "agent_start", "stage_start"].includes(item.kind)).map((item) => <li key={item.sequence}>
           <b>{label(states, item.kind, t)}</b>
           <p dir="auto">{t(item.detail, eventDetail(item))}</p>
           <time dateTime={item.occurred_at}>{new Date(item.occurred_at).toLocaleString(lang === "ar" ? "ar-EG" : "en")}</time>

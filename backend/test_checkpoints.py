@@ -33,9 +33,9 @@ def test_retry_reuses_checkpoint_without_reprocessing_source(platform, monkeypat
     attempts = []
     original = jobs.analyzed
 
-    def analyzed(row):
+    def analyzed(row, *more):
         attempts.append(row["lease"])
-        return original(row)
+        return original(row, *more)
 
     def stopped_before_publish(*_args, **_kwargs):
         raise RuntimeError("Lost worker before report publication")
