@@ -107,7 +107,7 @@ def test_model_setup_is_write_only_and_tenant_scoped(credential_platform, caplog
     assert connection.status_code == 200, connection.text
     assert connection.headers["Cache-Control"] == "no-store"
     summary = connection.json()["connection"]
-    assert set(summary) == {"id", "provider", "model", "verified_at", "source"}
+    assert set(summary) == {"id", "provider", "base_url", "model", "verified_at", "source"}
     assert summary["model"] == MODEL and summary["verified_at"] and summary["source"] == "organization"
     assert client.get(path).json() == connection.json()
     row = state(ctx)
@@ -241,3 +241,19 @@ def test_gateway_transport_timeout_leaves_call_count_unknown(monkeypatch):
     assert report["enrichment"] == "fallback"
     assert report["findings"] == findings
     assert report["metrics"]["modelCalls"] is None
+
+
+def test_other_provider_is_saved_and_a_stored_key_never_moves_to_another_target(credential_platform, monkeypatch):
+    client, _, _, ctx, _, _ = credential_platform
+    monkeypatch.setattr(model_gateway, "other_provider_models",
+                        lambda provider, key, base_url=None: [{"id": "gpt-x", "name": "GPT X", "cost": "paid"}])
+    saved = client.put(root(ctx), json={"provider": "openai", "model": "gpt-x", "api_key": KEY}, headers=ORIGIN)
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["connection"]["provider"] == "openai"
+    assert state(ctx)["provider"] == "openai" and KEY not in saved.text
+    wrong_model = client.put(root(ctx), json={"provider": "openai", "model": "gpt-y", "api_key": KEY}, headers=ORIGIN)
+    assert wrong_model.status_code == 422
+    for target in ({"provider": "openrouter"}, {"provider": "custom", "base_url": "https://llm.example.com/v1"}):
+        moved = client.put(root(ctx), json={"model": "gpt-x", **target}, headers=ORIGIN)
+        assert moved.status_code == 422, moved.text
+    assert client.put(root(ctx), json={"provider": "custom", "model": "gpt-x", "api_key": KEY}, headers=ORIGIN).status_code == 422
