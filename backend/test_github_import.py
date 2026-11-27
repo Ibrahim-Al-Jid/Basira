@@ -30,9 +30,9 @@ def github(platform, tmp_path, monkeypatch):
     rsa = RSAKey.generate_key()
     secret = tmp_path / "github.key"
     secret.write_bytes(rsa.as_pem(private=True))
-    monkeypatch.setenv("MARSAD_GITHUB_APP_ID", "441")
-    monkeypatch.setenv("MARSAD_GITHUB_APP_KEY_FILE", str(secret))
-    monkeypatch.setenv("MARSAD_GITHUB_INSTALLATIONS", json.dumps({ctx.org_id: [22]}))
+    monkeypatch.setenv("BASIRA_GITHUB_APP_ID", "441")
+    monkeypatch.setenv("BASIRA_GITHUB_APP_KEY_FILE", str(secret))
+    monkeypatch.setenv("BASIRA_GITHUB_INSTALLATIONS", json.dumps({ctx.org_id: [22]}))
     recorded = []
     feature = {
         "visible": True,

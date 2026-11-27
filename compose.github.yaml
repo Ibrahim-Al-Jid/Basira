@@ -2,13 +2,13 @@
 services:
   app:
     environment:
-      MARSAD_GITHUB_APP_ID: ${MARSAD_GITHUB_APP_ID:?Set the GitHub App ID}
-      MARSAD_GITHUB_INSTALLATIONS: ${MARSAD_GITHUB_INSTALLATIONS:?Set the organization installation map}
-      MARSAD_GITHUB_APP_KEY_FILE: /run/marsad-source/github-app.pem
+      BASIRA_GITHUB_APP_ID: ${BASIRA_GITHUB_APP_ID:?Set the GitHub App ID}
+      BASIRA_GITHUB_INSTALLATIONS: ${BASIRA_GITHUB_INSTALLATIONS:?Set the organization installation map}
+      BASIRA_GITHUB_APP_KEY_FILE: /run/basira-source/github-app.pem
     volumes:
       - type: bind
-        source: ${MARSAD_GITHUB_APP_KEY_PATH:?Set the private GitHub App key file path}
-        target: /run/marsad-source/github-app.pem
+        source: ${BASIRA_GITHUB_APP_KEY_PATH:?Set the private GitHub App key file path}
+        target: /run/basira-source/github-app.pem
         read_only: true
         bind:
           create_host_path: false

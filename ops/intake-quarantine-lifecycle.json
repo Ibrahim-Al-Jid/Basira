@@ -1,7 +1,7 @@
 {
   "Rules": [
     {
-      "ID": "marsad-quarantine-expiration",
+      "ID": "basira-quarantine-expiration",
       "Status": "Enabled",
       "Filter": {"Prefix": "quarantine/"},
       "Expiration": {"Days": 1}

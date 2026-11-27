@@ -178,12 +178,12 @@ export function PersonalGitHub({ lang }) {
   const callbackMessage = {
     failed: t("تفويض GitHub ما اكتملش. اضغط «اربط GitHub» وكمّل التفويض من نفس المتصفح.",
       "GitHub authorization did not complete. Connect again and finish it in the same browser."),
-    credentials: t("GitHub رفض بيانات التطبيق. راجع الـClient ID والـClient Secret في إعداد مرصد.",
-      "GitHub rejected the app credentials. Check the Client ID and Client Secret in Marsad’s setup."),
+    credentials: t("GitHub رفض بيانات التطبيق. راجع الـClient ID والـClient Secret في إعداد بصيرة.",
+      "GitHub rejected the app credentials. Check the Client ID and Client Secret in Basira’s setup."),
     expiration: t("GitHub مرجّعش رمز مؤقت صالح. اتأكد إن انتهاء صلاحية الرموز مفعّل في إعداد التطبيق.",
       "GitHub did not return a valid expiring token. Check token expiration in the app settings."),
-    unavailable: t("مرصد مقدرش يكمّل الاتصال بـGitHub دلوقتي. جرّب مرة تانية.",
-      "Marsad could not complete the GitHub connection. Try again."),
+    unavailable: t("بصيرة مقدرش يكمّل الاتصال بـGitHub دلوقتي. جرّب مرة تانية.",
+      "Basira could not complete the GitHub connection. Try again."),
   }[outcome];
   const repositories = listing?.repositories;
   const visible = repositories?.filter((repo) => repo.repository.toLowerCase().includes(query.trim().toLowerCase()));

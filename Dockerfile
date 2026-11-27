@@ -23,21 +23,21 @@ RUN chmod 0444 /osv/osv-scalibr/PyPI/all.zip \
     && python -c "from pathlib import Path; Path('/osv/database-date').write_text('2026-11-21\\n', encoding='ascii')"
 
 FROM python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90 AS runtime
-WORKDIR /srv/marsad
+WORKDIR /srv/basira
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ ./backend/
 COPY ops/init-model-vault.py ops/migrate-platform.py ./ops/
 COPY alembic.ini ./
 COPY --from=web /work/dist ./frontend/dist
-COPY --from=static-tools /tools/ /opt/marsad-tools/
-COPY --from=static-tools /osv/ /opt/marsad-osv/
-ENV MARSAD_DB_PATH=/srv/marsad/data/marsad.sqlite3
-RUN groupadd --gid 10001 marsad && useradd --uid 10001 --gid 10001 --no-create-home marsad \
-    && mkdir -p /srv/marsad/data /srv/marsad/spool /srv/marsad/model-secrets \
-    && chown -R marsad:marsad /srv/marsad/data /srv/marsad/spool /srv/marsad/model-secrets \
-    && chmod 0700 /srv/marsad/model-secrets
-USER marsad
+COPY --from=static-tools /tools/ /opt/basira-tools/
+COPY --from=static-tools /osv/ /opt/basira-osv/
+ENV BASIRA_DB_PATH=/srv/basira/data/basira.sqlite3
+RUN groupadd --gid 10001 basira && useradd --uid 10001 --gid 10001 --no-create-home basira \
+    && mkdir -p /srv/basira/data /srv/basira/spool /srv/basira/model-secrets \
+    && chown -R basira:basira /srv/basira/data /srv/basira/spool /srv/basira/model-secrets \
+    && chmod 0700 /srv/basira/model-secrets
+USER basira
 EXPOSE 8000
 CMD ["python", "-m", "uvicorn", "backend.main:app", "--no-access-log", "--host", "0.0.0.0", "--port", "8000"]
 
@@ -49,6 +49,6 @@ RUN python /tmp/index-npm-advisories.py /tmp/npm.zip /index/npm-advisories.sqlit
     && chmod 0444 /index/npm-advisories.sqlite3 /index/npm-database-date
 
 FROM runtime AS scanner-npm
-COPY --from=npm-advisories /index/ /opt/marsad-osv/
+COPY --from=npm-advisories /index/ /opt/basira-osv/
 
 FROM runtime AS app

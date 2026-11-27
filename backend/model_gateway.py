@@ -26,10 +26,10 @@ from .platform_db import PlatformUnavailable, platform_session
 from .rules import RULES
 from .source_adapters import SOURCE_TOOLS
 
-app = FastAPI(title="Marsad provider gateway", docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(title="Basira provider gateway", docs_url=None, redoc_url=None, openapi_url=None)
 IDS = frozenset(EXTENDED_IDS) | RULES.keys()
 ADVISOR_RULES = IDS | {tool.rule for tool in SOURCE_TOOLS}
-ADVISOR_VERSION = "marsad-advisor-1"
+ADVISOR_VERSION = "basira-advisor-1"
 ADVISOR_EVIDENCE_LIMIT = 12
 ADVISOR_HINT_LIMIT = 3
 PROVIDER_URL = "https://openrouter.ai/api/v1"
@@ -100,7 +100,7 @@ class Facts(BaseModel):
 
 
 def verify_service(authorization):
-    service_secret = os.environ.get("MARSAD_GATEWAY_TOKEN", "")
+    service_secret = os.environ.get("BASIRA_GATEWAY_TOKEN", "")
     actual = (authorization or "").encode("utf-8")
     if not service_secret or not hmac.compare_digest(actual, ("Bearer " + service_secret).encode("utf-8")):
         raise HTTPException(401, "Service authorization required")
@@ -118,8 +118,8 @@ def store_ready():
         with platform_session() as db:
             if db.bind.dialect.name == "postgresql":
                 return db.scalar(sa.text(
-                    "SELECT has_function_privilege('public.marsad_model_credential(text,text)', 'EXECUTE') "
-                    "AND has_function_privilege('public.marsad_start_model_call(text,text,text,text,text,text)', 'EXECUTE')"
+                    "SELECT has_function_privilege('public.basira_model_credential(text,text)', 'EXECUTE') "
+                    "AND has_function_privilege('public.basira_start_model_call(text,text,text,text,text,text)', 'EXECUTE')"
                 )) is True
             db.execute(sa.select(connections.c.org_id).limit(0))
             return True
@@ -135,7 +135,7 @@ def managed_health(authorization: ServiceAuth = None):
 
 def sealed_credential(db, org_id, generation):
     if db.bind.dialect.name == "postgresql":
-        return db.execute(sa.text("SELECT public.marsad_model_credential(:org_id, :generation)"),
+        return db.execute(sa.text("SELECT public.basira_model_credential(:org_id, :generation)"),
                           {"org_id": org_id, "generation": generation}).scalar_one()
     return db.execute(sa.select(connections.c.ciphertext).where(
         connections.c.org_id == org_id, connections.c.generation == generation,
@@ -277,7 +277,7 @@ def start_model_call(body):
     try:
         with platform_session() as db:
             if db.bind.dialect.name == "postgresql":
-                procedure = "marsad_start_account_model_call" if body.source == "account" else "marsad_start_model_call"
+                procedure = "basira_start_account_model_call" if body.source == "account" else "basira_start_model_call"
                 return db.execute(sa.text(
                     f"SELECT * FROM public.{procedure}("
                     ":org_id, :project_id, :scan_id, :lease, :generation, :model)"

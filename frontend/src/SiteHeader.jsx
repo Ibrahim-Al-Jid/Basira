@@ -18,11 +18,11 @@ const workspace = [
   ["dashboard", "/dashboard"], ["projects", "/projects"], ["scans", "/scans"], ["reports", "/reports"],
 ];
 export const readPreference = (key, fallback) => {
-  try { return localStorage.getItem("marsad-" + key) ?? fallback; }
+  try { return localStorage.getItem("basira-" + key) ?? fallback; }
   catch { return fallback; }
 };
 export const savePreference = (key, value) => {
-  try { localStorage.setItem("marsad-" + key, value); }
+  try { localStorage.setItem("basira-" + key, value); }
   catch { /* Preferences are optional when storage is unavailable. */ }
 };
 
@@ -46,9 +46,9 @@ export function SiteHeader({ pathname, follow, lang, authenticated, showSignIn, 
     }}>
       <div className="site-header-inner">
         <a className="site-brand" href={brandDestination} onClick={(event) => { follow(event, brandDestination); setOpen(false); }}
-          aria-label={authenticated ? (lang === "ar" ? "مرصد، نظرة عامة" : "Marsad overview") : (lang === "ar" ? "مرصد، الرئيسية" : "Marsad home")}>
+          aria-label={authenticated ? (lang === "ar" ? "بصيرة، نظرة عامة" : "Basira overview") : (lang === "ar" ? "بصيرة، الرئيسية" : "Basira home")}>
           <span className="site-brand-mark" aria-hidden="true"><i /><i /><i /></span>
-          <span dir="ltr">MARSAD</span>
+          <span dir="ltr">BASIRA</span>
         </a>
         {authenticated && !personal && <button ref={menu} className="site-icon site-mobile-menu" type="button" aria-label={open ? t.close : t.open}
           aria-controls="site-navigation" aria-expanded={open} onClick={() => setOpen((value) => !value)}>

@@ -1,89 +1,89 @@
-.marsad-source {
+.basira-source {
   display: grid;
   gap: 0.8rem;
   min-width: 0;
   margin-block: 1rem;
 }
 
-.marsad-source-heading,
-.marsad-source-drop,
-.marsad-source-current,
-.marsad-source-reading,
-.marsad-source-alternatives {
+.basira-source-heading,
+.basira-source-drop,
+.basira-source-current,
+.basira-source-reading,
+.basira-source-alternatives {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 0.65rem;
 }
 
-.marsad-source-heading,
-.marsad-source-reading {
+.basira-source-heading,
+.basira-source-reading {
   justify-content: space-between;
 }
 
-.marsad-source-heading h2 {
+.basira-source-heading h2 {
   font-size: 1.08rem;
   margin: 0;
 }
 
-.marsad-source-heading p,
-.marsad-source-drop p,
-.marsad-source-reading p {
+.basira-source-heading p,
+.basira-source-drop p,
+.basira-source-reading p {
   margin: 0;
   color: var(--muted);
   font-size: 0.88rem;
 }
 
-.marsad-source-drop {
+.basira-source-drop {
   border: 1px dashed var(--line);
   border-radius: 0.75rem;
   padding: 0.75rem;
 }
 
-.marsad-source-drop.dragging {
+.basira-source-drop.dragging {
   border-color: currentColor;
   outline: 2px solid currentColor;
   outline-offset: 2px;
 }
 
-.marsad-source-drop p,
-.marsad-source-current div {
+.basira-source-drop p,
+.basira-source-current div {
   flex: 1 1 12rem;
   min-width: 0;
 }
 
-.marsad-source-current {
+.basira-source-current {
   padding: 0.65rem 0.75rem;
   border: 1px solid var(--line);
   border-radius: 0.75rem;
 }
 
-.marsad-source-current strong,
-.marsad-source-current small {
+.basira-source-current strong,
+.basira-source-current small {
   display: block;
   overflow-wrap: anywhere;
 }
 
-.marsad-source-current small {
+.basira-source-current small {
   color: var(--muted);
 }
 
-.marsad-source-reading p,
-.marsad-source-alternatives button,
-.marsad-source-current button {
+.basira-source-reading p,
+.basira-source-alternatives button,
+.basira-source-current button {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
 }
 
-.marsad-source-reading bdi {
+.basira-source-reading bdi {
   overflow-wrap: anywhere;
 }
 
-.marsad-source-editor textarea {
+.basira-source-editor textarea {
   min-height: 8rem;
 }
 
-.marsad-source .error {
+.basira-source .error {
   margin-block: 0;
 }

@@ -30,9 +30,9 @@ def credential_platform(platform, monkeypatch, tmp_path):
     owner, outsider, ctx = platform
     master = tmp_path / "provider-encryption.key"
     master.write_bytes(urlsafe_b64encode(bytes(range(32))))
-    monkeypatch.setenv("MARSAD_MODEL_MASTER_KEY_FILE", str(master))
-    monkeypatch.setenv("MARSAD_GATEWAY_URL", GATEWAY)
-    monkeypatch.setenv("MARSAD_GATEWAY_TOKEN", "test-only-gateway-auth")
+    monkeypatch.setenv("BASIRA_MODEL_MASTER_KEY_FILE", str(master))
+    monkeypatch.setenv("BASIRA_GATEWAY_URL", GATEWAY)
+    monkeypatch.setenv("BASIRA_GATEWAY_TOKEN", "test-only-gateway-auth")
     calls = []
     with TestClient(model_gateway.app) as gateway:
         def get(url, *, headers, timeout, trust_env):
@@ -229,8 +229,8 @@ def test_invalid_requests_never_echo_credentials(credential_platform):
 
 
 def test_gateway_transport_timeout_leaves_call_count_unknown(monkeypatch):
-    monkeypatch.setenv("MARSAD_GATEWAY_URL", GATEWAY)
-    monkeypatch.setenv("MARSAD_GATEWAY_TOKEN", "test-only-gateway-auth")
+    monkeypatch.setenv("BASIRA_GATEWAY_URL", GATEWAY)
+    monkeypatch.setenv("BASIRA_GATEWAY_TOKEN", "test-only-gateway-auth")
     def timeout(*args, **kwargs):
         raise httpx.ReadTimeout("Synthetic gateway timeout")
     monkeypatch.setattr(model_gateway.httpx, "post", timeout)

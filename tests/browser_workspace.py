@@ -27,8 +27,8 @@ def landing(browser):
             marquee = page.locator(".landing-marquee-track")
             assert marquee.evaluate("(node) => getComputedStyle(node).animationPlayState") == "running"
             assert marquee.evaluate("(node) => getComputedStyle(node).animationName") != "none"
-            expect(page.locator(".marsad-landing a[href='/demo'], .marsad-landing a[href='/checks']")).to_have_count(0)
-            expect(page.locator(".marsad-landing a[href='/signin']").first).to_be_visible()
+            expect(page.locator(".basira-landing a[href='/demo'], .basira-landing a[href='/checks']")).to_have_count(0)
+            expect(page.locator(".basira-landing a[href='/signin']").first).to_be_visible()
             expect(page.locator(".landing-benchmark")).to_have_count(0)
             expect(page.get_by_role("link", name="Explore the demo" if language == "en" else "جرّب العرض")).to_have_count(0)
             reflows(page)

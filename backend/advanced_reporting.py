@@ -244,9 +244,9 @@ def sarif(report, lang):
         results.append({"ruleId": item.rule, "level": level, "message": {"text": title + " · " + item.evidence},
                         "locations": [{"physicalLocation": physical}],
                         **({"properties": properties} if properties else {}),
-                        **({"partialFingerprints": {"marsadEvidence/v1": item.fingerprint}} if item.fingerprint else {})})
+                        **({"partialFingerprints": {"basiraEvidence/v1": item.fingerprint}} if item.fingerprint else {})})
     return {"$schema": SARIF_SCHEMA, "version": "2.1.0", "runs": [{
-        "tool": {"driver": {"name": "Marsad", "version": report.ruleset_version or "legacy",
+        "tool": {"driver": {"name": "Basira", "version": report.ruleset_version or "legacy",
                              "rules": list(rules.values())}},
         "language": lang, "results": results, "properties": {"reportId": report.id},
     }]}

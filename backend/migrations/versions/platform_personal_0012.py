@@ -74,8 +74,8 @@ def upgrade():
             SELECT 1 FROM public.projects p
             WHERE p.id = {table}.project_id AND p.org_id = {table}.org_id
               AND p.deleted_at IS NULL
-              AND (current_setting('marsad.legacy_project_access', true) = '1'
-                OR p.owner_user_id = current_setting('marsad.owner_user_id', true))
+              AND (current_setting('basira.legacy_project_access', true) = '1'
+                OR p.owner_user_id = current_setting('basira.owner_user_id', true))
         )"""
         op.execute(f"CREATE POLICY personal_project_access ON {table} AS RESTRICTIVE "
                    f"USING ({allowed}) WITH CHECK ({allowed})")
@@ -83,13 +83,13 @@ def upgrade():
     op.execute("ALTER TABLE github_connections FORCE ROW LEVEL SECURITY")
     op.execute("""
         CREATE POLICY github_account_access ON github_connections FOR SELECT
-        USING (user_id = current_setting('marsad.owner_user_id', true))
+        USING (user_id = current_setting('basira.owner_user_id', true))
     """)
     op.execute("""
         DO $$ BEGIN
-            IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'marsad_app') THEN
-                REVOKE ALL ON project_ownership_reviews, github_connections FROM marsad_app;
-                GRANT SELECT ON github_connections TO marsad_app;
+            IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'basira_app') THEN
+                REVOKE ALL ON project_ownership_reviews, github_connections FROM basira_app;
+                GRANT SELECT ON github_connections TO basira_app;
             END IF;
         END $$;
     """)

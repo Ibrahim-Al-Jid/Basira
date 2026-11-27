@@ -1,8 +1,8 @@
-"""Vulnerability taxonomy: domain > subdomain > problem, mapped to CWE, OWASP and Marsad rules.
+"""Vulnerability taxonomy: domain > subdomain > problem, mapped to CWE, OWASP and Basira rules.
 
 Sources for the reference lists: OWASP Top 10:2025 (owasp.org/Top10/2025), OWASP API Security
 Top 10 2023, OWASP WSTG 4.x chapters, and the 2025 CWE Top 25 (cwe.mitre.org).
-`modes` says how Marsad can observe a problem today:
+`modes` says how Basira can observe a problem today:
   artifact  - static review of files the user supplied (config, lockfiles, HTML, IaC, CI)
   capture   - passive review of a supplied HAR or header capture
   active    - needs authorized live probing; not implemented, not in the current scope policy
@@ -205,6 +205,6 @@ def summary():
 
 
 def public():
-    return {"version": "marsad-taxonomy-1", "summary": summary(), "domains": DOMAINS,
+    return {"version": "basira-taxonomy-1", "summary": summary(), "domains": DOMAINS,
             "references": {"owasp_2025": OWASP_2025, "owasp_api_2023": OWASP_API_2023, "wstg": WSTG},
             "out_of_scope_cwe": {str(k): v for k, v in OUT_OF_SCOPE_CWE.items()}}

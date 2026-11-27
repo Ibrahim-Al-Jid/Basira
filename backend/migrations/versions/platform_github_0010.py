@@ -22,12 +22,12 @@ def upgrade():
         sa.ForeignKeyConstraint(("org_id", "project_id"), ("projects.org_id", "projects.id"), ondelete="CASCADE"),
     )
     if op.get_context().dialect.name == "postgresql":
-        org = "org_id = current_setting('marsad.org_id', true)"
-        project = "project_id = current_setting('marsad.project_id', true)"
+        org = "org_id = current_setting('basira.org_id', true)"
+        project = "project_id = current_setting('basira.project_id', true)"
         op.execute(f"ALTER TABLE {TABLE} ENABLE ROW LEVEL SECURITY")
         op.execute(f"ALTER TABLE {TABLE} FORCE ROW LEVEL SECURITY")
         op.execute(f"CREATE POLICY listing ON {TABLE} FOR SELECT USING ({org} AND "
-                   f"({project} OR current_setting('marsad.project_id', true) = ''))")
+                   f"({project} OR current_setting('basira.project_id', true) = ''))")
         op.execute(f"CREATE POLICY changes ON {TABLE} FOR ALL USING ({org} AND {project}) "
                    f"WITH CHECK ({org} AND {project})")
 

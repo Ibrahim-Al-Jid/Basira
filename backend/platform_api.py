@@ -288,10 +288,10 @@ def export(project_id: str, report_id: str, request: Request, lang: Literal["ar"
         return pdf_download(value, lang)
     if format == "sarif":
         return JSONResponse(advanced.sarif(value, lang), headers={
-            "Content-Disposition": 'attachment; filename="marsad-report.sarif"',
+            "Content-Disposition": 'attachment; filename="basira-report.sarif"',
         })
     report = value.model_dump(mode="json")
-    filename = "marsad-report.json" if format == "json" else f"marsad-report-{lang}.html"
+    filename = "basira-report.json" if format == "json" else f"basira-report-{lang}.html"
     headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
     if format == "json":
         return JSONResponse(report, headers=headers)

@@ -11,7 +11,7 @@ from playwright.sync_api import expect, sync_playwright
 from browser_release import ORIGIN, open_report_section
 from browser_account import API, FORBIDDEN_COPY, register
 
-QA_PROJECT = "marsad12-qa"
+QA_PROJECT = "basira12-qa"
 LEGACY_FIXTURE = '''
 import json
 import secrets
@@ -45,10 +45,10 @@ def seed_legacy():
     parsed = urlsplit(ORIGIN)
     if parsed.scheme != "http" or parsed.hostname != "127.0.0.1" or parsed.port != 8776:
         raise RuntimeError("Fixture seeding requires the isolated HTTP origin on port 8776.")
-    container = os.environ.get("MARSAD_QA_CONTAINER", "")
+    container = os.environ.get("BASIRA_QA_CONTAINER", "")
     if container != f"{QA_PROJECT}-app-1":
-        raise RuntimeError("Set MARSAD_QA_CONTAINER to the disposable app.")
-    docker = ["docker", "--context", os.environ.get("MARSAD_TEST_DOCKER_CONTEXT", "desktop-linux")]
+        raise RuntimeError("Set BASIRA_QA_CONTAINER to the disposable app.")
+    docker = ["docker", "--context", os.environ.get("BASIRA_TEST_DOCKER_CONTEXT", "desktop-linux")]
     labels = json.loads(subprocess.check_output(
         [*docker, "inspect", "--format", "{{json .Config.Labels}}", container], text=True
     ))
@@ -217,7 +217,7 @@ def model_priority(browser):
 
 def main():
     fixture = seed_legacy()
-    directory = os.environ.get("MARSAD_TEST_ARTIFACT_DIR")
+    directory = os.environ.get("BASIRA_TEST_ARTIFACT_DIR")
     artifacts = Path(directory) if directory else None
     if artifacts:
         artifacts.mkdir(parents=True, exist_ok=True)
@@ -225,7 +225,7 @@ def main():
         browser = testing.chromium.launch()
         legacy_report(browser, fixture, artifacts)
         authenticated_workspace(browser)
-        if os.environ.get("MARSAD_QA_CHECK_RANKING") == "1":
+        if os.environ.get("BASIRA_QA_CHECK_RANKING") == "1":
             model_priority(browser)
             print("Accepted UI model ranking and deterministic fallback verified with a local fixture.")
         browser.close()

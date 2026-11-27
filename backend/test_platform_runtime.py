@@ -24,9 +24,9 @@ from .platform_db import AuthSession, Base, User, database_engine, platform_sess
 @pytest.fixture
 def platform(tmp_path, monkeypatch):
     url = f"sqlite:///{(tmp_path / 'platform.sqlite3').as_posix()}"
-    monkeypatch.setenv("MARSAD_PLATFORM_DATABASE_URL", url)
-    monkeypatch.setenv("MARSAD_DB_PATH", str(tmp_path / "legacy.sqlite3"))
-    monkeypatch.setenv("MARSAD_ALLOW_INLINE_ANALYSIS", "1")
+    monkeypatch.setenv("BASIRA_PLATFORM_DATABASE_URL", url)
+    monkeypatch.setenv("BASIRA_DB_PATH", str(tmp_path / "legacy.sqlite3"))
+    monkeypatch.setenv("BASIRA_ALLOW_INLINE_ANALYSIS", "1")
     engine = database_engine(url)
     Base.metadata.create_all(engine)
     tokens = ("a" * 43, "b" * 43)
@@ -178,7 +178,7 @@ def test_backup_and_restore_keeps_legacy_report_ids(platform, tmp_path, monkeypa
                    (report_id, main.owner_key(token), data["created_at"], data["model"], 0, json.dumps(data)))
     recovered = tmp_path / "recovered.sqlite3"
     assert backup(old_database, recovered) == 1
-    monkeypatch.setenv("MARSAD_DB_PATH", str(recovered))
+    monkeypatch.setenv("BASIRA_DB_PATH", str(recovered))
     owner.cookies.set(main.COOKIE, token)
     assert owner.get("/api/reports/" + report_id).json()["id"] == report_id
     with main.database() as db:
@@ -242,15 +242,15 @@ def statuses(report, *rules):
 
 
 def test_gateway_keeps_raw_input_and_memory_out_of_provider(monkeypatch, tmp_path):
-    monkeypatch.setenv("MARSAD_GATEWAY_TOKEN", "token-for-testing")
+    monkeypatch.setenv("BASIRA_GATEWAY_TOKEN", "token-for-testing")
     key = tmp_path / "test-gateway.key"
     key.write_text("first-fake-key", encoding="utf-8")
-    monkeypatch.setenv("MARSAD_OPENROUTER_KEY_FILE", str(key))
-    monkeypatch.setenv("MARSAD_OPENROUTER_KEY", "fallback-key-must-not-be-used")
-    monkeypatch.setenv("MARSAD_OPENROUTER_MODEL", "test/model")
+    monkeypatch.setenv("BASIRA_OPENROUTER_KEY_FILE", str(key))
+    monkeypatch.setenv("BASIRA_OPENROUTER_KEY", "fallback-key-must-not-be-used")
+    monkeypatch.setenv("BASIRA_OPENROUTER_MODEL", "test/model")
     org_id = "a" * 32
-    monkeypatch.setenv("MARSAD_OPERATOR_MODEL_ORGS", org_id)
-    monkeypatch.setenv("MARSAD_PROJECT_MODEL_ENABLED", "1")
+    monkeypatch.setenv("BASIRA_OPERATOR_MODEL_ORGS", org_id)
+    monkeypatch.setenv("BASIRA_PROJECT_MODEL_ENABLED", "1")
     monkeypatch.setattr(model_gateway, "start_model_call", lambda _body: (None,))
     seen = []
     def provider(url, *, headers, timeout, json, trust_env):

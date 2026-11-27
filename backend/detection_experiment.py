@@ -1,7 +1,7 @@
 """Detection-rate experiment on fixed, independently authored targets.
 
 Configurations (same targets, same scoring):
-  static   Marsad's deterministic checks only (no model).
+  static   Basira's deterministic checks only (no model).
 Model-backed configurations are added in the same file once a model run is recorded.
 A labeled vulnerability counts as found when a finding on its file maps, through the
 taxonomy, to the labeled subdomain. Findings on clean files, and findings on a vulnerable

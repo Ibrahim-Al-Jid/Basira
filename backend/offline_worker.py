@@ -220,7 +220,7 @@ def clear_expired(spool):
 
 
 def run():
-    spool = Path(os.environ["MARSAD_ANALYSIS_SPOOL"])
+    spool = Path(os.environ["BASIRA_ANALYSIS_SPOOL"])
     spool.mkdir(parents=True, exist_ok=True)
     while True:
         clear_expired(spool)

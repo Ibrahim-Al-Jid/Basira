@@ -637,7 +637,7 @@ def expire_pending_artifacts():
     # The dispatcher has execute-only permissions for this operation on PostgreSQL.
     with platform_session() as db:
         if db.bind.dialect.name == "postgresql":
-            return db.execute(sa.text("SELECT public.marsad_expire_artifacts()")).scalar_one()
+            return db.execute(sa.text("SELECT public.basira_expire_artifacts()")).scalar_one()
         rows = db.execute(sa.select(scans).where(scans.c.raw.is_not(None), scans.c.source_expires_at <= now(),
                           scans.c.state.in_(["queued", "running"])).limit(100)).mappings().all()
         for row in rows:

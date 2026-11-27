@@ -17,7 +17,7 @@ import webbrowser
 from cryptography.fernet import Fernet
 import httpx
 
-PROJECT_URL = "https://github.com/Ibrahim-Al-Jid/Marsad"
+PROJECT_URL = "https://github.com/Ibrahim-Al-Jid/Basira"
 GITHUB_REGISTRATION = "https://github.com/settings/apps/new"
 
 
@@ -39,7 +39,7 @@ def save_config(path, callback, client_id, slug, client_secret):
 
 def manifest(callback, registration_callback):
     return {
-        "name": "Marsad Repository Review " + token_hex(4),
+        "name": "Basira Repository Review " + token_hex(4),
         "url": PROJECT_URL,
         "public": False,
         "hook_attributes": {"url": PROJECT_URL, "active": False},
@@ -84,7 +84,7 @@ def register(path, origin, callback):
 
         def reply(self, status, body):
             data = ('<!doctype html><html lang="en"><meta charset="utf-8">'
-                    '<title>Marsad GitHub setup</title><main>' + body + '</main></html>').encode()
+                    '<title>Basira GitHub setup</title><main>' + body + '</main></html>').encode()
             self.send_response(status)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
@@ -103,7 +103,7 @@ def register(path, origin, callback):
             if target.path == start_path:
                 action = escape(GITHUB_REGISTRATION + "?" + urlencode({"state": state}), quote=True)
                 payload = escape(json.dumps(application), quote=True)
-                self.reply(200, '<h1>Set up GitHub for Marsad</h1><p>Create a private app with read access to selected repositories.</p>'
+                self.reply(200, '<h1>Set up GitHub for Basira</h1><p>Create a private app with read access to selected repositories.</p>'
                                 f'<form method="post" action="{action}"><input type="hidden" name="manifest" value="{payload}">'
                                 '<button>Create on GitHub</button></form>')
                 return
@@ -123,7 +123,7 @@ def register(path, origin, callback):
             registered = True
             self.reply(200, f'<h1>GitHub App saved</h1><p><a href="https://github.com/apps/{slug}/installations/new" '
                             'target="_blank" rel="noreferrer">Install on selected repositories</a></p>'
-                            f'<p><a href="{origin}/settings?tab=github">Return to Marsad and connect GitHub</a></p>')
+                            f'<p><a href="{origin}/settings?tab=github">Return to Basira and connect GitHub</a></p>')
 
     with HTTPServer(("127.0.0.1", 0), Handler) as server:
         authority = f"127.0.0.1:{server.server_port}"
@@ -141,7 +141,7 @@ def register(path, origin, callback):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--port", type=int, default=8765, help="local Marsad web port")
+    parser.add_argument("--port", type=int, default=8765, help="local Basira web port")
     parser.add_argument("--manual", action="store_true", help="configure an existing GitHub App")
     parser.add_argument("--client-id", help="existing GitHub App Client ID")
     parser.add_argument("--slug", help="existing GitHub App slug")

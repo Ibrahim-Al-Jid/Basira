@@ -20,21 +20,21 @@ from .platform_db import AuthSession, Base, database_engine, platform_session, u
 
 
 ISSUER = "https://oidc.example/realm"
-CLIENT_ID = "marsad-fixture"
-APP_ORIGIN = "https://marsad.example"
+CLIENT_ID = "basira-fixture"
+APP_ORIGIN = "https://basira.example"
 
 
 @pytest.fixture
 def platform(tmp_path, monkeypatch):
     url = "sqlite:///" + (tmp_path / "platform.sqlite3").as_posix()
     for name, value in {
-        "MARSAD_PLATFORM_DATABASE_URL": url,
-        "MARSAD_PLATFORM_MIGRATION_URL": url,
-        "MARSAD_OIDC_ISSUER": ISSUER,
-        "MARSAD_OIDC_CLIENT_ID": CLIENT_ID,
-        "MARSAD_OIDC_CLIENT_SECRET": "example-credential-for-test",
-        "MARSAD_OIDC_REDIRECT_URI": APP_ORIGIN + "/api/platform/auth/callback",
-        "MARSAD_OIDC_STATE_SECRET": "test-secret-for-cookie-signing-only",
+        "BASIRA_PLATFORM_DATABASE_URL": url,
+        "BASIRA_PLATFORM_MIGRATION_URL": url,
+        "BASIRA_OIDC_ISSUER": ISSUER,
+        "BASIRA_OIDC_CLIENT_ID": CLIENT_ID,
+        "BASIRA_OIDC_CLIENT_SECRET": "example-credential-for-test",
+        "BASIRA_OIDC_REDIRECT_URI": APP_ORIGIN + "/api/platform/auth/callback",
+        "BASIRA_OIDC_STATE_SECRET": "test-secret-for-cookie-signing-only",
     }.items():
         monkeypatch.setenv(name, value)
     engine = database_engine(url)
@@ -240,7 +240,7 @@ def test_project_access_and_role_changes(platform):
 
 def test_identity_migration_from_empty_database(tmp_path, monkeypatch):
     url = "sqlite:///" + (tmp_path / "migration.sqlite3").as_posix()
-    monkeypatch.setenv("MARSAD_PLATFORM_MIGRATION_URL", url)
+    monkeypatch.setenv("BASIRA_PLATFORM_MIGRATION_URL", url)
     config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     command.upgrade(config, "platform_identity_0001")
     engine = database_engine(url)

@@ -1,6 +1,6 @@
 # Detection experiment
 
-Question: what share of known vulnerabilities does each Marsad configuration find on the same fixed targets? Method and status only; numbers appear here only after a recorded run. Code: `backend/detection_experiment.py`. Plan: P17 in [PLAN.md](../PLAN.md).
+Question: what share of known vulnerabilities does each Basira configuration find on the same fixed targets? Method and status only; numbers appear here only after a recorded run. Code: `backend/detection_experiment.py`. Plan: P17 in [PLAN.md](../PLAN.md).
 
 ## Target
 
@@ -12,7 +12,7 @@ Labeling limit: one reader. A second reader must confirm the labels before any h
 
 | Id | Configuration | Status |
 |---|---|---|
-| C1 | Static checks only (Marsad's 100 deterministic checks, real ZIP path) | run |
+| C1 | Static checks only (Basira's 100 deterministic checks, real ZIP path) | run |
 | C2 | One agent, no tools | run |
 | C3 | Several agents, no tools | code written, run incomplete (daily request cap) |
 | C4 | Several agents with tools | code written, not run |

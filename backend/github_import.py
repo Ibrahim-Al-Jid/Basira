@@ -36,7 +36,7 @@ MAX_KEY_BYTES = 16_384
 MAX_ARCHIVE_SECONDS = 20
 GITHUB_SOURCES = "project_github_sources"
 PROVIDER_SLOTS = BoundedSemaphore(4)
-provider_request = ContextVar("marsad_github_provider_request", default=False)
+provider_request = ContextVar("basira_github_provider_request", default=False)
 
 
 class PrivateProviderTraffic(logging.Filter):
@@ -91,7 +91,7 @@ class GitHubFailure(Exception):
 def installations():
     """Bind a GitHub installation to at most one organization on this deployment."""
     try:
-        config = json.loads(os.environ.get("MARSAD_GITHUB_INSTALLATIONS", "{}"))
+        config = json.loads(os.environ.get("BASIRA_GITHUB_INSTALLATIONS", "{}"))
     except ValueError:
         return {}
     if not isinstance(config, dict):
@@ -106,8 +106,8 @@ def installations():
 
 
 def app_config():
-    app_id = os.environ.get("MARSAD_GITHUB_APP_ID", "")
-    key = os.environ.get("MARSAD_GITHUB_APP_KEY_FILE", "")
+    app_id = os.environ.get("BASIRA_GITHUB_APP_ID", "")
+    key = os.environ.get("BASIRA_GITHUB_APP_KEY_FILE", "")
     return (app_id, Path(key)) if re.fullmatch("[1-9][0-9]{0,19}", app_id) and key and Path(key).is_file() else None
 
 

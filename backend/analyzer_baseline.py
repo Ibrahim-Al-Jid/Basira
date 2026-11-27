@@ -56,7 +56,7 @@ def tools_baseline(path, profile, repetitions):
             }
         registry = [tool.model_dump(mode="json") for tool in analyzer_manifests()]
     return {
-        "contract": "marsad-tools-baseline-1", "corpus": manifest["version"], "corpus_sha256": digest,
+        "contract": "basira-tools-baseline-1", "corpus": manifest["version"], "corpus_sha256": digest,
         "profile": profile, "repetitions": repetitions, "model_calls": 0,
         "pypi_snapshot_sha256": OSV_DATABASE_SHA256 if profile == "bundled" else None,
         "registry": registry, "modes": modes,

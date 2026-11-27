@@ -168,7 +168,7 @@ function AccountAccess({ onAuthenticated, lang, personal, startInRegister }) {
 
   return (
     <section className="account-layout" aria-labelledby={titleId}>
-      <aside className="account-context" aria-label={t("مساحة مرصد", "Marsad workspace")}>
+      <aside className="account-context" aria-label={t("مساحة بصيرة", "Basira workspace")}>
         <div className="account-context-mark" aria-hidden="true"><ShieldCheck size={26} strokeWidth={1.7} /></div>
         <div className="account-context-copy">
           <strong>{t("من ملفات المشروع إلى تقرير واضح.", "From project files to a clear report.")}</strong>
@@ -181,7 +181,7 @@ function AccountAccess({ onAuthenticated, lang, personal, startInRegister }) {
       </aside>
       <div className="project-panel project-account">
         <header className="project-account-heading">
-          <h1 id={titleId} ref={title} tabIndex={-1}>{register ? t("أنشئ حسابك", "Create your account") : t("سجّل دخولك إلى مرصد", "Sign in to Marsad")}</h1>
+          <h1 id={titleId} ref={title} tabIndex={-1}>{register ? t("أنشئ حسابك", "Create your account") : t("سجّل دخولك إلى بصيرة", "Sign in to Basira")}</h1>
           <p>{register ? t("ابدأ مشروعك الأول واحتفظ بتقاريرك في مكان واحد.", "Start your first project and keep your reports in one place.")
             : t("ادخل على مشاريعك وتقاريرك.", "Access your projects and reports.")}</p>
         </header>
@@ -236,7 +236,7 @@ function AccountAccess({ onAuthenticated, lang, personal, startInRegister }) {
         </a>}
         {options && !options.password && !options.oidc && <p role="status">{t("تسجيل الدخول للمشاريع غير متاح حاليًا.", "Project sign-in is currently unavailable.")}</p>}
         {options?.password && options.registration && <div className="account-mode-switch">
-          <span>{register ? t("عندك حساب بالفعل؟", "Already have an account?") : t("أول مرة تستخدم مرصد؟", "New to Marsad?")}</span>
+          <span>{register ? t("عندك حساب بالفعل؟", "Already have an account?") : t("أول مرة تستخدم بصيرة؟", "New to Basira?")}</span>
           <button type="button" disabled={busy} onClick={() => changeMode(register ? "login" : "register")}>
             {register ? t("عندي حساب", "I have an account") : t("إنشاء حساب", "Create an account")}
           </button>

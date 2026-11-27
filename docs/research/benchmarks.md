@@ -14,13 +14,13 @@ Snapshot from public pages read on 27 November 2026. Each entry says what it is 
 
 Found in search but not yet read: CTFExplorer (multi-target web CTF, arXiv 2602.08023), BountyBench, Red-MIRROR and AWE (agentic pentest papers).
 
-## What fits Marsad
+## What fits Basira
 
-Marsad is a passive, evidence-based reviewer, so exploit benchmarks (XBOW, CVE-Bench) measure a different job. Fair measures for it:
+Basira is a passive, evidence-based reviewer, so exploit benchmarks (XBOW, CVE-Bench) measure a different job. Fair measures for it:
 
 1. Per-check positive, negative and not-applicable cases, which the test suite already holds for the 100 shipped checks.
 2. A labeled corpus of real repositories and HAR captures with independent ground truth, split by language and CWE, scored with precision, recall, F1 and false-positive density.
-3. Juice Shop and WebGoat captured as HAR plus source, only for the configuration and header classes Marsad claims.
+3. Juice Shop and WebGoat captured as HAR plus source, only for the configuration and header classes Basira claims.
 4. Agent value: same checks with and without the model layer, same snapshots, same budget, with tokens, cost and p50 and p95 time.
 
 Status: item 1 exists. Items 2 to 4 are not run. No accuracy number should be published until they are.

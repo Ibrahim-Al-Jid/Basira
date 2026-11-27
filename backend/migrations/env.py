@@ -14,7 +14,7 @@ from backend.platform_db import Base, database_engine, platform_database_url
 
 
 def migration_url():
-    return os.environ.get("MARSAD_PLATFORM_MIGRATION_URL") or platform_database_url()
+    return os.environ.get("BASIRA_PLATFORM_MIGRATION_URL") or platform_database_url()
 
 
 def run_migrations():

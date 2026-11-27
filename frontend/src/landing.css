@@ -1,10 +1,10 @@
-main:has(.marsad-landing) {
+main:has(.basira-landing) {
   width: 100%;
   max-width: none;
   padding: 0;
 }
 
-.marsad-landing {
+.basira-landing {
   --landing-bg: #0b1115;
   --landing-panel: #101b20;
   --landing-raised: #142329;
@@ -24,7 +24,7 @@ main:has(.marsad-landing) {
     var(--landing-bg);
 }
 
-.marsad-landing[data-landing-theme="light"] {
+.basira-landing[data-landing-theme="light"] {
   --landing-bg: #f4f8f2;
   --landing-panel: #eaf2e8;
   --landing-raised: #fcfffb;
@@ -43,7 +43,7 @@ main:has(.marsad-landing) {
   width: min(100% - clamp(32px, 9vw, 128px), 1240px);
   margin-inline: auto;
 }
-.marsad-landing[data-personal] .landing-inner {
+.basira-landing[data-personal] .landing-inner {
   inline-size: auto;
   max-inline-size: var(--workspace-max);
   padding-inline: var(--workspace-gutter);
@@ -56,14 +56,14 @@ main:has(.marsad-landing) {
   gap: clamp(28px, 6vw, 82px);
   align-items: center;
 }
-.marsad-landing[data-personal] .landing-hero {
+.basira-landing[data-personal] .landing-hero {
   min-block-size: 0;
   padding-block: clamp(2.6rem, 5.6vw, 6.25rem);
   gap: clamp(1.75rem, 6vw, 6.5rem);
 }
-.marsad-landing[data-personal] .landing-intro { max-inline-size: 42rem; }
-.marsad-landing[data-personal] .landing-intro h1 { font-size: clamp(2.35rem, 4.8vw, 5.25rem); }
-.marsad-landing[data-personal] .landing-visual { inline-size: min(100%, 43rem); justify-self: end; }
+.basira-landing[data-personal] .landing-intro { max-inline-size: 42rem; }
+.basira-landing[data-personal] .landing-intro h1 { font-size: clamp(2.35rem, 4.8vw, 5.25rem); }
+.basira-landing[data-personal] .landing-visual { inline-size: min(100%, 43rem); justify-self: end; }
 .landing-eyebrow {
   color: var(--landing-accent);
   display: inline-flex;
@@ -91,10 +91,10 @@ main:has(.marsad-landing) {
   margin-block: 18px;
   text-wrap: balance;
 }
-.marsad-landing[dir="ltr"] :is(h1, h2) {
+.basira-landing[dir="ltr"] :is(h1, h2) {
   font-family: "Space Grotesk Variable", Inter, Arial, sans-serif;
 }
-.marsad-landing[dir="rtl"] .landing-intro h1 {
+.basira-landing[dir="rtl"] .landing-intro h1 {
   line-height: 1.29;
   letter-spacing: -.025em;
 }
@@ -135,7 +135,7 @@ main:has(.marsad-landing) {
   box-shadow: 0 8px 28px -16px var(--landing-accent);
 }
 .landing-primary:hover { box-shadow: 0 14px 31px -14px var(--landing-accent); }
-.marsad-landing :is(a, button):focus-visible {
+.basira-landing :is(a, button):focus-visible {
   outline: 2px solid var(--landing-accent);
   outline-offset: 4px;
 }
@@ -276,10 +276,10 @@ main:has(.marsad-landing) {
 }
 .landing-coverage-heading { margin-block-end: 9px; }
 .landing-coverage-heading h2 { font-size: .9rem; font-weight: 700; }
-.marsad-landing[data-personal] .landing-coverage {
+.basira-landing[data-personal] .landing-coverage {
   padding-block: clamp(1.3rem, 2.4vw, 2.45rem);
 }
-.marsad-landing[data-personal] .landing-coverage h2 { font-size: 1.25rem; }
+.basira-landing[data-personal] .landing-coverage h2 { font-size: 1.25rem; }
 .landing-domain-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
@@ -340,8 +340,8 @@ main:has(.marsad-landing) {
 .landing-workflow {
   padding-block: clamp(55px, 8vw, 106px) clamp(44px, 7vw, 84px);
 }
-.marsad-landing[data-personal] .landing-workflow { padding-block: clamp(1.9rem, 4vw, 3.75rem) 3.5rem; }
-.marsad-landing[data-personal] .landing-section-head h2 { font-size: var(--page-title-size); }
+.basira-landing[data-personal] .landing-workflow { padding-block: clamp(1.9rem, 4vw, 3.75rem) 3.5rem; }
+.basira-landing[data-personal] .landing-section-head h2 { font-size: var(--page-title-size); }
 .landing-section-head h2 {
   font-size: clamp(1.8rem, 4.2vw, 3.65rem);
   font-weight: 700;
@@ -350,7 +350,7 @@ main:has(.marsad-landing) {
   margin-block: 12px 16px;
   text-wrap: balance;
 }
-.marsad-landing[dir="rtl"] .landing-section-head h2 {
+.basira-landing[dir="rtl"] .landing-section-head h2 {
   line-height: 1.38;
   letter-spacing: -.014em;
 }
@@ -370,7 +370,7 @@ main:has(.marsad-landing) {
   transition: background .25s ease, transform .25s ease;
 }
 .landing-steps li:hover { background: var(--landing-raised); transform: translateY(-4px); }
-.marsad-landing[data-personal] .landing-steps li:hover { transform: none; }
+.basira-landing[data-personal] .landing-steps li:hover { transform: none; }
 .landing-step-top { display: flex; justify-content: space-between; gap: 8px; color: var(--landing-accent); }
 .landing-step-top > svg:last-child { opacity: .65; }
 .landing-steps h3 { margin-block: 16px 9px; font-size: 1.23rem; line-height: 1.35; }
@@ -403,7 +403,7 @@ main:has(.marsad-landing) {
   .landing-button { padding-inline: 11px; gap: 6px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .marsad-landing *, .marsad-landing *::before, .marsad-landing *::after {
+  .basira-landing *, .basira-landing *::before, .basira-landing *::after {
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;

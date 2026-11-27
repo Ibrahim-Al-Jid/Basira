@@ -72,7 +72,7 @@ def main():
         report = checked(owner.get(path + "/reports/" + scan))
         assert len([row for row in report["coverage"] if row["rule"] not in {"SRC-01", "SCA-01"}]) == 100
         assert {entry["rule"] for entry in report["findings"]} >= {"INF-01", "INF-02"}
-        enabled = set(os.environ.get("MARSAD_SOURCE_ADAPTERS", "").split(","))
+        enabled = set(os.environ.get("BASIRA_SOURCE_ADAPTERS", "").split(","))
         if "gitleaks" in enabled:
             assert any(item["rule"] == "SRC-01" and item["path"] == "sample.py" and item["line"] == 2
                        for item in report["findings"])

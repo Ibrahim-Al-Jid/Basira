@@ -130,8 +130,8 @@ function App() {
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#0b0f12" : "#f5f7f4");
   }, [lang, theme]);
   useEffect(() => {
-    document.title = landingPage ? "MARSAD | Web Security Workspace"
-      : demoPage ? "MARSAD | Demo" : "MARSAD | Workspace";
+    document.title = landingPage ? "BASIRA | Web Security Workspace"
+      : demoPage ? "BASIRA | Demo" : "BASIRA | Workspace";
   }, [landingPage, demoPage]);
   useEffect(() => {
     if (initialPath.current !== location.pathname) {
@@ -204,9 +204,9 @@ function App() {
       {personalWorkspace && <PersonalSidebar key={session.user.id} location={location} navigate={navigate} lang={lang}
         revision={projectRevision} onLogout={() => { session.setUser(null); navigate("/", { replace: true }); }} />}
       <main ref={mainContent} id="main-content" tabIndex={-1} className={landingPage ? "site-landing-main" : "site-workspace-main"}>
-        {productError ? <div role="alert"><p>{t("تعذّر تحميل إعدادات مرصد.", "Marsad settings could not be loaded.")}</p>
+        {productError ? <div role="alert"><p>{t("تعذّر تحميل إعدادات بصيرة.", "Basira settings could not be loaded.")}</p>
           <button className="btn" type="button" onClick={() => setProductAttempt((attempt) => attempt + 1)}>{t("إعادة المحاولة", "Retry")}</button></div>
-          : !product ? <p role="status">{t("جاري تحميل مرصد…", "Loading Marsad…")}</p>
+          : !product ? <p role="status">{t("جاري تحميل بصيرة…", "Loading Basira…")}</p>
           : landingPage ? <Landing follow={follow} lang={lang} theme={theme} authenticated={Boolean(session.user)} personal={personal} />
           : reportsPage ? <Reports location={location} navigate={navigate} revision={latest?.id} lang={lang} session={session} personal={personal} />
           : findingsPage ? <p role="status">{t("جاري فتح التقارير…", "Opening reports…")}</p>
