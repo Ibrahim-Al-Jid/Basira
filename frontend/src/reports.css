@@ -874,3 +874,20 @@
   align-items: center;
   margin-block-end: 0.75rem;
 }
+
+/* Decision-first block (P10 slice d). Uses shared tokens; Pop falls back to plain colours when its tokens are absent. */
+.reports-decision { margin-block-end: var(--section-gap); padding: 1.4rem 1.6rem; background: var(--pop-lemon, var(--tint)); color: var(--on-accent, var(--ink)); border: 3px solid var(--ink); border-radius: var(--panel-radius); box-shadow: var(--shadow-1); display: grid; gap: .9rem; animation: decision-in .5s cubic-bezier(.3, 1.5, .5, 1) both; }
+.reports-decision[data-clear] { background: var(--pop-mint, var(--positive-bg)); }
+.reports-decision-kicker { font-weight: 800; font-size: .95rem; margin: 0; }
+.reports-decision-headline { font-family: var(--display-font); font-weight: 900; font-size: clamp(1.9rem, 3.4vw, 3.4rem); line-height: 1.1; margin: 0; }
+.reports-decision-fixes { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem; counter-reset: fix; }
+.reports-decision-fixes li { counter-increment: fix; display: flex; align-items: center; gap: .8rem; background: var(--surface); color: var(--ink); border: 3px solid var(--ink); border-radius: 1.1rem; padding: .6rem .9rem; }
+.reports-decision-fixes li::before { content: counter(fix); display: grid; place-items: center; width: 2rem; height: 2rem; flex: none; border-radius: 50%; background: var(--ink); color: var(--canvas); font-weight: 900; }
+.reports-decision-sev { flex: none; border: 3px solid var(--ink); border-radius: 999px; padding: .05rem .8rem; font-weight: 800; font-size: .85rem; background: var(--surface-alt); }
+.reports-decision-fix { display: grid; gap: .1rem; min-width: 0; }
+.reports-decision-where { color: var(--muted); font-size: .85rem; overflow-wrap: anywhere; }
+.reports-decision-cover, .reports-decision-caution { margin: 0; font-size: .95rem; }
+.reports-decision-cover a { color: inherit; font-weight: 700; }
+.reports-decision-caution { font-weight: 700; }
+@keyframes decision-in { from { opacity: 0; transform: translateY(14px) scale(.97); } }
+@media (prefers-reduced-motion: reduce) { .reports-decision { animation: none; } }

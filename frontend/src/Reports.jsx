@@ -73,6 +73,15 @@ const copy = {
     evidence: "الدليل",
     remediation: "الإصلاح",
     executive: "ملخص الفحص",
+    decisionTitle: "القرار",
+    decisionClear: "مفيش نتايج في اللي اتفحص",
+    decisionFix: "إصلاحات قبل التسليم",
+    decisionFixOne: "إصلاح واحد قبل التسليم",
+    decisionFirst: "ابدأ بالأهم",
+    decisionCovered: "قواعد اتنفذت من",
+    decisionNotChecked: "قواعد ماتفحصتش أو مش مطبّقة على النوع ده",
+    decisionCaution: "ده مش معناه إن المشروع سليم: اللي ماتفحصش مكتوب في التغطية.",
+    decisionOpen: "افتح النتيجة",
     pdf: "تحميل PDF",
     findingTypes: "أنواع النتائج",
     rulesApplied: "قواعد اتنفذت",
@@ -229,6 +238,15 @@ const copy = {
     evidence: "Evidence",
     remediation: "Remediation",
     executive: "Scan summary",
+    decisionTitle: "Decision",
+    decisionClear: "No findings in what was checked",
+    decisionFix: "fixes before handover",
+    decisionFixOne: "One fix before handover",
+    decisionFirst: "Start with the most important",
+    decisionCovered: "rules ran out of",
+    decisionNotChecked: "rules were not checked or do not apply to this input",
+    decisionCaution: "This does not mean the project is clean: what was not checked is listed under Coverage.",
+    decisionOpen: "Open finding",
     pdf: "Download PDF",
     findingTypes: "Finding types",
     rulesApplied: "Rules run",
@@ -783,6 +801,39 @@ function TechnicalDetails({ report, lang, t, count, projectApi }) {
   );
 }
 
+function Decision({ findings, coverage, applied, t, lang, count, coverageHref, navigate }) {
+  const rank = { high: 0, medium: 1, low: 2 };
+  const byRule = new Map();
+  for (const finding of findings) if (!byRule.has(finding.rule)) byRule.set(finding.rule, finding);
+  const top = [...byRule.values()].sort((a, b) => (rank[a.severity] ?? 3) - (rank[b.severity] ?? 3) || a.rule.localeCompare(b.rule)).slice(0, 3);
+  const total = coverage.length;
+  const notChecked = coverage.filter(({ status }) => status !== "matched" && status !== "clear").length;
+  const headline = !byRule.size ? t.decisionClear : byRule.size === 1 ? t.decisionFixOne : `${count(byRule.size)} ${t.decisionFix}`;
+  const titleOf = (finding) => (lang === "ar" ? finding.title_ar : finding.title) || finding.title || finding.rule;
+  return (
+    <section className="reports-decision" aria-labelledby="report-decision-title" data-clear={!byRule.size || undefined}>
+      <div className="reports-decision-head">
+        <p className="reports-decision-kicker" id="report-decision-title">{t.decisionTitle}</p>
+        <p className="reports-decision-headline">{headline}</p>
+      </div>
+      {!!top.length && <ol className="reports-decision-fixes" aria-label={t.decisionFirst}>
+        {top.map((finding) => (
+          <li key={finding.rule}>
+            <span className="reports-decision-sev" data-severity={finding.severity}>{label(t, finding.severity)}</span>
+            <span className="reports-decision-fix"><b>{titleOf(finding)}</b>
+              {finding.path && <bdi dir="ltr" className="reports-decision-where">{finding.path}{finding.line ? `:${finding.line}` : ""}</bdi>}</span>
+          </li>
+        ))}
+      </ol>}
+      {!!total && <p className="reports-decision-cover">
+        <b>{count(applied)}</b> {t.decisionCovered} <b>{count(total)}</b>
+        {!!notChecked && <> · <a href={coverageHref} onClick={(event) => routeLink(event, coverageHref, navigate)}>{count(notChecked)} {t.decisionNotChecked}</a></>}
+      </p>}
+      <p className="reports-decision-caution">{t.decisionCaution}</p>
+    </section>
+  );
+}
+
 function ReportDetails({ report, t, lang, params, pathname, hash, navigate, reportApi, projectApi }) {
   const count = (value) => numberFormats[lang].format(value);
   const findings = report.findings || [];
@@ -820,6 +871,8 @@ function ReportDetails({ report, t, lang, params, pathname, hash, navigate, repo
 
   return (
     <>
+      <Decision findings={findings} coverage={coverage} applied={applied} t={t} lang={lang} count={count}
+        coverageHref={sectionPath("coverage")} navigate={navigate} />
       <section className="reports-overview reports-panel" id="report-summary" aria-labelledby="report-overview-title">
         <div className="reports-overview-main">
           <div className="reports-overview-mark"><FileCheck2 aria-hidden="true" size={22} /></div>
