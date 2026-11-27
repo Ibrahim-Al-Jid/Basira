@@ -19,6 +19,10 @@ import "@fontsource/ibm-plex-sans-arabic/arabic-500.css";
 import "@fontsource/ibm-plex-sans-arabic/arabic-600.css";
 import "@fontsource/ibm-plex-sans-arabic/arabic-700.css";
 import "@fontsource-variable/space-grotesk";
+import "@fontsource/cairo/arabic-700.css";
+import "@fontsource/cairo/arabic-900.css";
+import "@fontsource/cairo/latin-700.css";
+import "@fontsource/cairo/latin-900.css";
 import "@fontsource/inter/latin-500.css";
 import "@fontsource/inter/latin-600.css";
 import {
@@ -38,6 +42,7 @@ import { PersonalSidebar } from "./PersonalWorkspace";
 import { action } from "./platformClient";
 import "./style.css";
 import "./workspace.css";
+import "./design-pop.css";
 
 function currentLocation() {
   return { pathname: window.location.pathname, search: window.location.search, hash: window.location.hash };
