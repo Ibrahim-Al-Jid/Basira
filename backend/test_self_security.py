@@ -204,3 +204,12 @@ def test_a_stored_key_is_encrypted_bound_to_its_organization_and_never_in_an_err
         gateway.other_provider_reply("openai", "sk-live-abcdef123456", "m", "s", "u")
     assert "abcdef123456" not in str(failed.value.detail)
     assert "abcdef123456" not in llm_providers.mask_key("sk-live-abcdef123456")[:-4]
+
+
+def test_search_code_stops_a_slow_model_pattern_that_passes_the_shape_check(monkeypatch):
+    import time
+    monkeypatch.setattr(agents, "SEARCH_TIMEOUT", 1)
+    started = time.monotonic()
+    assert agents.search_lines("a" * 40 + "b", "(a|aa)+$") == "pattern too slow"
+    assert time.monotonic() - started < 5
+    assert agents.search_lines("x\n$_GET", r"\$_GET") == "2: $_GET"
