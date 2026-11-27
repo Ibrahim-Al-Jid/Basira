@@ -52,7 +52,7 @@ ZIP وGitHub يشتركان في فحص الأرشيف والجرد والتحل
 | JSON خبيث (تداخل عميق، مفاتيح مكررة، NaN) | `read_object` يرفضها برسالة عامة | نفس الملف |
 | محتوى ضار داخل التقرير المصدَّر | HTML يهرّب كل نص مع `Content-Security-Policy: default-src 'none'`، واسم الملف المصدَّر ثابت أو من معرّف التقرير | تقرير فيه وسم HTML يظهر مهرّباً، ومعرّف تقرير فيه سطر جديد أو علامة اقتباس يعطي 404 بدون ترويسات إضافية |
 
-غير مغطى بعد: إخراج PDF وSARIF لمحتوى ضار، وفحص المستودع بأدوات المصدر الخارجية (gitleaks وsemgrep لم تُشغَّل)، والتعبيرات النمطية التي يولّدها النموذج في أداة `search_code` لتجربة الكشف (لا يوجد حدّ زمني لها).
+غير مغطى بعد: إخراج PDF لمحتوى ضار، وفحص المستودع بأدوات المصدر الخارجية (gitleaks وsemgrep لم تُشغَّل)، والتعبيرات النمطية التي يولّدها النموذج في أداة `search_code` لتجربة الكشف (لا يوجد حدّ زمني لها).
 
 ## تصميم النسخة السابقة
 
@@ -67,7 +67,7 @@ ZIP وGitHub يشتركان في فحص الأرشيف والجرد والتحل
 | Memory | وصول محدود لكل دور حسب المؤسسة والمشروع وما يلزم للمهمة | PostgreSQL لاستعلامات محددة؛ البحث النصي كفاية كبداية. تقييم الاسترجاع قبل إدخال Vector DB. |
 | Data Persistence | حفظ العمليات والأدلة والتقارير ونسخ المصادر | PostgreSQL + SQLAlchemy + Alembic، وتخزين S3-compatible خاص للملفات الكبيرة مع حذف دوري وتشفير ومراجع Object Keys معتمة. |
 | User Management | هوية المستخدم وأذوناته وإبطالها | OIDC Authorization Code + PKCE، جلسات خادم، RBAC وتحقق على الموارد وقيود RLS. |
-| Reporting | تحويل الأدلة إلى نسخة تقرير ثابتة قابلة للعرض والتصدير | React لصفحة التقارير، HTML مع escaping وJSON بإصدار عقد. SARIF لنتائج لها موقع في المصدر. CSV مؤجل حتى وجود حالة استخدام واضحة. |
+| Reporting | تحويل الأدلة إلى نسخة تقرير ثابتة قابلة للعرض والتصدير | React لصفحة التقارير، HTML مع escaping وJSON بإصدار عقد. CSV مؤجل حتى وجود حالة استخدام واضحة. |
 | التشغيل والجودة | تتبع حالة الـjob والدور والأداة والتكلفة، واختبارات المنتج | Pytest وPlaywright على التطبيق نفسه، OpenTelemetry ببيانات تشغيل منقّحة، CI للبناء وترحيل قاعدة الاختبار واختبارات العقود. |
 
 ### الخمس أدوار وصلاحياتها
@@ -112,5 +112,5 @@ ZIP وGitHub يشتركان في فحص الأرشيف والجرد والتحل
 - فصل حالة الرسم عن بيانات المشروع، والتعامل مع structured output حسب قدرة الموديل وسياسة الاحتفاظ. [LangGraph Persistence](https://docs.langchain.com/oss/python/langgraph/persistence) · [OpenRouter Structured Outputs](https://openrouter.ai/docs/guides/features/structured-outputs) · [OpenRouter Privacy](https://openrouter.ai/privacy)
 - تثبيت الوصول في الهوية وقاعدة البيانات وترحيل المخطط على مراحل. [OpenID Connect Core](https://openid.net/specs/openid-connect-core-1_0.html) · [PostgreSQL Row Security](https://www.postgresql.org/docs/current/ddl-rowsecurity.html) · [Alembic Autogenerate](https://alembic.sqlalchemy.org/en/latest/autogenerate.html)
 - تصميم مهام idempotent مع redelivery، ومقارنة المتطلبات مع Temporal. [Celery Tasks](https://docs.celeryq.dev/en/main/userguide/tasks.html) · [Temporal Python](https://docs.temporal.io/develop/python/integrations) · [OpenTelemetry Python](https://opentelemetry.io/docs/languages/python/)
-- أدوات محلية ثابتة الإصدارات وتحقق من قابلية قراءة التقرير وتشغيله. [Semgrep CLI](https://semgrep.dev/docs/cli-reference) · [OSV-Scanner](https://google.github.io/osv-scanner/) · [Trivy](https://trivy.dev/docs/latest/scanner/misconfiguration/) · [ZAP Passive Scanner](https://www.zaproxy.org/docs/desktop/addons/passive-scanner/) · [SARIF](https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html)
+- أدوات محلية ثابتة الإصدارات وتحقق من قابلية قراءة التقرير وتشغيله. [Semgrep CLI](https://semgrep.dev/docs/cli-reference) · [OSV-Scanner](https://google.github.io/osv-scanner/) · [Trivy](https://trivy.dev/docs/latest/scanner/misconfiguration/) · [ZAP Passive Scanner](https://www.zaproxy.org/docs/desktop/addons/passive-scanner/)
 - تطوير الواجهة تدريجيًا والتحقق من الوصول من خلال المتصفح. [Vite](https://vite.dev/guide/) · [shadcn/ui](https://ui.shadcn.com/docs) · [TanStack Query](https://tanstack.com/query/latest/docs/framework/react/typescript) · [WCAG 2.2](https://www.w3.org/TR/WCAG22/) · [Playwright](https://playwright.dev/docs/intro)

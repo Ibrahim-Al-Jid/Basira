@@ -69,14 +69,9 @@ def test_gitleaks_fixture_merges_builtin_observation_and_keeps_provenance(monkey
         "APP-02": 1, adapters.GITLEAKS_RULE: 1,
     }
     assert data["metrics"]["findingsCount"] == data["metrics"]["validatedCount"] == 2
-    from .advanced_reporting import sarif
     report = projected_report(data)
-    payload = sarif(report, "en")
-    assert {point["ruleId"] for point in payload["runs"][0]["results"]} == {"APP-02", adapters.GITLEAKS_RULE}
-    assert all(point["partialFingerprints"] for point in payload["runs"][0]["results"])
     for value in (SYNTHETIC_GITHUB, SYNTHETIC_STRIPE):
         assert value not in report.model_dump_json()
-        assert value not in json.dumps(payload)
 
 
 def test_osv_aliases_merge_and_partial_input_retains_results(monkeypatch, tmp_path):

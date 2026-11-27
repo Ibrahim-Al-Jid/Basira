@@ -65,11 +65,6 @@ def test_openapi_contract_inventory_reference_and_exports(platform):
     path = report.request.url.path
     assert other.get(path).status_code == 404
     assert owner.get(path + "/download?format=pdf").content.startswith(b"%PDF")
-    sarif = owner.get(path + "/download?format=sarif").json()
-    assert sarif["version"] == "2.1.0"
-    assert sarif["runs"][0]["results"][0]["locations"][0]["physicalLocation"] == {
-        "artifactLocation": {"uri": "api.json"},
-    }
     assert submit(owner, scope, {**body, "target_reference": "https://user:secret@host.test"}, key="invalid-url").status_code == 422
     assert owner.put(f"/api/platform/projects/{scope.project_id}/policy",
                      json={"allowed_kinds": ["openapi"], "base_url": "https://policy.example.test"}).is_success
