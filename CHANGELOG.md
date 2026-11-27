@@ -54,6 +54,7 @@
 - `check_dockerfile` used `current_alias` before assignment.
 - Same-line findings (P19 follow-up): two identical findings from one tool on one line, such as two HTTP scripts in minified HTML, are no longer merged into one. The same finding from two different tools still merges. Synthetic evaluation HTML recall is 1.0 (5 of 5), was 0.8.
 - Local Windows setup: `compose.local.yaml` now turns personal projects on for the app, dispatcher and worker, so Connect GitHub is available without adding `BASIRA_PERSONAL_PROJECTS=1` to `.env.local`. A generated `.env.local` carried `0`, which hid the whole Personal projects path.
+- Model connection locally: `ops/start-local.ps1 -Model` writes the four gateway settings to `.env.local` and starts the `model` compose profile; the Account page said "gateway unavailable" because nothing started the gateway or set its address and token. The unavailable state now says whether the gateway is not set up or not answering (`reason` field and UI text). Not run end to end (no Docker here).
 
 ### Removed
 - `work/` folder (its content moved into `docs/PLAN.md`).
