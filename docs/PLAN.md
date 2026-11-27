@@ -70,7 +70,7 @@ A future addition may be started early only if Release 1 is complete, or if it b
 
 ## 2. Current position
 
-Phases P01 to P08 are built; this plan has 24 phases (P01 to P24). P09 has its model lane in place; **work is in P10** (redesign), then P20. Release 1 scope is defined above; everything else is a future addition.
+Phases P01 to P08 are built; this plan has 24 phases (P01 to P24). P09 has its model lane in place; P10 slices a to f and P20 are merged; open: the automatic default project (scan flow is 4 actions, target 3), then future additions. Release 1 scope is defined above; everything else is a future addition.
 
 Verified on 27 November 2026:
 - Python 3.13: 251 backend tests passed, 1 skipped at the time of this entry. Later runs are recorded in CI and in `docs/RELEASE.md`.
@@ -99,7 +99,7 @@ Status: **done** (built, tests exist, acceptance re-run or re-checked on 27 Nove
 | P07 | Tools, agents and memory | Pinned tool registry, offline execution, five-stage graph, model gateway and advisor, checkpoints, scan memory | partial |
 | P08 | Product journey | Personal projects workspace, ownership migration, project pages | done |
 | P09 | Live experience and report model | Per-agent live view, frozen report model, report and PDF parity tests | in progress: slice (a) tokens done |
-| P10 | Redesign: UI/UX, fewer steps, automation | Design system, single-screen Scan flow, live view, decision-first report, dashboard, landing; 10 actions to 3 | open (current) |
+| P10 | Redesign: UI/UX, fewer steps, automation | Design system, single-screen Scan flow, live view, decision-first report, dashboard, landing; 10 actions to 3 | partial: slices a to f merged (Pop, decision report, live view, dashboard, landing and sign-in); open: automatic default project (4 actions measured, target 3) |
 | P11 | Recheck and history | Fixed, Still present, New, Changed, Inconclusive, Needs review | future (after Release 1) (open) |
 | P12 | Remediation | Repair plans, approval, optional sandbox patch draft | future (after Release 1) (open) |
 | P13 | Help and report assistant | Static contextual help, then the cited read-only report assistant (committed) | future (after Release 1) (open) |
@@ -115,7 +115,7 @@ Status: **done** (built, tests exist, acceptance re-run or re-checked on 27 Nove
 | P24 | Thesis and defense package | Problem statement, related work (from `research/competitors.md`), architecture, evaluation chapter with limits, ethics and authorization rules for scanning, a small usability check with real users, slides, demo script, prepared answers to likely questions | partial: eight files in [thesis](thesis/README.md) (chapters, slides outline, 18 prepared answers); open: usability check with five real users, evaluation chapter update when C3 and C4 run, the slide deck file |
 | P18 | Hardening and release | Isolation and recovery acceptance, Docker verified, legacy removal, release manifest, rename | open |
 
-Order of work, set by the agent as the expert (owner delegated sequencing, 27 Nov 2026): P21 (provider settings, done), P09 model lane (done), P10 redesign slices a to f (current, the owner is waiting for it), then P20 (replay and budget check), P19 (source-code checks, the biggest measured gap), P11, P17 and P23 (measured evaluation with precision, when the free-tier cap allows), P13, P16, P15, P22, P07 gaps, P12, P24, P18. P14 follows decision A and ships before P17 if approved, so evaluation covers it.
+Order of work, set by the agent as the expert (27 Nov 2026): P21 (provider settings, done), P09 model lane (done), P10 redesign slices a to f (merged), then P20 (replay and budget check, merged), P19 (source-code checks, the biggest measured gap), P11, P17 and P23 (measured evaluation with precision, when the free-tier cap allows), P13, P16, P15, P22, P07 gaps, P12, P24, P18. P14 follows decision A and ships before P17 if approved, so evaluation covers it.
 
 Release 1 closes first (see Release 1 above): P10, P20, then the P18 release checklist. The rest of this order applies to future additions.
 
@@ -147,7 +147,7 @@ Open items inside P07: failure and recovery acceptance (crash after checkpoint, 
 
 Done when: scan page shows each role live in a browser test, and the parity test passes in both languages.
 
-### P10 Redesign: new UI/UX, fewer steps, more automation (now the current phase)
+### P10 Redesign: new UI/UX, fewer steps, more automation (slices a to f merged; automatic default project open)
 
 The owner asked for a radical redesign: easier flows, less manual work, more automation. It moves ahead of P20 and P19 in the order of work because it changes what every later feature looks like.
 
