@@ -257,3 +257,14 @@ def test_other_provider_is_saved_and_a_stored_key_never_moves_to_another_target(
         moved = client.put(root(ctx), json={"model": "gpt-x", **target}, headers=ORIGIN)
         assert moved.status_code == 422, moved.text
     assert client.put(root(ctx), json={"provider": "custom", "model": "gpt-x", "api_key": KEY}, headers=ORIGIN).status_code == 422
+
+
+def test_unavailable_view_says_whether_the_gateway_is_missing_or_not_answering(monkeypatch):
+    monkeypatch.delenv("BASIRA_GATEWAY_URL", raising=False)
+    monkeypatch.delenv("BASIRA_GATEWAY_TOKEN", raising=False)
+    assert connections.connection_view(None, False) == {
+        "available": False, "connection": None, "reason": "not_configured"}
+    monkeypatch.setenv("BASIRA_GATEWAY_URL", GATEWAY)
+    monkeypatch.setenv("BASIRA_GATEWAY_TOKEN", "test-only-gateway-auth")
+    assert connections.connection_view(None, False)["reason"] == "unreachable"
+    assert "reason" not in connections.connection_view(None, True)

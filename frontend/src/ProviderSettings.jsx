@@ -96,7 +96,11 @@ export function ProviderSettings({ lang }) {
     {error && <p role="alert" className="workspace-error">{errorText(error, t)}</p>}
     {!state && !error && <p role="status">{t("بنحمّل إعدادات المزوّد…", "Loading provider settings…")}</p>}
     {((!state && error) || (state && !state.available)) && <div className="workspace-actions">
-      {state && <p>{t("بوابة الموديل غير متاحة حاليًا.", "The model gateway is currently unavailable.")}</p>}
+      {state && <p>{state.reason === "not_configured"
+        ? t("بوابة الموديل مش متظبطة على السيرفر. شغّل ops/start-local.ps1 -Model وبعدها اعمل إعادة محاولة.", "The model gateway is not set up on this server. Run ops/start-local.ps1 -Model, then retry.")
+        : state.reason === "unreachable"
+          ? t("بوابة الموديل متظبطة بس مش بترد. تأكد إن حاوية model-gateway شغالة في Docker وجرّب تاني.", "The model gateway is set up but not answering. Check that the model-gateway container is running in Docker, then retry.")
+          : t("بوابة الموديل غير متاحة حاليًا.", "The model gateway is currently unavailable.")}</p>}
       <button className="btn" type="button" onClick={() => setAttempt((value) => value + 1)}>{t("إعادة المحاولة", "Retry")}</button>
     </div>}
     {state?.available && <>

@@ -4,7 +4,9 @@ param(
     [int]$Port = 8765,
     # Optional. Public identifiers of the GitHub App, written to .env.local only when those lines are empty.
     [string]$GitHubClientId = '',
-    [string]$GitHubAppSlug = ''
+    [string]$GitHubAppSlug = '',
+    # Start the model gateway and write its settings to .env.local (also on when BASIRA_PROJECT_MODEL_ENABLED=1 is already there).
+    [switch]$Model
 )
 
 $ErrorActionPreference = 'Stop'
@@ -29,6 +31,38 @@ function Test-CredentialKey([string]$key) {
     try {
         return ([Convert]::FromBase64String($key.Replace('-', '+').Replace('_', '/'))).Length -eq 32
     } catch { return $false }
+}
+
+function New-RandomText([int]$bytes) {
+    $buffer = New-Object byte[] $bytes
+    $random = [Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $random.GetBytes($buffer) } finally { $random.Dispose() }
+    return [BitConverter]::ToString($buffer).Replace('-', '').ToLowerInvariant()
+}
+
+# Returns $true when the model gateway profile must be started.
+function Initialize-ModelSettings([string]$path, [bool]$requested) {
+    $text = [IO.File]::ReadAllText($path)
+    $enabled = (Get-Setting $text 'BASIRA_PROJECT_MODEL_ENABLED') -eq '1'
+    if (-not ($requested -or $enabled)) { return $false }
+    $original = $text
+    $text = Set-Setting $text 'BASIRA_PROJECT_MODEL_ENABLED' '1'
+    if (-not (Get-Setting $text 'BASIRA_GATEWAY_URL')) {
+        $text = Set-Setting $text 'BASIRA_GATEWAY_URL' 'http://model-gateway:8001'
+    }
+    if (-not (Get-Setting $text 'BASIRA_GATEWAY_TOKEN')) {
+        $text = Set-Setting $text 'BASIRA_GATEWAY_TOKEN' (New-RandomText 32)
+    }
+    $dbPassword = Get-Setting $text 'BASIRA_MODEL_DB_PASSWORD'
+    if (-not $dbPassword) {
+        $text = Set-Setting $text 'BASIRA_MODEL_DB_PASSWORD' (New-RandomText 24)
+    } elseif ($dbPassword -notmatch '^[0-9A-Za-z]{24,128}$') {
+        throw 'BASIRA_MODEL_DB_PASSWORD in .env.local must be 24 to 128 letters or digits. Clear the value and run this script again to get a new one.'
+    }
+    if ($text -ne $original) {
+        [IO.File]::WriteAllText($path, $text, (New-Object Text.UTF8Encoding($false)))
+    }
+    return $true
 }
 
 function Initialize-GitHubSettings([string]$path, [int]$port, [string]$clientId, [string]$slug) {
@@ -110,10 +144,12 @@ if (-not (Test-Path -LiteralPath $settings)) {
 }
 
 Initialize-GitHubSettings $settings $Port $GitHubClientId $GitHubAppSlug
+$withModel = Initialize-ModelSettings $settings ([bool]$Model)
 
 Push-Location -LiteralPath $root
 try {
     $compose = @('-p', $project, '-f', 'compose.yaml', '-f', 'compose.local.yaml', '--env-file', '.env.local')
+    if ($withModel) { $compose += @('--profile', 'model') }
     docker compose @compose up -d --build
     if ($LASTEXITCODE -ne 0) { throw 'Basira failed to start. Check the Docker Compose output above.' }
     $published = docker compose @compose port app 8000

@@ -272,7 +272,11 @@ def reserve_verification(db, org_id):
 
 def connection_view(current, available):
     fields = ("id", "provider", "base_url", "model", "verified_at", "source")
-    return {"available": available, "connection": {key: current[key] for key in fields} if current else None}
+    view = {"available": available, "connection": {key: current[key] for key in fields} if current else None}
+    if not available:
+        # "not_configured": the app has no gateway address or token. "unreachable": configured, but not answering.
+        view["reason"] = "unreachable" if all(gateway_config()[0:1]) else "not_configured"
+    return view
 
 
 def verify_at_gateway(org_id, body, previous_generation, generation):

@@ -87,7 +87,7 @@ docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file 
 
 ### إضافة إثراء OpenRouter
 
-اضبط `BASIRA_PROJECT_MODEL_ENABLED=1` و`BASIRA_GATEWAY_URL=http://model-gateway:8001`. أنشئ `BASIRA_GATEWAY_TOKEN` و`BASIRA_MODEL_DB_PASSWORD` بقيمتين عشوائيتين مستقلتين. كلمة مرور قاعدة البيانات تقبل ٢٤ إلى ١٢٨ حرفًا أو رقمًا (ASCII).
+على Windows، شغّل `ops/start-local.ps1 -Model` مرة واحدة. السكريبت بيكتب الإعدادات الأربعة (`BASIRA_PROJECT_MODEL_ENABLED` و`BASIRA_GATEWAY_URL` و`BASIRA_GATEWAY_TOKEN` و`BASIRA_MODEL_DB_PASSWORD`) في `.env.local` بقيم عشوائية، وبيشغّل خدمة `model-gateway` (profile اسمه `model`). بعد كده أي تشغيل عادي للسكريبت بيشغّلها طالما `BASIRA_PROJECT_MODEL_ENABLED=1` موجود. لو صفحة «اتصال الموديل» قالت إن البوابة مش متظبطة، ده معناه إن الإعدادات دي أو الـprofile ناقصين. للتشغيل اليدوي: اضبط `BASIRA_PROJECT_MODEL_ENABLED=1` و`BASIRA_GATEWAY_URL=http://model-gateway:8001`. أنشئ `BASIRA_GATEWAY_TOKEN` و`BASIRA_MODEL_DB_PASSWORD` بقيمتين عشوائيتين مستقلتين. كلمة مرور قاعدة البيانات تقبل ٢٤ إلى ١٢٨ حرفًا أو رقمًا (ASCII).
 
 ```powershell
 docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file .env.local --profile model up -d --build
