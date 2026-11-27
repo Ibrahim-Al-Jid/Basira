@@ -7,7 +7,7 @@ Detection rate alone rewards noisy checks. Every measured set records three numb
 | Set | Input | Needs network | Baseline (27 Nov 2026) |
 |---|---|---|---|
 | `reference_corpus` | 12-case regression corpus, static adapters, mocked profile | no | precision 0.900, recall 0.900 (9 true, 1 false, 1 missed) |
-| `dvwa_static` | 13 vulnerable and 13 fixed DVWA files at a pinned commit, static checks only | yes | recall 0.000 (0 of 13), precision undefined (no findings), false-positive rate 0 of 13 clean files |
+| `dvwa_static` | 13 vulnerable and 13 fixed DVWA files at a pinned commit, static checks only | yes | recall 0.615 (8 of 13), precision 0.533, false-positive rate 0.077 (1 of 13 clean files flagged); after P19, a development score (source: `tests/fixtures/quality-baseline.json`) |
 | `dvwa_model_single_recorded` | the recorded C2 model run scored against the same DVWA labels | no | recall 0.615 (8 of 13), precision 0.250, false-positive rate 5 of 13 clean files |
 
 The reference corpus was written together with the checks, so it guards against regressions and proves little about detection. DVWA is the independent set; its labels come from one reader. The unit is a (file, taxonomy subdomain) pair. A pair reported anywhere other than a labeled vulnerability is a false positive, including the same subdomain on a fixed file. The false-positive rate is fixed files flagged divided by fixed files. The mocked profile simulates the external adapters, so its numbers are not a claim about the real tools.

@@ -41,7 +41,7 @@ History, kept because it is part of the evidence: before #28 the HTML domain sho
 
 ## 4.3 Tests
 
-`npm test`: 284 passed, 1 skipped (27 November 2026). Browser suites (Playwright) exist for account, workspace, source intake, personal projects and release; only the personal-projects suite was re-run on 27 November in Arabic and English. Docker and Compose were not run.
+`npm test`: 284 passed, 1 skipped (27 November 2026, earlier run; the later CI and agent-reported counts are in `docs/RELEASE.md`). Browser suites (Playwright) exist for account, workspace, source intake, personal projects and release; only the personal-projects suite was re-run on 27 November in Arabic and English. Docker and Compose were not run.
 
 ## 4.4 What is not measured yet
 

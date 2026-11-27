@@ -1,6 +1,6 @@
 # Basira plan
 
-The single source of truth for what Basira is, what is built, what is next, and how each piece is accepted. Everything else in the repo supports this file. Edited on 27 November 2026.
+The single source of truth for what Basira is, what is built, what is next, and how each piece is accepted. Everything else in the repo supports this file. Edited on 27 November 2026 (P18 checklist results added).
 
 Contents: [1 Product](#1-product) · [2 Current position](#2-current-position) · [3 Phases](#3-phases) · [4 Phase details](#4-phase-details) · [5 Architecture](#5-architecture) · [6 Agents, tools, memory](#6-agents-tools-and-memory) · [7 Contracts](#7-contracts) · [8 Acceptance](#8-acceptance) · [9 Risks](#9-risks-and-limits) · [10 Decisions](#10-decisions) · [11 Conventions](#11-conventions)
 
@@ -73,10 +73,10 @@ A future addition may be started early only if Release 1 is complete, or if it b
 Phases P01 to P08 are built; this plan has 24 phases (P01 to P24). P09 has its model lane in place; **work is in P10** (redesign), then P20. Release 1 scope is defined above; everything else is a future addition.
 
 Verified on 27 November 2026:
-- Python 3.13: 251 backend tests pass, 1 skipped.
+- Python 3.13: 251 backend tests passed, 1 skipped at the time of this entry. Later runs are recorded in CI and in `docs/RELEASE.md`.
 - Real stack without containers (PostgreSQL 17, Redis 7.2, API, dispatcher, Celery worker, Chromium): personal-projects browser acceptance passed in Arabic and English, covering ZIP scan, report, PDF export and cross-account isolation.
 - Local lab starts with `npm start`; UI, `/demo` and `/api/taxonomy` respond.
-- Not run: Docker image build and Compose, `tests/container_smoke.py`, the other browser suites, real model provider calls, S3 intake.
+- Not run: Docker image build and Compose, `tests/container_smoke.py`, the other browser suites, real model provider calls, S3 intake. The P18 checklist results are in `docs/RELEASE.md` under "Release 1 checklist".
 
 Measured gaps:
 - Scan page shows one "Queued" entry, no per-agent view.
@@ -93,7 +93,7 @@ Status: **done** (built, tests exist, acceptance re-run or re-checked on 27 Nove
 | P01 | Foundations | Agent roles and contracts, rule registry, evidence-verified output, file selection | done |
 | P02 | Reports and export | Report pages, Arabic and English HTML, JSON, PDF, comparison, comments, finding statuses | done |
 | P03 | Platform core | Local accounts, OIDC, PostgreSQL with row-level security, Redis and Celery with outbox and leases | done |
-| P04 | Detection catalog | 100 checks in six families, vulnerability taxonomy and API, input adapters | done |
+| P04 | Detection catalog | 114 checks in seven families (100 at P04, 14 source-code checks added in P19), vulnerability taxonomy and API, input adapters | done |
 | P05 | Evidence and provenance | Evidence contracts, source analysis, evidence links, web and API evidence | done |
 | P06 | Intake | ZIP, GitHub App, approved website pages, HAR, ZAP and OpenAPI import, quarantine lifecycle | done |
 | P07 | Tools, agents and memory | Pinned tool registry, offline execution, five-stage graph, model gateway and advisor, checkpoints, scan memory | partial |

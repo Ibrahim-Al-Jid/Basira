@@ -30,7 +30,7 @@ The live demo is in [DEMO.md](../DEMO.md). Run steps are in the [README](../../R
 From the repo root, after the setup in the README:
 
 ```bash
-npm test                                           # backend tests (284 passed, 1 skipped on 27 Nov 2026)
+npm test                                           # tests (see docs/RELEASE.md for the current checklist; 284 passed, 1 skipped on 27 Nov 2026 was an earlier run)
 .venv/bin/python -m backend.synthetic_evaluation   # 18-case synthetic corpus, per-domain precision and recall
 .venv/bin/python -m backend.detection_experiment --config static   # DVWA, static checks, downloads pinned files
 ```
