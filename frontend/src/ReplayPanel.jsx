@@ -9,7 +9,7 @@ const KINDS = {
   partial: ["جزئي", "Partial"], failed: ["فشل", "Failed"], cancelled: ["أُلغي", "Cancelled"],
   model_skipped: ["الموديل لم يُستخدم", "Model not used"],
 };
-const HIDDEN_KINDS = new Set(["agent_done", "stage_start"]);
+const HIDDEN_KINDS = new Set(["agent_done", "agent_start", "stage_start"]);
 
 // Plays a stored scan's events back in order, so the live view can be shown when the provider is down.
 // Nothing here calls the network: it only re-reads the events the page already loaded.

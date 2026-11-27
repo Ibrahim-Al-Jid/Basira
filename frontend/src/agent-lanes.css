@@ -1,15 +1,26 @@
-.agent-lanes { margin-block: 1rem; }
+.agent-lanes { margin-block: 1.2rem; }
 .agent-lanes h3 { display: flex; align-items: center; gap: .6rem; margin: 0 0 .6rem; }
-.agent-lanes-count { color: var(--muted); font-weight: 400; font-size: .9rem; }
-.agent-lanes ol { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
-.agent-lanes li { display: flex; gap: .75rem; padding: .7rem .85rem; border: 1px solid var(--line); border-radius: var(--control-radius, 8px); }
-.agent-lanes li p { margin: .15rem 0 0; color: var(--muted); }
-.agent-lane-dot { flex: none; width: .8rem; height: .8rem; margin-top: .35rem; border-radius: 50%; background: var(--line); }
-.agent-lanes li[data-state="done"] .agent-lane-dot { background: #22c55e; }
-.agent-lanes li[data-state="running"] .agent-lane-dot { background: #19c7b5; animation: lane-pulse 1.2s ease-in-out infinite; }
-.agent-lanes li[data-state="skipped"] { opacity: .65; }
-.agent-lane-state { margin-inline-start: .6rem; font-size: .85rem; color: var(--muted); }
-.agent-lane-meta { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
-.agent-lane-meta code { padding: .05rem .4rem; border-radius: 4px; background: var(--surface-alt, #f1f1f5); }
+.agent-lanes-count { padding: .05rem .6rem; border: 3px solid var(--ink, #1b1340); border-radius: 999px; background: var(--pop-lemon, #ffd23f); color: #1b1340; font-size: .9rem; font-weight: 800; }
+.agent-lanes-bar { block-size: 14px; border: 3px solid var(--ink, #1b1340); border-radius: 999px; overflow: hidden; background: var(--surface, #fff); }
+.agent-lanes-bar i { display: block; block-size: 100%; background: var(--pop-mint, #3ddc97); transition: inline-size .5s cubic-bezier(.34, 1.56, .64, 1); }
+.agent-lanes-now { margin: .6rem 0; font-weight: 800; }
+.agent-lanes ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1.1rem; counter-reset: lane; }
+.agent-lanes-model { margin-top: 1.1rem !important; grid-template-columns: minmax(0, 1fr) !important; }
+.agent-lanes li { position: relative; display: block; padding: .85rem; border: 3px solid var(--ink, #1b1340); border-radius: 18px; background: var(--surface, #fff); color: var(--text, inherit); box-shadow: 0 5px 0 var(--ink, #1b1340); transition: transform .25s cubic-bezier(.34, 1.56, .64, 1), background .25s; }
+.agent-lanes ol:not(.agent-lanes-model) li:not(:last-child)::after { content: ""; position: absolute; inset-block-start: 50%; inset-inline-end: -1.1rem; inline-size: 1.1rem; border-top: 3px dashed var(--ink, #1b1340); }
+.agent-lanes li p { margin: .25rem 0 0; font-size: .92rem; }
+.agent-lane-dot { display: inline-block; inline-size: .85rem; block-size: .85rem; margin-inline-end: .45rem; border: 2px solid var(--ink, #1b1340); border-radius: 50%; background: transparent; }
+.agent-lanes li[data-state="done"] { background: var(--pop-mint, #3ddc97); color: #1b1340; }
+.agent-lanes li[data-state="done"] .agent-lane-dot { background: #1b1340; }
+.agent-lanes li[data-state="running"] { background: var(--pop-lemon, #ffd23f); color: #1b1340; transform: translateY(-6px); animation: lane-bounce 1.3s ease-in-out infinite; }
+.agent-lanes li[data-state="running"] .agent-lane-dot { background: var(--pop-tomato, #ff5a3c); animation: lane-pulse 1s ease-in-out infinite; }
+.agent-lanes li[data-state="skipped"] { opacity: .6; border-style: dashed; box-shadow: none; }
+.agent-lane-state { margin-inline-start: .4rem; font-size: .8rem; font-weight: 800; }
+.agent-lane-meta { display: flex; flex-wrap: wrap; gap: .3rem; align-items: center; }
+.agent-lane-meta code { padding: .05rem .4rem; border-radius: 999px; border: 2px solid #1b1340; background: rgba(255, 255, 255, .6); color: #1b1340; font-size: .75rem; }
 @keyframes lane-pulse { 50% { opacity: .35; } }
-@media (prefers-reduced-motion: reduce) { .agent-lanes li[data-state="running"] .agent-lane-dot { animation: none; } }
+@keyframes lane-bounce { 50% { transform: translateY(-10px); } }
+@media (prefers-reduced-motion: reduce) {
+  .agent-lanes li[data-state="running"], .agent-lanes li[data-state="running"] .agent-lane-dot { animation: none; }
+  .agent-lanes-bar i, .agent-lanes li { transition: none; }
+}

@@ -25,7 +25,10 @@ celery_app.conf.update(task_serializer="json", accept_content=["json"], worker_p
                                                  "socket_timeout": 3})
 
 
-def analyzed(row):
+LIVE_ROLES = {"orchestrator", "planning", "analysis", "validation", "reporting"}
+
+
+def analyzed(row, on_start=None):
     identity = store.source_identity(row)
     identity.pop("input_kind")
     payload = {"kind": row["input_meta"]["kind"], "name": row["input_meta"]["name"],
@@ -34,20 +37,37 @@ def analyzed(row):
     spool_dir = os.environ.get("BASIRA_ANALYSIS_SPOOL")
     if not spool_dir:
         if os.environ.get("BASIRA_ALLOW_INLINE_ANALYSIS") == "1":
-            return scan_payload(payload)
+            return scan_payload(payload, progress=on_start)
         raise RuntimeError("Offline analysis worker is required")
     spool = Path(spool_dir)
     spool.mkdir(parents=True, exist_ok=True)
     request = spool / (row["lease"] + ".request")
     result = request.with_suffix(".result")
-    tracked = (request, request.with_suffix(".working"), result)
+    marks = request.with_suffix(".progress")
+    tracked = (request, request.with_suffix(".working"), result, marks)
+    seen = 0
+
+    def announce():
+        nonlocal seen
+        if on_start is None or not marks.is_file():
+            return
+        try:
+            lines = marks.read_text(encoding="ascii").splitlines()
+        except (OSError, ValueError):
+            return
+        for role in lines[seen:]:
+            if role in LIVE_ROLES:
+                on_start(role)
+        seen = len(lines)
     try:
         write_json(request, payload)
         deadline = time.monotonic() + 50
         while time.monotonic() < deadline:
+            announce()
             if result.is_file():
                 if result.stat().st_size > 8_000_000:
                     raise ValueError("Result exceeds the protocol limit")
+                announce()
                 return json.loads(result.read_text(encoding="utf-8"))
             time.sleep(0.25)
         raise TimeoutError("The scanner did not return a result")
@@ -63,7 +83,8 @@ def execute_scan(org_id, project_id, scan_id):
     try:
         data = row["analysis_checkpoint"]
         if data is None:
-            result = analyzed(row)
+            result = analyzed(row, lambda role: store.record_stage(
+                org_id, project_id, scan_id, row["lease"], "agent_start", role))
             if "error" in result:
                 store.finish(org_id, project_id, scan_id, row["lease"], message=result["error"])
                 return

@@ -15,3 +15,14 @@ def test_agent_activity_reports_duration_and_tools_per_finished_stage():
 
 def test_agent_activity_without_steps_is_empty():
     assert agent_activity({}) == []
+
+
+def test_worker_reports_each_agent_start_in_order():
+    import base64
+    from .offline_worker import scan_payload
+    seen = []
+    html = b'<script src="http://assets.test/main.js"></script>'
+    payload = {"kind": "html", "name": "a.html", "content": base64.b64encode(html).decode(), "policy": {}}
+    result = scan_payload(payload, progress=seen.append)
+    assert "result" in result
+    assert seen == ["orchestrator", "planning", "analysis", "validation", "reporting"]

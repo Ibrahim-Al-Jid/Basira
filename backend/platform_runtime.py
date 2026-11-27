@@ -510,7 +510,7 @@ def save_analysis_checkpoint(org_id, project_id, scan_id, lease, analysis):
         return result
 
 
-STAGE_KINDS = {"stage_start", "agent_done", "model_skipped"}
+STAGE_KINDS = {"stage_start", "agent_start", "agent_done", "model_skipped"}
 
 
 def record_stage(org_id, project_id, scan_id, lease, kind, detail):

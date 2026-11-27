@@ -80,12 +80,14 @@ def verify_evidence(report, prepared, plan, rules):
     return json_digest(sorted(fingerprints))
 
 
-def scan_payload(data, *, external=False):
+def scan_payload(data, *, external=False, progress=None):
     steps = []
     tasks = []
 
     def node(role, parent, ar, en, operation):
         def event(status):
+            if status == "start" and progress:
+                progress(role)
             steps.append({"node": role, "role": role, "status": status,
                           "parents": [parent] if parent else [], "source": "system",
                           "detail": ar, "detail_en": en,
@@ -211,7 +213,7 @@ def scan_payload(data, *, external=False):
 def clear_expired(spool):
     cutoff = time.time() - 300
     for item in spool.iterdir():
-        if item.suffix in {".request", ".working", ".result", ".tmp"}:
+        if item.suffix in {".request", ".working", ".result", ".progress", ".tmp"}:
             try:
                 if item.is_file() and not item.is_symlink() and item.stat().st_mtime < cutoff:
                     item.unlink(missing_ok=True)
@@ -232,7 +234,12 @@ def run():
                 continue
             try:
                 data = json.loads(claimed.read_text(encoding="utf-8"))
-                result = scan_payload(data, external=True)
+                marks = item.with_suffix(".progress")
+
+                def progress(role):
+                    with marks.open("a", encoding="ascii") as handle:
+                        handle.write(role + "\n")
+                result = scan_payload(data, external=True, progress=progress)
                 if claimed.exists():
                     write_json(item.with_suffix(".result"), result)
             except (OSError, ValueError, RecursionError):
