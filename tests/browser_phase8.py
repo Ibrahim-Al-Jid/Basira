@@ -1,10 +1,10 @@
-"""Public and workspace routing, keyboard motion, and report-scope acceptance."""
+"""Phase 8 public/workspace routing, keyboard motion, and report-scope acceptance."""
 from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
 from playwright.sync_api import expect, sync_playwright
 
-from browser_release import ORIGIN, project_scan, report_locale
+from browser_phase6 import ORIGIN, project_scan, report_locale
 
 
 def reflows(page):
@@ -56,17 +56,17 @@ def workspace(browser):
     for route in ("/signin", "/dashboard", "/projects", "/new-scan", "/scans", "/findings", "/reports", "/settings", "/demo"):
         assert page.goto(ORIGIN + route).status == 200, route
         reflows(page)
-    assert context.request.get(ORIGIN + "/api/unknown-route").status == 404
+    assert context.request.get(ORIGIN + "/api/phase8-unknown").status == 404
     account = context.request.post(ORIGIN + "/api/platform/auth/password/register", data={
-        "email": f"workspace-{uuid4().hex[:12]}@example.test",
+        "email": f"phase8-{uuid4().hex[:12]}@example.test",
         "password": str(uuid4()) + str(uuid4()),
     })
     assert account.status == 201
     assert page.goto(ORIGIN + "/signin").ok
     page.wait_for_url("**/dashboard")
-    org = context.request.post(ORIGIN + "/api/platform/organizations", data={"name": "Workspace QA"})
+    org = context.request.post(ORIGIN + "/api/platform/organizations", data={"name": "Phase 8 QA"})
     assert org.status == 201
-    project = context.request.post(f"{ORIGIN}/api/platform/organizations/{org.json()['id']}/projects", data={"name": "Workspace scope"})
+    project = context.request.post(f"{ORIGIN}/api/platform/organizations/{org.json()['id']}/projects", data={"name": "Phase 8 scope"})
     assert project.status == 201
     project_id = project.json()["id"]
     report_id = project_scan(page, project_id, '<form action="http://example.test/"></form>')
@@ -108,7 +108,7 @@ def main():
         landing(browser)
         workspace(browser)
         browser.close()
-    print("Workspace browser checks passed for layout, locales, motion, auth, wizard, and report scope.")
+    print("Phase 8 browser checks passed for layout, locales, motion, auth, wizard, and report scope.")
 
 
 if __name__ == "__main__":

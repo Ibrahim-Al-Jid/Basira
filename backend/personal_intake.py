@@ -20,7 +20,7 @@ from . import github_import, intake_website, personal_github, platform_runtime a
 from .artifact_review import MAX_ARTIFACT, InputError, prepare, redact_label, safe_path
 from .identity import require_project
 from .intake_storage import StorageUnavailable, bounded_update, quarantine
-from .scan_contracts import DEFAULT_INPUTS, Identifier, ModelConnection, TargetProfile, json_digest
+from .phase9_contracts import DEFAULT_INPUTS, Identifier, ModelConnection, TargetProfile, json_digest
 from .platform_db import PersonalGitHubGrant, bind_project_context, platform_session
 
 router = APIRouter(prefix="/api/platform/projects/{project_id}/intake", tags=["Personal intake"])

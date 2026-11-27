@@ -8,7 +8,7 @@ import pytest
 
 from .artifact_review import RULESET_VERSION
 from .offline_worker import scan_payload
-from .scan_contracts import analyzer_plan
+from .phase9_contracts import analyzer_plan
 
 
 def scan(kind, name, raw, *, policy=None):

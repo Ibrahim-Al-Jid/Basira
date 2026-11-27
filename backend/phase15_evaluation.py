@@ -6,12 +6,12 @@ from contextlib import ExitStack
 import json
 from pathlib import Path
 
-from .corpus_evaluation import (
+from .phase12_evaluation import (
     EXPECTED_REJECTION, MANIFEST, OSV_DATABASE_SHA256, canon, engine_setup, load_manifest,
     scan, score, summarize,
 )
-from .synthetic_evaluation import percentile
-from .scan_contracts import analyzer_manifests
+from .phase6_evaluation import percentile
+from .phase9_contracts import analyzer_manifests
 
 
 def tools_baseline(path, profile, repetitions):

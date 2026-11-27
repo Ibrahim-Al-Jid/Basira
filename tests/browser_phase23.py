@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 from playwright.sync_api import expect, sync_playwright
 
-from browser_release import open_report_section, report_locale
+from browser_phase6 import open_report_section, report_locale
 
 BASE = os.environ.get("MARSAD_TEST_URL", "http://127.0.0.1:8766")
 assert urlparse(BASE).hostname == "127.0.0.1"

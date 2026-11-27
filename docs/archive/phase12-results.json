@@ -1,0 +1,859 @@
+{
+  "manifest": "marsad-phase12-holdout-1",
+  "corpus_sha256": "937c9379c51a9838c0d477ae050f42d89eea981e34cc51384c3ffb69e023730c",
+  "profile": "bundled",
+  "runtime": {
+    "python": "3.13.18",
+    "platform": "Linux",
+    "ruleset": "marsad-static-2",
+    "catalog_rules": 100,
+    "bundle": {
+      "gitleaks": "8.30.1",
+      "osv-scanner": "2.7.1"
+    },
+    "osv_database_date": "2026-11-21",
+    "osv_database_sha256": "fc59fe15b782dd1ed7db71464d4a70268dac9ee3ab595da28875ad5756896834"
+  },
+  "repetitions": 3,
+  "thresholds": {
+    "baseline_p95_ms": 300,
+    "static_adapters_p95_ms": 22000,
+    "fixture_enrichment_overhead_p95_ms": 150,
+    "minimum_precision": 0.9,
+    "minimum_recall": 0.9,
+    "minimum_priority_accuracy_gain": 0.1,
+    "maximum_duplicate_findings": 0,
+    "maximum_failures": 0,
+    "maximum_model_requests_per_scan": 1
+  },
+  "modes": {
+    "baseline": {
+      "tp": 7,
+      "fp": 1,
+      "fn": 3,
+      "in_scope_fn": 1,
+      "full_duplicates": 0,
+      "precision": 0.875,
+      "recall": 0.7,
+      "statuses": {
+        "completed": 11,
+        "rejected": 1
+      },
+      "latency_ms": {
+        "samples": 36,
+        "p50": 5.69,
+        "p95": 43.563
+      },
+      "cases": [
+        {
+          "case": "support-readonly",
+          "status": "completed",
+          "score": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 100
+          },
+          "findings_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "case": "member-address",
+          "status": "completed",
+          "score": {
+            "tp": 1,
+            "fp": 1,
+            "fn": 1,
+            "in_scope_fn": 1,
+            "full_duplicates": 0
+          },
+          "missing": [
+            [
+              "HTML-17",
+              "member.html",
+              2
+            ]
+          ],
+          "unexpected": [
+            [
+              "HTML-17",
+              "member.html",
+              3
+            ]
+          ],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 97,
+            "matched": 2,
+            "clear": 1
+          },
+          "findings_sha256": "4a5077ee7eab1c359658f2ccefa822c95281b2f8b70fdd300e77262e3826e5f9"
+        },
+        {
+          "case": "member-corrected",
+          "status": "completed",
+          "score": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 97,
+            "clear": 3
+          },
+          "findings_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "case": "two-script-locations",
+          "status": "completed",
+          "score": {
+            "tp": 2,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "matched": 1,
+            "not_applicable": 99
+          },
+          "findings_sha256": "04a04029fe0e894f848379b3604d536a18c25b23563bd6eb6d9b5d60f5743daf"
+        },
+        {
+          "case": "desktop-session-capture",
+          "status": "completed",
+          "score": {
+            "tp": 3,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 97,
+            "matched": 3
+          },
+          "findings_sha256": "cc715e17b14719d7ae75c22a4dbfe13757fa3495ed0766cb0b784ffed8500934"
+        },
+        {
+          "case": "secured-session-capture",
+          "status": "completed",
+          "score": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 97,
+            "clear": 3
+          },
+          "findings_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "case": "release-user-root",
+          "status": "completed",
+          "score": {
+            "tp": 1,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 96,
+            "matched": 1,
+            "clear": 3
+          },
+          "findings_sha256": "20c5ff0c3c9ec796390d63a75b57f6a2bd3a2e4f26c48ab6b2703bd4f6f80bed"
+        },
+        {
+          "case": "release-user-nonroot",
+          "status": "completed",
+          "score": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 96,
+            "clear": 4
+          },
+          "findings_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "case": "payment-placeholder",
+          "status": "completed",
+          "score": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [
+            [
+              "SRC-01",
+              "checkout/settings.py",
+              2
+            ]
+          ],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 98,
+            "clear": 2
+          },
+          "findings_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "case": "dependency-advisory-metadata",
+          "status": "completed",
+          "score": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [
+            [
+              "SCA-01",
+              "dependencies/requirements.txt",
+              2
+            ]
+          ],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 98,
+            "clear": 2
+          },
+          "findings_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "case": "dependency-without-pinned-advisory",
+          "status": "completed",
+          "score": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 98,
+            "clear": 2
+          },
+          "findings_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "case": "malformed-artifact",
+          "status": "rejected"
+        }
+      ]
+    },
+    "static_adapters": {
+      "tp": 9,
+      "fp": 1,
+      "fn": 1,
+      "in_scope_fn": 1,
+      "full_duplicates": 0,
+      "precision": 0.9,
+      "recall": 0.9,
+      "statuses": {
+        "completed": 11,
+        "rejected": 1
+      },
+      "latency_ms": {
+        "samples": 36,
+        "p50": 5.576,
+        "p95": 10333.427
+      },
+      "cases": [
+        {
+          "case": "support-readonly",
+          "status": "completed",
+          "score": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 100
+          },
+          "findings_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "case": "member-address",
+          "status": "completed",
+          "score": {
+            "tp": 1,
+            "fp": 1,
+            "fn": 1,
+            "in_scope_fn": 1,
+            "full_duplicates": 0
+          },
+          "missing": [
+            [
+              "HTML-17",
+              "member.html",
+              2
+            ]
+          ],
+          "unexpected": [
+            [
+              "HTML-17",
+              "member.html",
+              3
+            ]
+          ],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 97,
+            "matched": 2,
+            "clear": 1
+          },
+          "findings_sha256": "4a5077ee7eab1c359658f2ccefa822c95281b2f8b70fdd300e77262e3826e5f9"
+        },
+        {
+          "case": "member-corrected",
+          "status": "completed",
+          "score": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 97,
+            "clear": 3
+          },
+          "findings_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "case": "two-script-locations",
+          "status": "completed",
+          "score": {
+            "tp": 2,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "matched": 1,
+            "not_applicable": 99
+          },
+          "findings_sha256": "04a04029fe0e894f848379b3604d536a18c25b23563bd6eb6d9b5d60f5743daf"
+        },
+        {
+          "case": "desktop-session-capture",
+          "status": "completed",
+          "score": {
+            "tp": 3,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 97,
+            "matched": 3
+          },
+          "findings_sha256": "cc715e17b14719d7ae75c22a4dbfe13757fa3495ed0766cb0b784ffed8500934"
+        },
+        {
+          "case": "secured-session-capture",
+          "status": "completed",
+          "score": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 97,
+            "clear": 3
+          },
+          "findings_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "case": "release-user-root",
+          "status": "completed",
+          "score": {
+            "tp": 1,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 97,
+            "matched": 1,
+            "clear": 4
+          },
+          "findings_sha256": "20c5ff0c3c9ec796390d63a75b57f6a2bd3a2e4f26c48ab6b2703bd4f6f80bed"
+        },
+        {
+          "case": "release-user-nonroot",
+          "status": "completed",
+          "score": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 97,
+            "clear": 5
+          },
+          "findings_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "case": "payment-placeholder",
+          "status": "completed",
+          "score": {
+            "tp": 1,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 99,
+            "clear": 2,
+            "matched": 1
+          },
+          "findings_sha256": "198f5527f8fba910ada7a066af9d2e308ebfaa05135f596322392929c708ccaf"
+        },
+        {
+          "case": "dependency-advisory-metadata",
+          "status": "completed",
+          "score": {
+            "tp": 1,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 98,
+            "clear": 3,
+            "matched": 1
+          },
+          "findings_sha256": "0379a107f9260027c454cde7d27b839aabe1878360fdd9c53ded3b373f1685d5"
+        },
+        {
+          "case": "dependency-without-pinned-advisory",
+          "status": "completed",
+          "score": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 98,
+            "clear": 4
+          },
+          "findings_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "case": "malformed-artifact",
+          "status": "rejected"
+        }
+      ]
+    },
+    "fixture_enrichment": {
+      "tp": 9,
+      "fp": 1,
+      "fn": 1,
+      "in_scope_fn": 1,
+      "full_duplicates": 0,
+      "precision": 0.9,
+      "recall": 0.9,
+      "statuses": {
+        "completed": 11,
+        "rejected": 1
+      },
+      "latency_ms": {
+        "samples": 33,
+        "p50": 0.235,
+        "p95": 11.743
+      },
+      "cases": [
+        {
+          "case": "support-readonly",
+          "status": "completed",
+          "enrichment": "fallback",
+          "provider_eligible": false,
+          "score": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 100
+          },
+          "findings_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "case": "member-address",
+          "status": "completed",
+          "enrichment": "model",
+          "provider_eligible": true,
+          "score": {
+            "tp": 1,
+            "fp": 1,
+            "fn": 1,
+            "in_scope_fn": 1,
+            "full_duplicates": 0
+          },
+          "missing": [
+            [
+              "HTML-17",
+              "member.html",
+              2
+            ]
+          ],
+          "unexpected": [
+            [
+              "HTML-17",
+              "member.html",
+              3
+            ]
+          ],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 97,
+            "matched": 2,
+            "clear": 1
+          },
+          "findings_sha256": "4a5077ee7eab1c359658f2ccefa822c95281b2f8b70fdd300e77262e3826e5f9"
+        },
+        {
+          "case": "member-corrected",
+          "status": "completed",
+          "enrichment": "fallback",
+          "provider_eligible": false,
+          "score": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 97,
+            "clear": 3
+          },
+          "findings_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "case": "two-script-locations",
+          "status": "completed",
+          "enrichment": "model",
+          "provider_eligible": true,
+          "score": {
+            "tp": 2,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "matched": 1,
+            "not_applicable": 99
+          },
+          "findings_sha256": "04a04029fe0e894f848379b3604d536a18c25b23563bd6eb6d9b5d60f5743daf"
+        },
+        {
+          "case": "desktop-session-capture",
+          "status": "completed",
+          "enrichment": "model",
+          "provider_eligible": true,
+          "score": {
+            "tp": 3,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 97,
+            "matched": 3
+          },
+          "findings_sha256": "cc715e17b14719d7ae75c22a4dbfe13757fa3495ed0766cb0b784ffed8500934"
+        },
+        {
+          "case": "secured-session-capture",
+          "status": "completed",
+          "enrichment": "fallback",
+          "provider_eligible": false,
+          "score": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 97,
+            "clear": 3
+          },
+          "findings_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "case": "release-user-root",
+          "status": "completed",
+          "enrichment": "model",
+          "provider_eligible": true,
+          "score": {
+            "tp": 1,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 97,
+            "matched": 1,
+            "clear": 4
+          },
+          "findings_sha256": "20c5ff0c3c9ec796390d63a75b57f6a2bd3a2e4f26c48ab6b2703bd4f6f80bed"
+        },
+        {
+          "case": "release-user-nonroot",
+          "status": "completed",
+          "enrichment": "fallback",
+          "provider_eligible": false,
+          "score": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 97,
+            "clear": 5
+          },
+          "findings_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "case": "payment-placeholder",
+          "status": "completed",
+          "enrichment": "fallback",
+          "provider_eligible": false,
+          "score": {
+            "tp": 1,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 99,
+            "clear": 2,
+            "matched": 1
+          },
+          "findings_sha256": "198f5527f8fba910ada7a066af9d2e308ebfaa05135f596322392929c708ccaf"
+        },
+        {
+          "case": "dependency-advisory-metadata",
+          "status": "completed",
+          "enrichment": "fallback",
+          "provider_eligible": false,
+          "score": {
+            "tp": 1,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 98,
+            "clear": 3,
+            "matched": 1
+          },
+          "findings_sha256": "0379a107f9260027c454cde7d27b839aabe1878360fdd9c53ded3b373f1685d5"
+        },
+        {
+          "case": "dependency-without-pinned-advisory",
+          "status": "completed",
+          "enrichment": "fallback",
+          "provider_eligible": false,
+          "score": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "in_scope_fn": 0,
+            "full_duplicates": 0
+          },
+          "missing": [],
+          "unexpected": [],
+          "missing_advisories": [],
+          "coverage": {
+            "not_applicable": 98,
+            "clear": 4
+          },
+          "findings_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "case": "malformed-artifact",
+          "status": "rejected"
+        }
+      ]
+    }
+  },
+  "fallback": {
+    "timeout": {
+      "preserved_evidence": true,
+      "fallback": true,
+      "latency_ms": 1.443,
+      "requests": 0,
+      "reported_model_calls": null
+    },
+    "malformed": {
+      "preserved_evidence": true,
+      "fallback": true,
+      "latency_ms": 45.142,
+      "requests": 1,
+      "reported_model_calls": 1
+    },
+    "revoked": {
+      "preserved_evidence": true,
+      "fallback": true,
+      "latency_ms": 8.08,
+      "requests": 0,
+      "reported_model_calls": 0
+    }
+  },
+  "ranking": {
+    "labelled_cases": 2,
+    "deterministic_hit": 2,
+    "fixture_hit": 2,
+    "top1_accuracy_gain": 0.0
+  },
+  "constraints": {
+    "unexpected_outcomes": 0,
+    "maximum_fixture_model_requests": 1,
+    "usage_is_synthetic": true,
+    "fixture_usage": {
+      "modelCalls": 12,
+      "fixture_provider_requests": 12,
+      "inputTokens": 1200,
+      "outputTokens": 240
+    },
+    "external_provider_requests": 0,
+    "external_provider_cost_usd": null
+  },
+  "gates": {
+    "expected_runs": true,
+    "evidence_parity": true,
+    "latency": true,
+    "static_quality": true,
+    "duplicates": true,
+    "priority_gain": false,
+    "request_budget": true
+  },
+  "automatic_enrichment_approved": false
+}
