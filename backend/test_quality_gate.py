@@ -46,3 +46,23 @@ def test_offline_reference_corpus_does_not_regress_against_the_baseline():
 @pytest.mark.skipif(os.environ.get("BASIRA_EVAL_NETWORK") != "1", reason="downloads the pinned DVWA files")
 def test_dvwa_static_does_not_regress_against_the_baseline():
     assert gate.check({"dvwa_static": gate.measure_dvwa()}, gate.load_baseline()) == []
+
+
+def test_recorded_model_run_is_scored_offline_and_does_not_regress_against_the_baseline():
+    measured = gate.measure_recorded_model_runs()
+    assert set(measured) == {"dvwa_model_single_recorded"}
+    assert gate.check(measured, gate.load_baseline()) == []
+    row = measured["dvwa_model_single_recorded"]
+    assert (row["tp"], row["fn"], row["clean_files_flagged"], row["clean_files"]) == (8, 5, 5, 13)
+
+
+def test_a_recorded_model_run_with_a_lost_finding_or_an_extra_false_positive_fails_the_gate(monkeypatch, tmp_path):
+    import json
+    recorded = json.loads(next(iter(gate.RECORDED_MODEL_RUNS.values())).read_text(encoding="utf-8"))
+    worse = {path: ids[:-1] if ids else ids for path, ids in recorded.items()}
+    worse["vulnerabilities/sqli/source/impossible.php"] = ["D04.1"]
+    file = tmp_path / "run.json"
+    file.write_text(json.dumps(worse), encoding="utf-8")
+    monkeypatch.setattr(gate, "RECORDED_MODEL_RUNS", {"dvwa_model_single_recorded": file})
+    problems = gate.check(gate.measure_recorded_model_runs(), gate.load_baseline())
+    assert problems and all("dvwa_model_single_recorded" in problem for problem in problems)

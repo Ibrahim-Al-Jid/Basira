@@ -21,6 +21,16 @@
       "recall": 0.6153846153846154,
       "false_positive_rate": 0.07692307692307693,
       "note": "After P19 (SRC-01..14). Development score: rules were written after reading these files. fp counts findings beyond the expected ones, 1 of 13 clean files flagged."
+    },
+    "dvwa_model_single_recorded": {
+      "target": "DVWA 502ac150ce37c20ca6e04cab7c5ca959f315f2d0, 13 vulnerable and 13 fixed files, C2 (one agent, no tools) with nvidia/nemotron-3-ultra-550b-a55b:free, recorded run of 27 Nov 2026",
+      "tp": 8,
+      "fp": 24,
+      "fn": 5,
+      "precision": 0.25,
+      "recall": 0.6153846153846154,
+      "false_positive_rate": 0.38461538461538464,
+      "note": "Scored offline from the recorded findings in docs/research/detection-runs. Same labels as the static set, so it is a development score. The gate protects the scoring and the recorded file; a new model run raises or lowers it only by replacing that file in a change that says why."
     }
   }
 }

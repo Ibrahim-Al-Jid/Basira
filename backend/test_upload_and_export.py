@@ -2,6 +2,7 @@
 import base64
 import io
 import json
+import re
 import struct
 import zipfile
 from zipfile import ZIP_DEFLATED, ZIP_STORED, ZipFile, ZipInfo
@@ -150,3 +151,36 @@ def test_hostile_report_text_is_escaped_in_the_html_export_and_headers_are_fixed
         for hostile in ("x%0d%0aInjected:%20a", "%22%3Bfilename%3D%22evil"):
             answer = client.get(f"/api/reports/{hostile}/download")
             assert answer.status_code == 404 and "content-disposition" not in answer.headers and "injected" not in answer.headers
+
+
+def test_hostile_report_text_in_the_pdf_export_stays_text_with_no_active_content(monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+    from . import main
+    from .report_pdf import printable
+
+    hostile = ("<script>alert(1)</script> ) /JS (app.alert(1)) /OpenAction /Launch /URI (http://x.test) %%EOF\x00\x1b"
+               "\u202e\u2066 " + "A" * 3000 + " \U0001f600")
+    monkeypatch.setenv("BASIRA_DB_PATH", str(tmp_path / "t.sqlite3"))
+
+    async def graph(source, model, key, emit, previous=None):
+        return {"summary_en": hostile, "summary_ar": hostile, "metrics": {"validatedCount": 1, "modelCalls": 0}, "findings": [{
+            "rule": "http-form", "line": 1, "evidence": hostile, "severity": "medium", "title": hostile, "title_ar": hostile,
+            "remediation": hostile, "remediation_ar": hostile}]}
+
+    monkeypatch.setattr(main, "run_graph", graph)
+    with TestClient(main.app) as client:
+        events = [json.loads(line) for line in client.post("/api/run", json={"source": "<p>x</p>"}).text.splitlines()]
+        report_id = events[-1]["report"]["id"]
+        for lang in ("en", "ar"):
+            answer = client.get(f"/api/reports/{report_id}/download?format=pdf&lang={lang}")
+            assert answer.status_code == 200 and answer.headers["content-type"] == "application/pdf"
+            pdf = answer.content
+            assert pdf.startswith(b"%PDF-") and pdf.rstrip().endswith(b"%%EOF")
+            # The hostile words are drawn as glyphs inside compressed streams, never as PDF objects or actions.
+            for name in (b"/JavaScript", b"/JS", b"/Launch", b"/URI", b"/AA", b"/EmbeddedFile", b"/SubmitForm"):
+                assert name not in pdf
+            # The library's own page-zoom entry is the only /OpenAction allowed, and it must be a plain destination.
+            assert re.findall(rb"/OpenAction[^\n]*", pdf) == [b"/OpenAction [3 0 R /FitH null]"]
+            assert len(pdf) < 2_000_000
+    cleaned = printable(hostile)
+    assert len(cleaned) <= 450 and "\x00" not in cleaned and "\x1b" not in cleaned and "\u202e" not in cleaned

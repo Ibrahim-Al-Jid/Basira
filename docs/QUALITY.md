@@ -8,8 +8,13 @@ Detection rate alone rewards noisy checks. Every measured set records three numb
 |---|---|---|---|
 | `reference_corpus` | 12-case regression corpus, static adapters, mocked profile | no | precision 0.900, recall 0.900 (9 true, 1 false, 1 missed) |
 | `dvwa_static` | 13 vulnerable and 13 fixed DVWA files at a pinned commit, static checks only | yes | recall 0.000 (0 of 13), precision undefined (no findings), false-positive rate 0 of 13 clean files |
+| `dvwa_model_single_recorded` | the recorded C2 model run scored against the same DVWA labels | no | recall 0.615 (8 of 13), precision 0.250, false-positive rate 5 of 13 clean files |
 
 The reference corpus was written together with the checks, so it guards against regressions and proves little about detection. DVWA is the independent set; its labels come from one reader. The unit is a (file, taxonomy subdomain) pair. A pair reported anywhere other than a labeled vulnerability is a false positive, including the same subdomain on a fixed file. The false-positive rate is fixed files flagged divided by fixed files. The mocked profile simulates the external adapters, so its numbers are not a claim about the real tools.
+
+## Model configurations
+
+`dvwa_model_single_recorded` scores the recorded C2 run (`docs/research/detection-runs/2026-11-27-single-findings.json`) against the same pinned labels. It runs offline in every gate run: no provider call, no download. It guards the scoring code and the recorded file; it does not prove the model is still this good. A new run is recorded by replacing the findings file in a change that also updates the baseline and says why. C3 and C4 get a set here when they have a recorded run.
 
 ## Run it
 
