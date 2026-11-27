@@ -68,6 +68,7 @@ Status: **done** (built, tests exist, acceptance re-run or re-checked on 27 Nove
 | P16 | Performance and data design | Latency budgets, incremental scans, caching, indexes, schema review, load tests | open |
 | P17 | Evaluation | Benchmarks, labeled corpus, four-configuration comparison with measured detection rates | open |
 | P20 | Demo reliability | Runbook ([DEMO.md](DEMO.md)), per-scan request budget check, replay of a stored scan in the live UI, presentation dashboard; graduation demo is live in front of a professor | open, runbook written |
+| P21 | Provider-agnostic model settings | Settings page: choose provider (OpenRouter, OpenAI, Anthropic, Google Gemini), paste key, list that provider's models, pick one; warning and acknowledgement before any non-free model; free default path stays OpenRouter free models; keys encrypted server-side and masked in the UI | adapters and tests done (`backend/llm_providers.py`); gateway, connection storage and settings UI open |
 | P18 | Hardening and release | Isolation and recovery acceptance, Docker verified, legacy removal, release manifest, rename | open |
 | P19 | Coverage expansion and project review | Research which vulnerability classes can realistically be detected, close the cheap gaps in the 75-subdomain taxonomy, review what exists against evidence and list real improvements | open |
 

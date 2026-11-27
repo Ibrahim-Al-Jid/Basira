@@ -6,6 +6,7 @@
 - The product is renamed from Marsad to Basira (بصيرة) in code, UI, docs, tests and fixtures; the reference-corpus manifest checksum was recomputed. Environment variables are now `BASIRA_*` and database roles `basira_*`; existing local setups must be recreated.
 
 ### Added
+- Provider adapters for OpenRouter, OpenAI, Anthropic and Google Gemini (`backend/llm_providers.py`): model listing, free/paid classification, cost warning text, chat request and response shapes, key masking. Not yet connected to the gateway or settings UI (P21).
 - Detection experiment on DVWA (pinned commit, 13 vulnerable and 13 fixed files): static checks 0 of 13, one agent without tools 8 of 13 with 5 clean files flagged (free model, one run). Team configurations are coded but not run: free daily request cap. See `docs/research/detection-experiment.md`.
 - Vulnerability taxonomy: 17 domains, 75 subdomains, 159 problems, mapped to CWE, OWASP Top 10:2025, OWASP API Top 10 2023 and WSTG. Served at `GET /api/taxonomy`; generated reference in `docs/taxonomy.md`.
 - Research: `docs/research/competitors.md` (72 tools from public listings) and `docs/research/benchmarks.md`.
