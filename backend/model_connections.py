@@ -10,7 +10,7 @@ from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from fastapi import APIRouter, HTTPException, Request, Response
 import httpx
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -22,11 +22,12 @@ from .platform_db import (
 
 CONNECTION_ID = "openrouter-default"
 MAX_MODEL_CALLS = 1
+SEALED_MAX = 284
 MAX_OUTPUT_TOKENS = 1200
 WINDOW_SECONDS = 600
 MAX_ATTEMPTS = 6
 OPERATOR_GENERATION = "operator"
-MODEL_PATTERN = r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.:-]+$"
+MODEL_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9_.:/-]*$"
 MODEL_ID = re.compile(MODEL_PATTERN)
 Identifier = Annotated[str, Field(pattern=r"^[a-f0-9]{32}$")]
 Generation = Identifier | Literal["operator"]
@@ -41,6 +42,8 @@ connections = sa.Table(
     sa.Column("generation", sa.String(32), nullable=False),
     sa.Column("grant_id", sa.String(32), nullable=False),
     sa.Column("model", sa.String(160), nullable=False),
+    sa.Column("provider", sa.String(32), nullable=False, server_default="openrouter"),
+    sa.Column("base_url", sa.String(300)),
     sa.Column("ciphertext", sa.LargeBinary, nullable=False),
     sa.Column("verified_at", sa.DateTime(timezone=True), nullable=False),
 )
@@ -52,9 +55,20 @@ limits = sa.Table(
 )
 
 
+ProviderId = Literal["openrouter", "openai", "anthropic", "google", "custom"]
+
+
 class CatalogKey(BaseModel):
     model_config = ConfigDict(extra="forbid")
     api_key: SecretStr | None = Field(None, min_length=8, max_length=256)
+    provider: ProviderId = "openrouter"
+    base_url: str | None = Field(None, max_length=300)
+
+    @model_validator(mode="after")
+    def validate_provider(self):
+        if (self.provider == "custom") != bool(self.base_url):
+            raise ValueError("A base URL is required for a custom provider and only for a custom provider")
+        return self
 
     @field_validator("api_key")
     @classmethod
@@ -130,7 +144,7 @@ def encrypt_key(encryptor, key, org_id, generation):
 
 
 def decrypt_key(encryptor, ciphertext, org_id, generation):
-    if encryptor and ciphertext and 36 <= len(ciphertext) <= 284:
+    if encryptor and ciphertext and 36 <= len(ciphertext) <= SEALED_MAX:
         try:
             return encryptor.decrypt(ciphertext[:12], ciphertext[12:], associated_data(org_id, generation)).decode("ascii")
         except (InvalidTag, ValueError):
@@ -145,7 +159,8 @@ def bind_organization(db, org_id):
 
 def org_connection(db, org_id):
     bind_organization(db, org_id)
-    return db.execute(sa.select(connections.c.generation, connections.c.grant_id, connections.c.model, connections.c.verified_at)
+    return db.execute(sa.select(connections.c.generation, connections.c.grant_id, connections.c.model, connections.c.provider,
+                              connections.c.base_url, connections.c.verified_at)
                       .where(connections.c.org_id == org_id)).mappings().first()
 
 
@@ -155,7 +170,8 @@ def connection_info(row, model, grant_id, source):
     verified = row["verified_at"] if row else None
     if verified and verified.tzinfo is None:
         verified = verified.replace(tzinfo=utc_now().tzinfo)
-    return {"id": CONNECTION_ID, "provider": "openrouter", "model": model,
+    return {"id": CONNECTION_ID, "provider": (row["provider"] if row and "provider" in row else None) or "openrouter",
+            "base_url": row["base_url"] if row and "base_url" in row else None, "model": model,
             "max_calls": MAX_MODEL_CALLS, "max_output_tokens": MAX_OUTPUT_TOKENS,
             "generation": row["generation"] if row else OPERATOR_GENERATION, "grant_id": grant_id,
             "verified_at": verified, "source": source}
@@ -255,7 +271,7 @@ def reserve_verification(db, org_id):
 
 
 def connection_view(current, available):
-    fields = ("id", "provider", "model", "verified_at", "source")
+    fields = ("id", "provider", "base_url", "model", "verified_at", "source")
     return {"available": available, "connection": {key: current[key] for key in fields} if current else None}
 
 
@@ -264,18 +280,18 @@ def verify_at_gateway(org_id, body, previous_generation, generation):
     if not url:
         raise HTTPException(503, "خدمة إدارة اتصال الموديل غير متاحة.")
     payload = {"org_id": org_id, "model": body.model, "generation": generation,
-               "previous_generation": previous_generation}
+               "previous_generation": previous_generation, "provider": body.provider, "base_url": body.base_url}
     if body.api_key is not None:
         payload["api_key"] = body.api_key.get_secret_value()
     try:
         reply = httpx.post(url + "/verify", headers=headers, json=payload, timeout=15, trust_env=False)
         if reply.status_code == 422:
-            raise HTTPException(422, "OpenRouter رفض المفتاح أو الموديل المطلوب.")
+            raise HTTPException(422, "المزوّد رفض المفتاح أو الموديل المطلوب.")
         if reply.status_code == 409:
             raise HTTPException(409, "الاتصال اتغيّر. حدّث الصفحة وجرّب تاني.")
         reply.raise_for_status()
         ciphertext = b64decode(reply.json()["ciphertext"], validate=True)
-        if not 36 <= len(ciphertext) <= 284:
+        if not 36 <= len(ciphertext) <= SEALED_MAX:
             raise ValueError("Invalid encrypted credential")
         return ciphertext
     except (httpx.HTTPError, ValueError, TypeError, KeyError):
@@ -304,18 +320,26 @@ def manager_namespace(db, org_id, user_id):
     return org_id
 
 
+def require_same_target(current, body):
+    """A stored key is only reused for the provider and address it was verified against."""
+    if body.api_key is None and current and (current["provider"] != body.provider or current["base_url"] != body.base_url):
+        raise HTTPException(422, "غيّرت المزوّد أو العنوان. أدخل المفتاح من جديد.")
+
+
 def save_connection(body, locked_namespace, *, source="organization"):
     with platform_session() as db:
         org_id = locked_namespace(db)
         current = org_connection(db, org_id)
         if current is None and body.api_key is None:
-            raise HTTPException(422, "أدخل مفتاح OpenRouter لإعداد الاتصال.")
+            raise HTTPException(422, "أدخل مفتاح المزوّد لإعداد الاتصال.")
+        require_same_target(current, body)
         allowed = reserve_verification(db, org_id)
     if not allowed:
         raise HTTPException(429, "عدد محاولات التحقق وصل للحد المؤقت.",
                             headers={"Retry-After": str(WINDOW_SECONDS)})
     old_generation = current["generation"] if current else None
-    new_generation = old_generation if current and body.api_key is None and body.model == current["model"] else uuid4().hex
+    same_provider = bool(current) and current["provider"] == body.provider and current["base_url"] == body.base_url
+    new_generation = old_generation if same_provider and body.api_key is None and body.model == current["model"] else uuid4().hex
     ciphertext = verify_at_gateway(org_id, body, old_generation, new_generation)
     with platform_session() as db:
         if locked_namespace(db) != org_id:
@@ -323,7 +347,7 @@ def save_connection(body, locked_namespace, *, source="organization"):
         existing = org_connection(db, org_id)
         if (existing["generation"] if existing else None) != old_generation:
             raise HTTPException(409, "الاتصال اتغيّر. حدّث الصفحة وجرّب تاني.")
-        values = {"generation": new_generation, "model": body.model,
+        values = {"generation": new_generation, "model": body.model, "provider": body.provider, "base_url": body.base_url,
                   "grant_id": existing["grant_id"] if existing else new_generation,
                   "ciphertext": ciphertext, "verified_at": utc_now()}
         if existing:
@@ -376,24 +400,26 @@ def list_account_models(body: CatalogKey, request: Request, response: Response):
         namespace = locked_account_namespace(db, user_id)
         current = org_connection(db, namespace)
         if not body.api_key and not current:
-            raise HTTPException(422, "أدخل مفتاح OpenRouter لعرض الموديلات.")
+            raise HTTPException(422, "أدخل مفتاح المزوّد لعرض الموديلات.")
+        require_same_target(current, body)
         allowed = reserve_verification(db, namespace)
     if not allowed:
         raise HTTPException(429, "عدد محاولات التحقق وصل للحد المؤقت.",
                             headers={"Retry-After": str(WINDOW_SECONDS)})
-    payload = {"org_id": namespace, "previous_generation": current["generation"] if current else None}
+    payload = {"org_id": namespace, "previous_generation": current["generation"] if current else None,
+               "provider": body.provider, "base_url": body.base_url}
     if body.api_key is not None:
         payload["api_key"] = body.api_key.get_secret_value()
     try:
         reply = httpx.post(url + "/models", headers=headers, json=payload, timeout=15, trust_env=False)
         if reply.status_code == 422:
-            raise HTTPException(422, "OpenRouter رفض المفتاح. استخدم مفتاح API مخصص للاستدلال.")
+            raise HTTPException(422, "المزوّد رفض المفتاح. استخدم مفتاح API مخصص للاستدلال.")
         if reply.status_code == 409:
             raise HTTPException(409, "الاتصال اتغيّر. حدّث الصفحة وجرّب تاني.")
         reply.raise_for_status()
         return reply.json()
     except (httpx.HTTPError, ValueError):
-        raise HTTPException(503, "تعذّر تحميل موديلات OpenRouter.") from None
+        raise HTTPException(503, "تعذّر تحميل موديلات المزوّد.") from None
 
 
 @account_router.put("")

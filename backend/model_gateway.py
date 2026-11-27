@@ -89,6 +89,8 @@ class AdvisorAnswer(AdvisorObject):
 class Facts(BaseModel):
     model_config = ConfigDict(extra="forbid")
     connection: Literal["openrouter-default"]
+    provider: Literal["openrouter", "openai", "anthropic", "google", "custom"] = "openrouter"
+    base_url: str | None = Field(None, max_length=300)
     model: ModelName
     org_id: Identifier
     project_id: Identifier
@@ -150,7 +152,10 @@ def verify_connection(body: VerifyRequest, response: Response, authorization: Se
     if not encryptor or not store_ready():
         raise HTTPException(503, "Credential store is unavailable")
     key = credential(body, encryptor)
-    verify_provider(key, body.model)
+    if body.provider == "openrouter":
+        verify_provider(key, body.model)
+    elif body.model not in {row["id"] for row in other_provider_models(body.provider, key, body.base_url)}:
+        raise HTTPException(422, "Model is unavailable for this API key")
     ciphertext = encrypt_key(encryptor, key, body.org_id, body.generation)
     response.headers["Cache-Control"] = "no-store"
     return {"ciphertext": b64encode(ciphertext).decode("ascii")}
@@ -258,6 +263,13 @@ def catalog(body: CatalogRequest, response: Response, authorization: ServiceAuth
     if not encryptor:
         raise HTTPException(503, "Credential store is unavailable")
     models = {}
+    if body.provider != "openrouter":
+        rows = other_provider_models(body.provider, credential(body, encryptor), body.base_url)
+        response.headers["Cache-Control"] = "no-store"
+        return {"provider": body.provider, "models": [
+            {"id": row["id"], "name": row["name"][:160], "free": row["cost"] == "free", "cost": row["cost"],
+             "warning": llm_providers.cost_warning(body.provider, row)}
+            for row in rows if len(row["id"]) <= 160 and MODEL_ID.fullmatch(row["id"])]}
     for item in provider_models(credential(body, encryptor)):
         if not isinstance(item, dict):
             continue
@@ -319,7 +331,7 @@ def start_model_call(body):
                 return db.execute(sa.text(
                     f"SELECT * FROM public.{procedure}("
                     ":org_id, :project_id, :scan_id, :lease, :generation, :model)"
-                ), body.model_dump(exclude={"counts", "connection", "source", "advisor"})).one_or_none()
+                ), body.model_dump(exclude={"counts", "connection", "source", "advisor", "provider", "base_url"})).one_or_none()
             return local_start_model_call(db, body)
     except (PlatformUnavailable, sa.exc.SQLAlchemyError):
         raise HTTPException(503, "Scan provider reservation is unavailable") from None
@@ -348,6 +360,8 @@ def priority(body: Facts, authorization: ServiceAuth = None):
     key = openrouter_secret() if operator else decrypt_key(encryptor, started[0], namespace, body.generation)
     if not key:
         raise HTTPException(503, "Model enrichment is unavailable")
+    if body.provider != "openrouter":
+        return other_provider_order(body.provider, key, body.model, body.counts, body.base_url, body.advisor)
     if body.advisor:
         return provider_order(key, body.model, body.counts, advisor=body.advisor)
     return provider_order(key, body.model, body.counts)
@@ -433,6 +447,32 @@ def provider_order(key, model, counts, *, advisor=None):
     return {**result, **({"usage": observed} if observed else {})}
 
 
+def other_provider_order(provider, key, model, counts, base_url, advisor):
+    facts = counts if advisor is None else {"counts": counts, **advisor.model_dump()}
+    prompt = ADVISOR_PROMPT if advisor else (
+        'Order rule IDs by priority. Reply only in JSON: {"priority":["each ID exactly once"]}'
+    )
+    text, usage = other_provider_reply(provider, key, model, prompt, json.dumps(facts), base_url)
+    try:
+        candidate = json.loads(text)
+        if advisor:
+            result = advisor_answer(candidate, counts, advisor).model_dump()
+        elif not valid_order(candidate["priority"], counts):
+            raise ValueError()
+        else:
+            result = {"priority": candidate["priority"]}
+    except (ValueError, KeyError, AttributeError, TypeError, RecursionError):
+        raise HTTPException(502, "Model could not provide a valid order") from None
+    observed = {}
+    if isinstance(usage, dict):
+        for names, dest in ((("prompt_tokens", "input_tokens"), "inputTokens"),
+                            (("completion_tokens", "output_tokens"), "outputTokens")):
+            value = next((usage[n] for n in names if type(usage.get(n)) is int), None)
+            if value is not None and 0 <= value <= 1_000_000:
+                observed[dest] = value
+    return {**result, **({"usage": observed} if observed else {})}
+
+
 def valid_order(order, counts):
     return (isinstance(order, list) and len(order) == len(counts)
             and all(isinstance(value, str) for value in order) and set(order) == set(counts))
@@ -479,6 +519,9 @@ def enrich(report, connection, *, org_id, project_id, scan_id, lease, execution_
     payload = {"counts": counts, "connection": CONNECTION_ID, "model": connection["model"],
                "org_id": org_id, "project_id": project_id, "scan_id": scan_id, "lease": lease,
                "generation": connection["generation"]}
+    if connection.get("provider", "openrouter") != "openrouter":
+        payload["provider"] = connection["provider"]
+        payload["base_url"] = connection.get("base_url")
     if connection.get("source") == "account":
         payload["source"] = "account"
     if advisor:

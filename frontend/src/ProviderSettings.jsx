@@ -3,12 +3,22 @@ import { KeyRound } from "lucide-react";
 import { action, api, errorText, json, translate } from "./platformClient";
 
 const path = api + "/account/model-connection";
+const PROVIDERS = [
+  { id: "openrouter", name: "OpenRouter" },
+  { id: "openai", name: "OpenAI" },
+  { id: "anthropic", name: "Anthropic" },
+  { id: "google", name: "Google Gemini" },
+  { id: "custom", name: "Custom (OpenAI-compatible)" },
+];
 
 export function ProviderSettings({ lang }) {
   const t = translate(lang);
   const [state, setState] = useState(null);
   const [key, setKey] = useState("");
   const [model, setModel] = useState("");
+  const [provider, setProvider] = useState("openrouter");
+  const [baseUrl, setBaseUrl] = useState("");
+  const [acknowledged, setAcknowledged] = useState(false);
   const [models, setModels] = useState(null);
   const [freeOnly, setFreeOnly] = useState(true);
   const [search, setSearch] = useState("");
@@ -22,13 +32,28 @@ export function ProviderSettings({ lang }) {
   const visible = (models || []).filter((item) => (!freeOnly || item.free)
     && (item.id.toLowerCase().includes(query) || item.name.toLowerCase().includes(query)));
   const selected = visible.some((item) => item.id === model) ? model : "";
-  const keyPayload = key.trim() ? { api_key: key.trim() } : {};
+  const providerName = PROVIDERS.find((item) => item.id === provider).name;
+  const target = { provider, ...(provider === "custom" ? { base_url: baseUrl.trim() } : {}) };
+  const keyPayload = { ...target, ...(key.trim() ? { api_key: key.trim() } : {}) };
+  const saved = state?.connection;
+  const sameTarget = saved && saved.provider === provider && (saved.base_url || "") === (provider === "custom" ? baseUrl.trim() : "");
+  const chosen = visible.find((item) => item.id === selected);
+  const needsAck = Boolean(chosen && !chosen.free);
+  const ready = provider !== "custom" || baseUrl.trim().startsWith("https://");
+  const canList = ready && !pending && (key.trim() || sameTarget);
 
   useEffect(() => {
     const controller = new AbortController();
     setError(null);
     action(path, { signal: controller.signal }).then(
-      (value) => { if (!controller.signal.aborted) setState(value); },
+      (value) => {
+        if (controller.signal.aborted) return;
+        setState(value);
+        if (value.connection) {
+          setProvider(value.connection.provider || "openrouter");
+          setBaseUrl(value.connection.base_url || "");
+        }
+      },
       (failure) => { if (!controller.signal.aborted) setError(failure); },
     );
     return () => controller.abort();
@@ -50,17 +75,19 @@ export function ProviderSettings({ lang }) {
     run(async () => {
       const { models } = await action(path + "/models", json("POST", keyPayload));
       setModels(models);
-      setModel(state.connection?.model || "");
+      setAcknowledged(false);
+      setFreeOnly(models.some((item) => item.free));
+      setModel(sameTarget ? state.connection.model : "");
     });
   }
 
   function onSubmit(event) {
     event.preventDefault();
-    if (!selected || pending) return;
+    if (!selected || pending || (needsAck && !acknowledged)) return;
     run(async () => {
       setState(await action(path, json("PUT", { model: selected, ...keyPayload })));
       setKey("");
-      setNotice(t("اتحفظ اتصال OpenRouter.", "OpenRouter connection saved."));
+      setNotice(t(`اتحفظ الاتصال بـ ${providerName}.`, `${providerName} connection saved.`));
     });
   }
 
@@ -69,13 +96,28 @@ export function ProviderSettings({ lang }) {
     {error && <p role="alert" className="workspace-error">{errorText(error, t)}</p>}
     {!state && !error && <p role="status">{t("بنحمّل إعدادات المزوّد…", "Loading provider settings…")}</p>}
     {((!state && error) || (state && !state.available)) && <div className="workspace-actions">
-      {state && <p>{t("بوابة OpenRouter غير متاحة حاليًا.", "The OpenRouter gateway is currently unavailable.")}</p>}
+      {state && <p>{t("بوابة الموديل غير متاحة حاليًا.", "The model gateway is currently unavailable.")}</p>}
       <button className="btn" type="button" onClick={() => setAttempt((value) => value + 1)}>{t("إعادة المحاولة", "Retry")}</button>
     </div>}
     {state?.available && <>
-      {state.connection && <p>{t("الموديل المحفوظ", "Saved model")} <bdi>{state.connection.model}</bdi></p>}
+      {saved && <p>{t("المحفوظ حاليًا", "Currently saved")}: <bdi>{(PROVIDERS.find((item) => item.id === saved.provider) || PROVIDERS[0]).name} / {saved.model}</bdi>{" "}
+        <span className="workspace-hint">{t("المفتاح محفوظ ومخفي (", "Key stored and hidden (")}<bdi>********</bdi>{t(")", ")")}</span></p>}
       <form className="project-form" onSubmit={onSubmit} aria-busy={pending}>
-        <label>{t("مفتاح API لـ OpenRouter", "OpenRouter API key")}
+        <label>{t("المزوّد", "Provider")}
+          <select name="provider" value={provider} disabled={pending} onChange={(event) => {
+            setProvider(event.target.value);
+            setKey("");
+            setModels(null);
+            setModel("");
+          }}>
+            {PROVIDERS.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </select>
+        </label>
+        {provider === "custom" && <label>{t("عنوان الـ API (https فقط)", "API base URL (https only)")}
+          <input name="base-url" type="url" dir="ltr" placeholder="https://api.example.com/v1" autoComplete="off" spellCheck={false}
+            maxLength={300} value={baseUrl} disabled={pending} onChange={(event) => { setBaseUrl(event.target.value); setModels(null); setModel(""); }} />
+        </label>}
+        <label>{t(`مفتاح API لـ ${providerName}`, `${providerName} API key`)}
           <input name="openrouter-key" type="password" dir="ltr" autoComplete="off" spellCheck={false}
             maxLength={256} value={key} disabled={pending} onChange={(event) => {
               setKey(event.target.value);
@@ -83,8 +125,9 @@ export function ProviderSettings({ lang }) {
               setModel("");
             }} />
         </label>
-        {state.connection && <p className="workspace-hint">{t("سيبي الحقل فاضي لاستخدام المفتاح المحفوظ.", "Leave the field empty to use the saved key.")}</p>}
-        <button className="btn" type="button" onClick={loadModels} disabled={pending || (!key.trim() && !state.connection)}>
+        {sameTarget && <p className="workspace-hint">{t("سيب الحقل فاضي لاستخدام المفتاح المحفوظ.", "Leave the field empty to use the saved key.")}</p>}
+        {saved && !sameTarget && <p className="workspace-hint">{t("غيّرت المزوّد أو العنوان، فلازم تدخل المفتاح من جديد.", "You changed the provider or address, so enter the key again.")}</p>}
+        <button className="btn" type="button" onClick={loadModels} disabled={!canList}>
           {t("عرض الموديلات المتاحة", "Show available models")}
         </button>
         {models && <>
@@ -100,7 +143,7 @@ export function ProviderSettings({ lang }) {
               <label htmlFor={modelId}>{t("الموديل", "Model")}</label>
               <select id={modelId} name="model" value={selected}
                 onChange={(event) => setModel(event.target.value)} disabled={pending || !visible.length}>
-                <option value="">{t("اختاري موديل", "Choose a model")}</option>
+                <option value="">{t("اختار موديل", "Choose a model")}</option>
                 {visible.map((item) => <option key={item.id} value={item.id} dir="ltr">
                   {item.name === item.id ? item.id : `${item.name} · ${item.id}`}
                 </option>)}
@@ -108,16 +151,21 @@ export function ProviderSettings({ lang }) {
             </div>
           </div>
           {!visible.length && <p role="status">{t("مفيش موديلات مطابقة للفلتر الحالي.", "No models match the current filters.")}</p>}
-          <button className="btn primary" disabled={pending || !selected}>{t("حفظ اتصال الموديل", "Save model connection")}</button>
+          {needsAck && <label className="project-check">
+            <input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} disabled={pending} />
+            {t(`الموديل ده مش مجاني أو سعره مش معروف. الاستخدام بيتحاسب على حسابك عند ${providerName}، وأنا فاهم كده.`,
+              `This model is not free or its price is unknown. Usage is billed to your ${providerName} account and I understand that.`)}
+          </label>}
+          <button className="btn primary" disabled={pending || !selected || (needsAck && !acknowledged)}>{t("حفظ اتصال الموديل", "Save model connection")}</button>
         </>}
         {notice && <p role="status">{notice}</p>}
       </form>
-      {state.connection && <button type="button" className="btn danger-action" disabled={pending} onClick={() => run(async () => {
+      {saved && <button type="button" className="btn danger-action" disabled={pending} onClick={() => run(async () => {
         setState(await action(path, { method: "DELETE" }));
         setKey("");
         setModel("");
         setModels(null);
-        setNotice(t("اتحذف اتصال OpenRouter.", "OpenRouter connection removed."));
+        setNotice(t("اتحذف اتصال الموديل.", "Model connection removed."));
       })}>{t("حذف الاتصال", "Remove connection")}</button>}
     </>}
   </section>;

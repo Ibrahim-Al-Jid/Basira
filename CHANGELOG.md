@@ -6,6 +6,7 @@
 - The product is renamed from Marsad to Basira (بصيرة) in code, UI, docs, tests and fixtures; the reference-corpus manifest checksum was recomputed. Environment variables are now `BASIRA_*` and database roles `basira_*`; existing local setups must be recreated.
 
 ### Added
+- Provider-agnostic model settings (P21): the personal Settings page now has a provider dropdown (OpenRouter, OpenAI, Anthropic, Google Gemini, custom OpenAI-compatible with an https base URL), a model list with a free-only filter, and a required acknowledgement before saving a non-free or unknown-price model. The key stays encrypted and is never shown back. A stored key is refused for a different provider or address, so it cannot be redirected. Migration `platform_providers_0016` adds `provider` and `base_url`. Calls to Anthropic, Gemini and OpenAI were not made live; only OpenRouter was.
 - Gateway functions for non-OpenRouter providers (`other_provider_models`, `other_provider_reply`): catalog and completion for OpenAI, Anthropic, Google and custom providers; no redirects, base URL checked on every request, key rejected gives 422, outage gives 503. Not yet reachable from the settings API (P21).
 - Plan review: added P22 self-security, P23 quality gates (precision, not only detection), P24 thesis and defense package; P19 now names source-code analysis as the main coverage gap; order of work re-sorted by value for the demo.
 - Report findings can be revealed one at a time for presenting: "Step-by-step view" with Next finding, Restart, Show all and keyboard control.
