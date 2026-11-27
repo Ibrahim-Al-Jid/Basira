@@ -31,7 +31,7 @@ Reproduce: `python -m backend.detection_experiment --config static` (downloads t
 
 ## 4.2 Rule behavior on the synthetic corpus
 
-`python -m backend.synthetic_evaluation` on `main` (27 November 2026, Python 3.13): 18 cases, 54 latency samples, p50 0.362 ms, p95 0.978 ms. Per-domain precision was 1.0 in every domain printed. The HTML domain shows recall 0.8 (4 true positives, 1 false negative): the case `two-insecure-assets` expects 2 `http-script` findings and gets 1. Acceptance notes in [RELEASE.md](../RELEASE.md) from an earlier run (20 November, 54 local samples, p50 0.84 ms, p95 2.28 ms) record no missed match, so this is a difference from that record and is being investigated, not hidden. Timings measure the analysis engine on small files, not a full scan with intake and database.
+`python -m backend.synthetic_evaluation` on `main` (27 November 2026, Python 3.13): 18 cases, 54 latency samples, p50 0.359 ms, p95 1.014 ms. Precision is 1.0 in every domain. Recall is 1.0 in every domain except HTML, which is 0.8 (4 true positives, 1 false negative). The missed case is `two-insecure-assets`: it expects 2 `http-script` findings and gets 1, because two scripts on the same line are merged into one finding (findings are de-duplicated by rule, file and line), so minified HTML is under-counted. The same result holds back to 21 November 2026, so it is not a recent regression. The earlier acceptance note in [RELEASE.md](../RELEASE.md) that recorded no missed match was wrong and is corrected there. The code fix is open work. Timings measure the analysis engine on small files, not a full scan with intake and database.
 
 ## 4.3 Tests
 
