@@ -42,7 +42,7 @@ button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid #805bc9;
+  outline: 2px solid var(--accent, #0b6f66);
 }
 button {
   border: 0;

@@ -5,18 +5,18 @@ main:has(.basira-landing) {
 }
 
 .basira-landing {
-  --landing-bg: #0b1115;
-  --landing-panel: #101b20;
-  --landing-raised: #142329;
-  --landing-line: #2b3d43;
-  --landing-text: #f0f5f1;
-  --landing-muted: #b4c4bf;
-  --landing-accent: #b8f45d;
-  --landing-button: #b8f45d;
-  --landing-on-accent: #17250f;
-  --landing-board: #101c20;
-  --landing-grid: #86dca711;
-  --landing-halo: #71b76f16;
+  --landing-bg: #0b1220;
+  --landing-panel: #111a2e;
+  --landing-raised: #18233b;
+  --landing-line: #2a3a5c;
+  --landing-text: #eaf0fb;
+  --landing-muted: #a7b4ce;
+  --landing-accent: #19c7b5;
+  --landing-button: #19c7b5;
+  --landing-on-accent: #06201d;
+  --landing-board: #0f1a2c;
+  --landing-grid: #19c7b511;
+  --landing-halo: #4385f61f;
   overflow: clip;
   color: var(--landing-text);
   background:
@@ -25,18 +25,18 @@ main:has(.basira-landing) {
 }
 
 .basira-landing[data-landing-theme="light"] {
-  --landing-bg: #f4f8f2;
-  --landing-panel: #eaf2e8;
-  --landing-raised: #fcfffb;
-  --landing-line: #b9c9b7;
-  --landing-text: #16251d;
-  --landing-muted: #41554d;
-  --landing-accent: #315b13;
-  --landing-button: #3e6a20;
-  --landing-on-accent: #fff;
-  --landing-board: #e2ede1;
-  --landing-grid: #406b4526;
-  --landing-halo: #8abd7752;
+  --landing-bg: #f4f7fb;
+  --landing-panel: #e7edf6;
+  --landing-raised: #ffffff;
+  --landing-line: #c5d0e2;
+  --landing-text: #0b1220;
+  --landing-muted: #46556f;
+  --landing-accent: #0b6f66;
+  --landing-button: #0b6f66;
+  --landing-on-accent: #ffffff;
+  --landing-board: #e1e9f4;
+  --landing-grid: #0b6f6626;
+  --landing-halo: #4385f633;
 }
 
 .landing-inner {
