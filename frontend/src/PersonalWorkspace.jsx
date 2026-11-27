@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useRef, useState } from "react";
-import { ArrowUpRight, CheckCircle2, ChevronLeft, ChevronRight, Folder, FolderPlus, GitBranch, LogOut, Menu, RefreshCw, Search, Settings } from "lucide-react";
+import { ArrowUpRight, CheckCircle2, ChevronLeft, ChevronRight, Folder, FolderPlus, GitBranch, LogOut, Menu, Pencil, RefreshCw, RotateCcw, Search, Settings, Trash2 } from "lucide-react";
 import { post } from "./data";
 import { action, api, errorText, json, translate } from "./platformClient";
 import { DirectoryLink } from "./ProjectDirectory";
@@ -102,26 +102,117 @@ export function PersonalDirectory({ projects, creating, navigate, refresh, submi
       </div>
     </form>
   </section>;
-  if (!projects.length) return <section className="card project-panel personal-project-empty">
-    <h2>{t("لسه مفيش مشاريع", "No projects yet")}</h2>
-    <p>{t("اختار «مشروع جديد» من قائمة مساحة العمل لبدء أول فحص.", "Choose New Project in the workspace menu to start your first scan.")}</p>
-  </section>;
-  return <ul className="personal-project-list" aria-label={t("مشاريع الحساب", "Your projects")}>
-    {projects.map((project) => {
-      const updated = project.updated_at || project.created_at;
-      const nameId = "project-card-" + project.id;
-      return <li key={project.id}><DirectoryLink className="personal-project-card" to={"/projects?project=" + project.id}
-        navigate={navigate} aria-labelledby={nameId} aria-describedby={updated ? nameId + "-updated" : undefined}>
-        <span className="personal-project-marker"><Folder size={20} aria-hidden="true" /></span>
-        <span><bdi id={nameId}>{project.name}</bdi>
-          {updated && <time id={nameId + "-updated"} dateTime={updated}>
-            {new Date(updated).toLocaleDateString(lang === "ar" ? "ar-EG" : "en", { dateStyle: "medium" })}
-          </time>}
-        </span>
-        <Chevron size={18} aria-hidden="true" />
-      </DirectoryLink></li>;
-    })}
-  </ul>;
+  return <ProjectList projects={projects} navigate={navigate} refresh={refresh} submit={submit} busy={busy} lang={lang} />;
+}
+
+function ProjectList({ projects, navigate, refresh, submit, busy, lang }) {
+  const t = translate(lang);
+  const Chevron = lang === "ar" ? ChevronLeft : ChevronRight;
+  const [query, setQuery] = useState("");
+  const [editing, setEditing] = useState(null);
+  const [deleting, setDeleting] = useState(null);
+  const [archived, setArchived] = useState(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const [listFailure, setListFailure] = useState(null);
+
+  useEffect(() => {
+    if (!showArchived) return;
+    const controller = new AbortController();
+    setListFailure(null);
+    action(api + "/projects?archived=true", { signal: controller.signal }).then(
+      ({ projects: items }) => { if (!controller.signal.aborted) setArchived(items); },
+      (error) => { if (!controller.signal.aborted) setListFailure(error); },
+    );
+    return () => controller.abort();
+  }, [showArchived, projects]);
+
+  const needle = query.trim().toLowerCase();
+  const visible = projects.filter((project) => project.name.toLowerCase().includes(needle));
+  const toolbar = <div className="personal-project-toolbar">
+    <DirectoryLink className="btn primary" to="/projects?new=1" navigate={navigate}>
+      <FolderPlus size={16} aria-hidden="true" />{t("مشروع جديد", "New project")}
+    </DirectoryLink>
+    {projects.length > 0 && <label className="personal-project-search">
+      <Search size={16} aria-hidden="true" />
+      <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} dir="auto"
+        placeholder={t("ابحث في المشاريع", "Search projects")} aria-label={t("ابحث في المشاريع", "Search projects")} />
+    </label>}
+    <button className="btn" type="button" aria-pressed={showArchived} onClick={() => setShowArchived((value) => !value)}>
+      <Trash2 size={16} aria-hidden="true" />{showArchived ? t("إخفاء المحذوف", "Hide deleted") : t("المشاريع المحذوفة", "Deleted projects")}
+    </button>
+  </div>;
+
+  return <>
+    {toolbar}
+    {!projects.length && <section className="card project-panel personal-project-empty">
+      <h2>{t("لسه مفيش مشاريع", "No projects yet")}</h2>
+      <p>{t("اضغط «مشروع جديد» لبدء أول فحص.", "Choose New project to start your first scan.")}</p>
+    </section>}
+    {projects.length > 0 && !visible.length && <p role="status">{t("مفيش مشروع بالاسم ده.", "No project matches that name.")}</p>}
+    {visible.length > 0 && <ul className="personal-project-list" aria-label={t("مشاريع الحساب", "Your projects")}>
+      {visible.map((project) => {
+        const updated = project.updated_at || project.created_at;
+        const nameId = "project-card-" + project.id;
+        const path = api + "/projects/" + project.id;
+        return <li key={project.id}>
+          <DirectoryLink className="personal-project-card" to={"/projects?project=" + project.id}
+            navigate={navigate} aria-labelledby={nameId} aria-describedby={updated ? nameId + "-updated" : undefined}>
+            <span className="personal-project-marker"><Folder size={20} aria-hidden="true" /></span>
+            <span><bdi id={nameId}>{project.name}</bdi>
+              {updated && <time id={nameId + "-updated"} dateTime={updated}>
+                {new Date(updated).toLocaleDateString(lang === "ar" ? "ar-EG" : "en", { dateStyle: "medium" })}
+              </time>}
+            </span>
+            <Chevron size={18} aria-hidden="true" />
+          </DirectoryLink>
+          {editing === project.id ? <form className="project-form personal-project-inline" onSubmit={(event) => submit(event, async (data) => {
+            await action(path, json("PATCH", { name: data.get("name") }));
+            await refresh();
+            setEditing(null);
+          })}>
+            <label>{t("اسم المشروع", "Project name")}<input name="name" defaultValue={project.name} maxLength={120} required dir="auto" autoFocus /></label>
+            <div className="workspace-actions">
+              <button className="btn primary" disabled={busy}>{t("حفظ الاسم", "Save name")}</button>
+              <button className="btn" type="button" disabled={busy} onClick={() => setEditing(null)}>{t("إلغاء", "Cancel")}</button>
+            </div>
+          </form> : deleting === project.id ? <form className="project-form personal-project-inline" onSubmit={(event) => submit(event, async () => {
+            await action(path, { method: "DELETE" });
+            await refresh();
+            setDeleting(null);
+          })}>
+            <p>{t("هيتخفي المشروع وتقاريره وهتتلغي الفحوصات الجارية. تقدر ترجّعه من «المشاريع المحذوفة».", "The project and its reports are hidden and running scans are cancelled. You can restore it from Deleted projects.")}</p>
+            <div className="workspace-actions">
+              <button className="btn danger-action" disabled={busy}>{t("تأكيد الحذف", "Confirm deletion")}</button>
+              <button className="btn" type="button" disabled={busy} onClick={() => setDeleting(null)}>{t("رجوع", "Cancel")}</button>
+            </div>
+          </form> : <div className="workspace-actions personal-project-actions">
+            <button className="btn" type="button" disabled={busy} onClick={() => { setDeleting(null); setEditing(project.id); }}>
+              <Pencil size={14} aria-hidden="true" />{t("تعديل الاسم", "Rename")}
+            </button>
+            <button className="btn danger-action" type="button" disabled={busy} onClick={() => { setEditing(null); setDeleting(project.id); }}>
+              <Trash2 size={14} aria-hidden="true" />{t("حذف", "Delete")}
+            </button>
+          </div>}
+        </li>;
+      })}
+    </ul>}
+    {showArchived && <section className="card project-panel personal-project-archived" aria-labelledby="archived-heading">
+      <h2 id="archived-heading">{t("المشاريع المحذوفة", "Deleted projects")}</h2>
+      {listFailure && <p role="alert" className="workspace-error">{errorText(listFailure, t)}</p>}
+      {!archived && !listFailure && <p role="status">{t("بنحمّل…", "Loading…")}</p>}
+      {archived && !archived.length && <p>{t("مفيش مشاريع محذوفة.", "No deleted projects.")}</p>}
+      {archived?.length > 0 && <ul className="personal-archived-list">
+        {archived.map((project) => <li key={project.id}>
+          <bdi>{project.name}</bdi>
+          <time dateTime={project.deleted_at}>{new Date(project.deleted_at).toLocaleDateString(lang === "ar" ? "ar-EG" : "en", { dateStyle: "medium" })}</time>
+          <form onSubmit={(event) => submit(event, async () => {
+            await action(api + "/projects/" + project.id + "/restore", { method: "POST" });
+            await refresh();
+          })}><button className="btn" disabled={busy}><RotateCcw size={14} aria-hidden="true" />{t("استرجاع", "Restore")}</button></form>
+        </li>)}
+      </ul>}
+    </section>}
+  </>;
 }
 
 export function PersonalProjectManagement({ project, navigate, refresh, submit, busy, lang, children }) {
