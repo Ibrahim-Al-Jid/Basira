@@ -34,10 +34,14 @@ Principle: the audience sees one thing at a time, and the presenter controls the
 4. Report: summary, then coverage ("what was not checked"), then export to PDF and JSON, then Arabic.
 5. Close with the numbers from [research/detection-experiment.md](research/detection-experiment.md), exactly as recorded, including the limits.
 
-Status: steps 1 to 2 exist (agent lanes show stages as they finish). Step 3 exists: the Findings tab has a "Step-by-step view" button; it hides all findings, then "Next finding" (or Space, and the arrow keys, which follow the page direction in Arabic) reveals one finding group at a time, with Restart, Show all and a shown counter. Checked in a real browser in English with the one-finding sample scan (0 of 1 shown, then Next); a multi-finding run and the Arabic view were not checked. Replay of a stored scan is not built (P20).
+Status: steps 1 to 2 exist (agent lanes show stages as they finish). Step 3 exists: the Findings tab has a "Step-by-step view" button; it hides all findings, then "Next finding" (or Space, and the arrow keys, which follow the page direction in Arabic) reveals one finding group at a time, with Restart, Show all and a shown counter. Checked in a real browser in English with the one-finding sample scan (0 of 1 shown, then Next); a multi-finding run and the Arabic view were not checked. Replay of a stored scan is built (see "Built in P20").
 
-## Not built yet (planned, tracked as P20 in the plan)
+## Built in P20
 
-- Per-scan request budget check that refuses to start a model stage when the remaining daily quota is too low and says why.
-- Replay mode: play back a stored scan's events in the live UI when the provider is down.
-- A dashboard view made for presenting.
+- **Per-scan model request budget check.** Before the model stage starts, the worker counts the model requests Basira started in the project today (UTC) and compares them with the daily limit (`backend/model_budget.py`). The limit is `BASIRA_MODEL_DAILY_LIMIT` when set; otherwise 50 for a model whose name ends in `:free` (the free-tier figure measured on 27 November 2026), and no limit for any other model. When the remaining count is below what one scan needs (`MAX_MODEL_CALLS`), the model stage is not started, the scan finishes on the deterministic path, and the scan activity shows a "Model not used" event with the reason in Arabic. Limit: it counts requests made through this app in this project only. Use of the same key elsewhere is not visible, so the manual quota check in "Before the day" still applies. Tested with unit tests and a counting test on the scan table; not run against a live provider.
+- **Replay of a stored scan.** On the scan progress page of a finished scan, "Start replay" plays the stored events back in order on the agent lanes and the event list, with pause, resume, restart, skip to end and 1x, 2x or 4x speed (gaps follow the stored timestamps, clamped between 0.35 s and 1.8 s). Opening the page with `?replay=1` starts it by itself. It reads only the events the page already loaded: no model or network request. Checked in a real browser (Chromium via Playwright) on a stored 8-event scan, in Arabic and English, with no page errors and no horizontal overflow. Timing rules have unit tests (`frontend/src/replay.test.mjs`, run in CI). Not checked: a long scan with many events, and the report page (replay lives on the progress page only).
+
+## Not built yet
+
+- A dashboard view made for presenting (design slice e of P10).
+- Rehearsal on the demo machine, and pre-running the demo scan, remain manual steps.

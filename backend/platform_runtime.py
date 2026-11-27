@@ -510,7 +510,7 @@ def save_analysis_checkpoint(org_id, project_id, scan_id, lease, analysis):
         return result
 
 
-STAGE_KINDS = {"stage_start", "agent_done"}
+STAGE_KINDS = {"stage_start", "agent_done", "model_skipped"}
 
 
 def record_stage(org_id, project_id, scan_id, lease, kind, detail):
@@ -621,6 +621,18 @@ def reserve_enrichment(org_id, project_id, scan_id, lease):
             scans.c.lease_until > now(), scans.c.state == "running", scans.c.enrichment_reserved_at.is_(None),
         ).values(enrichment_reserved_at=now()))
         return updated.rowcount == 1
+
+
+def model_requests_today(org_id, project_id, since=None):
+    """Model requests this project started since the start of the UTC day (scans that reached the provider call)."""
+    from .model_budget import utc_day_start
+
+    since = since or utc_day_start()
+    with platform_session() as db:
+        if not bind_job_project(db, org_id, project_id):
+            return 0
+        return db.scalar(sa.select(sa.func.count()).select_from(scans).where(
+            scope(scans, org_id, project_id), scans.c.enrichment_started_at >= since)) or 0
 
 
 def reserve_model_connection(org_id, project_id, scan_id, lease):

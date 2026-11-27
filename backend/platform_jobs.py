@@ -10,7 +10,7 @@ import time
 from celery import Celery
 import sqlalchemy as sa
 
-from . import platform_runtime as store
+from . import model_budget, platform_runtime as store
 from .artifact_review import RULESET_VERSION
 from .contracts import Report
 from .model_gateway import enrich
@@ -73,7 +73,14 @@ def execute_scan(org_id, project_id, scan_id):
         connection = None
         if row["input_meta"].get("model_connection") and data["findings"]:
             if os.environ.get("BASIRA_GATEWAY_URL") and os.environ.get("BASIRA_GATEWAY_TOKEN"):
-                connection = store.reserve_model_connection(org_id, project_id, scan_id, row["lease"])
+                verdict = model_budget.decide(
+                    model_budget.daily_limit(row["input_meta"].get("connection_model")),
+                    store.model_requests_today(org_id, project_id))
+                if verdict["allowed"]:
+                    connection = store.reserve_model_connection(org_id, project_id, scan_id, row["lease"])
+                else:
+                    store.record_stage(org_id, project_id, scan_id, row["lease"], "model_skipped", verdict["reason_ar"])
+                    data["enrichment"] = "fallback"
             if connection:
                 store.record_stage(org_id, project_id, scan_id, row["lease"], "stage_start", "model")
                 began = time.monotonic()
