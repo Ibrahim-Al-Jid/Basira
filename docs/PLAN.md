@@ -28,9 +28,29 @@ Analysis modes:
 | Active verification | Owner-proven sites only | Proposed, see P14 and decision A |
 | Remediation | Human-reviewed recommendations, optional approved patch draft | Isolated draft, deployment and merge stay with the human |
 
+## Release 1: scope and future additions
+
+Decision of the owner, 27 Nov 2026: Basira gets a defined release point. Work after it is planned, not current.
+
+**In Release 1 (closes first):**
+- P10 redesign slices a to f, with docs and screenshots per slice.
+- P20 replay of a stored scan, per-scan request budget check, demo runbook.
+- What is already merged: P01 to P09, P21 provider settings, the P19 source-code checks that landed, the P22 self-security tests and the P23 quality gate with CI, the P24 thesis and defense package, the Basira rename.
+- P18 reduced to a release checklist: tests green, docs match the running app, Docker status stated as verified or not, no secrets in the repo, release notes.
+
+**Future additions (planned updates after Release 1, not current work):**
+- P13 help and report assistant (the cited, read-only chatbot).
+- P11 recheck and history, P12 remediation drafts, P15 learning from past scans.
+- P14 active verification for owner-proven sites.
+- P16 performance and data design work beyond the numbers already measured.
+- P17 full four-configuration evaluation (needs the free-tier request cap to allow it).
+- P19 further vulnerability classes beyond those shipped.
+
+A future addition may be started early only if Release 1 is complete, or if it blocks a Release 1 item.
+
 ## 2. Current position
 
-Phases P01 to P08 are built; this plan has 24 phases (P01 to P24). P09 has its model lane in place; **work is in P10** (redesign), then P20 and P19. See the order of work below.
+Phases P01 to P08 are built; this plan has 24 phases (P01 to P24). P09 has its model lane in place; **work is in P10** (redesign), then P20. Release 1 scope is defined above; everything else is a future addition.
 
 Verified on 27 November 2026:
 - Python 3.13: 251 backend tests pass, 1 skipped.
@@ -60,13 +80,13 @@ Status: **done** (built, tests exist, acceptance re-run or re-checked on 27 Nove
 | P08 | Product journey | Personal projects workspace, ownership migration, project pages | done |
 | P09 | Live experience and report model | Per-agent live view, frozen report model, report and PDF parity tests | open (current) |
 | P10 | Redesign: UI/UX, fewer steps, automation | Design system, single-screen Scan flow, live view, decision-first report, dashboard, landing; 10 actions to 3 | open (current) |
-| P11 | Recheck and history | Fixed, Still present, New, Changed, Inconclusive, Needs review | open |
-| P12 | Remediation | Repair plans, approval, optional sandbox patch draft | open |
-| P13 | Help and report assistant | Static contextual help, then the cited read-only report assistant (committed) | open |
-| P14 | Active verification | Owner-proven, rate-limited, non-destructive probes for the taxonomy gaps | proposed |
-| P15 | Learning from past scans | Owner decisions and recheck outcomes feed ranking, confidence and suppression, measured before it is enabled | open |
-| P16 | Performance and data design | Latency budgets, incremental scans, caching, indexes, schema review, load tests | open |
-| P17 | Evaluation | Benchmarks, labeled corpus, four-configuration comparison with measured detection rates | open |
+| P11 | Recheck and history | Fixed, Still present, New, Changed, Inconclusive, Needs review | future (after Release 1) (open) |
+| P12 | Remediation | Repair plans, approval, optional sandbox patch draft | future (after Release 1) (open) |
+| P13 | Help and report assistant | Static contextual help, then the cited read-only report assistant (committed) | future (after Release 1) (open) |
+| P14 | Active verification | Owner-proven, rate-limited, non-destructive probes for the taxonomy gaps | future (after Release 1) (proposed) |
+| P15 | Learning from past scans | Owner decisions and recheck outcomes feed ranking, confidence and suppression, measured before it is enabled | future (after Release 1) (open) |
+| P16 | Performance and data design | Latency budgets, incremental scans, caching, indexes, schema review, load tests | future (after Release 1) (open) |
+| P17 | Evaluation | Benchmarks, labeled corpus, four-configuration comparison with measured detection rates | future (after Release 1) (open) |
 | P19 | Coverage expansion and project review | Source-code analysis checks for PHP, JavaScript and Python, then research which classes are realistically detectable, close the cheap gaps in the 75-subdomain taxonomy, review what exists against evidence and list real improvements | partial: 14 source-code checks (`SRC-01` to `SRC-14`, [source-code](checks/source-code.md)) built and measured, DVWA 8 of 13 (was 0 of 13), 1 of 13 fixed files flagged. Open: cross-function and cross-file flow, NoSQL, authorization and brute-force classes, template output, the remaining 31 taxonomy gaps |
 | P20 | Demo reliability | Runbook ([DEMO.md](DEMO.md)), per-scan request budget check, replay of a stored scan in the live UI, presentation dashboard; graduation demo is live in front of a professor | open, runbook written |
 | P21 | Provider-agnostic model settings | Settings page: choose a preset provider (OpenRouter, OpenAI, Anthropic, Google Gemini) or add a custom OpenAI-compatible provider by base URL (https, public host only, checked against private and internal addresses, checked again at request time), paste key, list that provider's models, pick one; warning and acknowledgement before any non-free model; free default path stays OpenRouter free models; keys encrypted server-side and masked in the UI | done in code: adapters, gateway routing, storage (`provider`, `base_url`; migration 0016) and settings UI with cost acknowledgement; tested with fakes and a mocked-API browser run, not against live OpenAI, Anthropic or Gemini. Open: show the provider in the scan report, org-level settings UI is still OpenRouter-only |
@@ -76,6 +96,8 @@ Status: **done** (built, tests exist, acceptance re-run or re-checked on 27 Nove
 | P18 | Hardening and release | Isolation and recovery acceptance, Docker verified, legacy removal, release manifest, rename | open |
 
 Order of work, set by the agent as the expert (owner delegated sequencing, 27 Nov 2026): P21 (provider settings, done), P09 model lane (done), P10 redesign slices a to f (current, the owner is waiting for it), then P20 (replay and budget check), P19 (source-code checks, the biggest measured gap), P11, P17 and P23 (measured evaluation with precision, when the free-tier cap allows), P13, P16, P15, P22, P07 gaps, P12, P24, P18. P14 follows decision A and ships before P17 if approved, so evaluation covers it.
+
+Release 1 closes first (see Release 1 above): P10, P20, then the P18 release checklist. The rest of this order applies to future additions.
 
 ## 4. Phase details
 
