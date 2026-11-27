@@ -34,7 +34,7 @@ Principle: the audience sees one thing at a time, and the presenter controls the
 4. Report: summary, then coverage ("what was not checked"), then export to PDF and JSON, then Arabic.
 5. Close with the numbers from [research/detection-experiment.md](research/detection-experiment.md), exactly as recorded, including the limits.
 
-Status: steps 1 to 2 exist (agent lanes show stages as they finish). Findings revealed one by one, the presenter pace control and replay are not built (P09, P20).
+Status: steps 1 to 2 exist (agent lanes show stages as they finish). Step 3 exists: the Findings tab has a "Step-by-step view" button; it hides all findings, then "Next finding" (or Space, and the arrow keys, which follow the page direction in Arabic) reveals one finding group at a time, with Restart, Show all and a shown counter. Checked in a real browser in English with the one-finding sample scan (0 of 1 shown, then Next); a multi-finding run and the Arabic view were not checked. Replay of a stored scan is not built (P20).
 
 ## Not built yet (planned, tracked as P20 in the plan)
 

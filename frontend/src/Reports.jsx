@@ -89,6 +89,7 @@ const copy = {
     advisoryExplanation: "اقتراحات الشرح",
     review_tool_coverage: "راجع تغطية الأداة",
     review_tool_findings: "راجع نتائج الأداة",
+    present: "عرض خطوة بخطوة", presentNext: "النتيجة التالية", presentAll: "عرض الكل", presentRestart: "من البداية", presentProgress: "المعروض",
     review_evidence: "راجع الدليل",
     review_context: "راجع السياق",
     read_remediation: "اقرأ الإصلاح",
@@ -244,6 +245,7 @@ const copy = {
     advisoryExplanation: "Explanation hints",
     review_tool_coverage: "Review tool coverage",
     review_tool_findings: "Review tool findings",
+    present: "Step-by-step view", presentNext: "Next finding", presentAll: "Show all", presentRestart: "Restart", presentProgress: "Shown",
     review_evidence: "Review evidence",
     review_context: "Review context",
     read_remediation: "Read remediation",
@@ -467,6 +469,7 @@ function Archive({ reports, t, lang, params, navigate }) {
 
 function FindingList({ findings, coverage, imported, priority, t, lang, params, pathname, hash, navigate }) {
   const [selected, select] = useState(null);
+  const [revealed, setRevealed] = useState(null);
   const count = (value) => numberFormats[lang].format(value);
   const query = params.get("finding") ?? "";
   const severity = params.get("findingSeverity") ?? "";
@@ -490,10 +493,36 @@ function FindingList({ findings, coverage, imported, priority, t, lang, params, 
   const groups = [...grouped.values()].sort(([first], [second]) =>
     (suggested.get(first.rule) ?? suggested.size) - (suggested.get(second.rule) ?? suggested.size)
     || (rank[first.severity] ?? 3) - (rank[second.severity] ?? 3) || first.rule.localeCompare(second.rule));
+  const stepping = revealed !== null;
+  const shown = stepping ? groups.slice(0, revealed) : groups;
+  const advance = () => setRevealed((value) => Math.min((value ?? 0) + 1, groups.length));
+  useEffect(() => {
+    if (!stepping || selected) return undefined;
+    const onKey = (event) => {
+      if (event.target.closest?.("input, select, textarea, button")) return;
+      if (event.key === "ArrowRight" || event.key === "ArrowLeft" || event.key === " ") {
+        event.preventDefault();
+        const forward = event.key === " " || event.key === (lang === "ar" ? "ArrowLeft" : "ArrowRight");
+        setRevealed((value) => Math.max(0, Math.min((value ?? 0) + (forward ? 1 : -1), groups.length)));
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [stepping, selected, groups.length, lang]);
   return (
     <section className="reports-panel reports-section">
       {findings.length ? (
         <>
+          <div className="reports-present" role="group" aria-label={t.present}>
+            {!stepping
+              ? <button type="button" className="reports-button" onClick={() => setRevealed(0)}>{t.present}</button>
+              : <>
+                <button type="button" className="reports-button reports-primary" onClick={advance} disabled={revealed >= groups.length}>{t.presentNext}</button>
+                <button type="button" className="reports-button" onClick={() => setRevealed(0)}>{t.presentRestart}</button>
+                <button type="button" className="reports-button" onClick={() => setRevealed(null)}>{t.presentAll}</button>
+                <span className="reports-count" role="status">{t.presentProgress}: {count(shown.length)} / {count(groups.length)}</span>
+              </>}
+          </div>
           {suggested.size > 0 && <p className="reports-annotation">{t.modelOrder}</p>}
             <div className="reports-filters" id="report-filters" role="group" aria-label={t.filter}>
               <SearchFilter name="finding" value={query} update={update} title={t.searchFindings} placeholder={t.filterHint} />
@@ -503,7 +532,7 @@ function FindingList({ findings, coverage, imported, priority, t, lang, params, 
             </div>
           {active && <p className="reports-count" role="status">{count(groups.length)} {t.results}</p>}
           {!groups.length && <p className="reports-empty">{t.noFindingsMatches}</p>}
-          {groups.map((group) => {
+          {shown.map((group) => {
             const first = group[0];
             return (
               <article className="reports-finding reports-finding-row" data-rule={first.rule} key={first.rule}>
