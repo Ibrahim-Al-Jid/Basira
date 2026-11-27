@@ -254,10 +254,16 @@ function ScanStatus({ projectId, scanId, lang }) {
   const [reload, setReload] = useState(0);
   const [canScan, setCanScan] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [staying, setStaying] = useState(false);
+  const [countdown, setCountdown] = useState(null);
+  const watchedRun = useRef(false);
   useEffect(() => {
     const controller = new AbortController();
     let timer;
     let cursor = 0;
+    try { watchedRun.current = sessionStorage.getItem("basira:fresh:" + scanId) === "1"; } catch { watchedRun.current = false; }
+    setStaying(false);
+    setCountdown(null);
     setScan(null);
     setEvents([]);
     setError("");
@@ -272,6 +278,7 @@ function ScanStatus({ projectId, scanId, lang }) {
       try {
         const view = await action(`${projectApi(projectId)}/scans/${scanId}?after=${cursor}`, { signal: controller.signal });
         if (controller.signal.aborted) return;
+        if (isActive(view.state)) watchedRun.current = true;
         setScan(view);
         setError("");
         if (view.events.length) {
@@ -286,6 +293,21 @@ function ScanStatus({ projectId, scanId, lang }) {
     poll();
     return () => { controller.abort(); clearTimeout(timer); };
   }, [projectId, scanId, reload]);
+  const openAutomatically = Boolean(scan?.report_available) && watchedRun.current && !staying;
+  useEffect(() => {
+    if (!openAutomatically) { setCountdown(null); return undefined; }
+    let left = 4;
+    setCountdown(left);
+    const timer = setInterval(() => {
+      left -= 1;
+      if (left <= 0) {
+        clearInterval(timer);
+        try { sessionStorage.removeItem("basira:fresh:" + scanId); } catch { /* ignore */ }
+        window.location.assign(reportLink(projectId, scanId));
+      } else setCountdown(left);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [openAutomatically, projectId, scanId]);
   async function cancel() {
     setCancelling(true);
     try {
@@ -315,6 +337,10 @@ function ScanStatus({ projectId, scanId, lang }) {
         </div>
         {scan.artifact.profile && <p className="workspace-hint">
           {label(kinds, scan.artifact.profile.mode === "zip" ? "repository" : scan.artifact.profile.mode, t)}
+        </p>}
+        {countdown !== null && <p className="workspace-auto-open" role="status">
+          {t(`الفحص خلص. هفتح التقرير بعد ${number(countdown, lang)} ثواني.`, `Scan finished. Opening the report in ${number(countdown, lang)} s.`)}{" "}
+          <button type="button" className="btn" onClick={() => { setStaying(true); try { sessionStorage.removeItem("basira:fresh:" + scanId); } catch { /* ignore */ } }}>{t("خليني هنا", "Stay here")}</button>
         </p>}
         <AgentLanes events={events} active={isActive(scan.state)} t={t} lang={lang} />
         {!!events.length && <section className="workspace-management">
@@ -463,7 +489,10 @@ function NewScan({ projects, project, choose, navigate, lang, personal }) {
       if (controller.signal.aborted) return;
       options.headers["Idempotency-Key"] = idempotency.current;
       const saved = await action(endpoint, { ...options, signal: controller.signal });
-      if (!controller.signal.aborted) navigate(scanLink(project.id, saved.id));
+      if (!controller.signal.aborted) {
+        try { sessionStorage.setItem("basira:fresh:" + saved.id, "1"); } catch { /* storage may be blocked */ }
+        navigate(scanLink(project.id, saved.id));
+      }
     } catch (err) {
       if (!controller.signal.aborted) {
         setStaleProfile(err.status === 409);
