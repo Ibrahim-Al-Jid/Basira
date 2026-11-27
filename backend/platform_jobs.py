@@ -75,8 +75,13 @@ def execute_scan(org_id, project_id, scan_id):
             if os.environ.get("BASIRA_GATEWAY_URL") and os.environ.get("BASIRA_GATEWAY_TOKEN"):
                 connection = store.reserve_model_connection(org_id, project_id, scan_id, row["lease"])
             if connection:
+                store.record_stage(org_id, project_id, scan_id, row["lease"], "stage_start", "model")
+                began = time.monotonic()
                 enrich(data, connection, org_id=org_id, project_id=project_id, scan_id=scan_id,
                        lease=row["lease"], execution_advice=True)
+                outcome = connection.get("provider", "openrouter") if data.get("enrichment") == "model" else "fallback"
+                store.record_stage(org_id, project_id, scan_id, row["lease"], "agent_done",
+                                   f"model|{round((time.monotonic() - began) * 1000)}|{outcome}")
             elif row["enrichment_started_at"] is not None:
                 data["enrichment"] = "fallback"
                 data["metrics"]["modelCalls"] = 1
