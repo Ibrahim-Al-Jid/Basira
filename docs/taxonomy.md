@@ -2,7 +2,7 @@
 
 Generated from `backend/taxonomy.py` by `ops/build-taxonomy-docs.py`. Edit the module, not this file.
 
-17 domains, 75 subdomains, 159 named problems. 34 subdomains are backed by at least one of the 100 shipped checks; 41 are documented gaps that need active probing or human review.
+17 domains, 75 subdomains, 159 named problems. 44 subdomains are backed by at least one of the 114 shipped checks; 31 are documented gaps that need active probing or human review.
 
 Reference sets: OWASP Top 10:2025, OWASP API Security Top 10 2023, OWASP WSTG 4.x chapters, CWE (2025 Top 25 informs ranking).
 
@@ -14,10 +14,10 @@ Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or he
 |---|---|---|---|---|---|---|
 | D01.1 | Object-level authorization (IDOR/BOLA) | 639, 284, 862, 863 | A01, API1 | ATHZ | active, manual | gap |
 | D01.2 | Function-level authorization and privilege escalation | 862, 863, 269 | A01, API5 | ATHZ | active, manual | gap |
-| D01.3 | Cross-site request forgery | 352 | A01 | SESS | artifact, active | APP-11 |
+| D01.3 | Cross-site request forgery | 352 | A01 | SESS | artifact, active | APP-11, SRC-08 |
 | D01.4 | Cross-origin resource sharing policy | 942, 346 | A01, A02 | CLNT | capture, artifact | WEB-13, WEB-14, APP-10 |
 | D01.5 | Tenant isolation | 284, 863 | A01 | ATHZ | artifact | INF-10 |
-| D01.6 | Open redirect and unvalidated forwards | 601 | A01 | CLNT | active | gap |
+| D01.6 | Open redirect and unvalidated forwards | 601 | A01 | CLNT | active, artifact | SRC-05 |
 | D01.7 | Mass assignment and object property exposure | 915, 213 | A01, API3 | INPV | active, manual | gap |
 
 - **D01.1** Predictable object IDs; Cross-tenant record reads; Cross-account writes
@@ -52,9 +52,9 @@ Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or he
 
 | ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Basira checks |
 |---|---|---|---|---|---|---|
-| D03.1 | Session cookie attributes | 614, 1004, 1275 | A07, A02 | SESS | capture, artifact | WEB-09, WEB-10, WEB-11, WEB-12, APP-05, APP-08 |
+| D03.1 | Session cookie attributes | 614, 1004, 1275 | A07, A02 | SESS | capture, artifact | WEB-09, WEB-10, WEB-11, WEB-12, APP-05, APP-08, SRC-13 |
 | D03.2 | Session lifecycle: fixation, expiry, logout | 384, 613 | A07 | SESS | capture, active | WEB-19 |
-| D03.3 | Session identifier strength | 330, 331 | A04, A07 | SESS | active | gap |
+| D03.3 | Session identifier strength | 330, 331 | A04, A07 | SESS | active, artifact | SRC-09 |
 
 - **D03.1** Missing Secure; Missing HttpOnly; Missing or invalid SameSite; Domain scope too wide
 - **D03.2** Session ID not renewed at login; Logout leaves state in the browser or server
@@ -64,9 +64,9 @@ Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or he
 
 | ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Basira checks |
 |---|---|---|---|---|---|---|
-| D04.1 | SQL and NoSQL injection | 89, 943 | A05 | INPV | active | gap |
-| D04.2 | OS command and code injection | 78, 77, 94, 95 | A05 | INPV | active, manual | gap |
-| D04.3 | Template and expression language injection | 1336, 917 | A05 | INPV | active | gap |
+| D04.1 | SQL and NoSQL injection | 89, 943 | A05 | INPV | active, artifact | SRC-01 |
+| D04.2 | OS command and code injection | 78, 77, 94, 95 | A05 | INPV | active, manual, artifact | SRC-02, SRC-03 |
+| D04.3 | Template and expression language injection | 1336, 917 | A05 | INPV | active, artifact | SRC-12 |
 | D04.4 | XML and parser attacks (XXE, XPath, LDAP) | 611, 643, 90 | A05 | INPV | active | gap |
 | D04.5 | HTTP header and log injection | 113, 117 | A05 | INPV | active | gap |
 
@@ -80,7 +80,7 @@ Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or he
 
 | ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Basira checks |
 |---|---|---|---|---|---|---|
-| D05.1 | Cross-site scripting | 79 | A05 | INPV, CLNT | active, manual | gap |
+| D05.1 | Cross-site scripting | 79 | A05 | INPV, CLNT | active, manual, artifact | SRC-04 |
 | D05.2 | Content Security Policy | 693, 1021 | A02 | CONF, CLNT | capture | WEB-02, WEB-03, WEB-04 |
 | D05.3 | Framing and clickjacking | 1021 | A02 | CLNT | capture | WEB-05 |
 | D05.4 | Frame, window and sandbox isolation | 1022, 1021, 749 | A02, A06 | CLNT | artifact | HTML-10, HTML-12, HTML-13, HTML-20 |
@@ -104,7 +104,7 @@ Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or he
 
 | ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Basira checks |
 |---|---|---|---|---|---|---|
-| D06.1 | Server-side request forgery | 918 | A01, API7 | INPV | active | gap |
+| D06.1 | Server-side request forgery | 918 | A01, API7 | INPV | active, artifact | SRC-10 |
 | D06.2 | Host header and routing trust | 644 | A02 | INPV, CONF | artifact, active | APP-09 |
 | D06.3 | Request smuggling and desync | 444 | A02 | INPV | active | gap |
 | D06.4 | Web cache poisoning and deception | 524, 525 | A02 | CONF | active | gap |
@@ -122,7 +122,7 @@ Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or he
 |---|---|---|---|---|---|---|
 | D07.1 | Mixed content and cleartext submission | 319, 311 | A04 | CRYP | artifact | http-script, http-form, HTML-06, HTML-07, HTML-08, HTML-09, HTML-14 |
 | D07.2 | HSTS and HTTPS redirects | 319, 523 | A04, A02 | CRYP, CONF | capture | WEB-01, WEB-23 |
-| D07.3 | Certificate and TLS validation settings | 295, 297 | A04 | CRYP | artifact | APP-07 |
+| D07.3 | Certificate and TLS validation settings | 295, 297 | A04 | CRYP | artifact | APP-07, SRC-14 |
 | D07.4 | Protocol versions, ciphers and certificates on a live host | 326, 327, 295 | A04 | CRYP | active | gap |
 | D07.5 | Password hashing and key handling | 328, 916, 321, 330 | A04 | CRYP | manual | gap |
 
@@ -194,8 +194,8 @@ Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or he
 
 | ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Basira checks |
 |---|---|---|---|---|---|---|
-| D12.1 | Unrestricted upload | 434, 409 | A06, A05 | BUSL | active, manual | gap |
-| D12.2 | Path traversal and archive extraction | 22, 59 | A01 | ATHZ | active | gap |
+| D12.1 | Unrestricted upload | 434, 409 | A06, A05 | BUSL | active, manual, artifact | SRC-07 |
+| D12.2 | Path traversal and archive extraction | 22, 59 | A01 | ATHZ | active, artifact | SRC-06 |
 | D12.3 | Download type handling | 430, 79 | A02 | CONF | capture | WEB-20 |
 
 - **D12.1** Dangerous file types; Archive bombs
@@ -220,7 +220,7 @@ Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or he
 
 | ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Basira checks |
 |---|---|---|---|---|---|---|
-| D14.1 | Insecure deserialization | 502 | A08 | INPV | active, manual | gap |
+| D14.1 | Insecure deserialization | 502 | A08 | INPV | active, manual, artifact | SRC-11 |
 | D14.2 | Unsigned code, updates and data | 494, 345 | A08 | CONF | manual | gap |
 
 - **D14.1** Untrusted object streams

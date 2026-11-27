@@ -180,6 +180,20 @@ DOMAINS = [
     ]},
 ]
 
+# Source-code checks (backend/checks/source_code.py, P19). They add `artifact` observation to
+# subdomains that were active-probing gaps before; the check text lives with the rule.
+SOURCE_RULES = {
+    "D01.3": ["SRC-08"], "D01.6": ["SRC-05"], "D03.1": ["SRC-13"], "D03.3": ["SRC-09"], "D04.1": ["SRC-01"],
+    "D04.2": ["SRC-02", "SRC-03"], "D04.3": ["SRC-12"], "D05.1": ["SRC-04"], "D06.1": ["SRC-10"],
+    "D07.3": ["SRC-14"], "D12.1": ["SRC-07"], "D12.2": ["SRC-06"], "D14.1": ["SRC-11"],
+}
+for _domain in DOMAINS:
+    for _sub in _domain["subdomains"]:
+        if _sub["id"] in SOURCE_RULES:
+            _sub["rules"] += SOURCE_RULES[_sub["id"]]
+            if "artifact" not in _sub["modes"]:
+                _sub["modes"].append("artifact")
+
 # Native-code weaknesses in the CWE Top 25 that a website scanner does not target.
 OUT_OF_SCOPE_CWE = {787: "Out-of-bounds Write", 416: "Use After Free", 125: "Out-of-bounds Read", 120: "Classic Buffer Overflow",
                     476: "NULL Pointer Dereference", 121: "Stack-based Buffer Overflow", 122: "Heap-based Buffer Overflow"}

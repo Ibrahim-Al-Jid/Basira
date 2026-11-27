@@ -22,7 +22,7 @@ class ApiTests(unittest.TestCase):
     def test_removed_user_routes_and_raw_credential_rejection(self):
         assert self.client.get("/checks").status_code == 404
         assert self.client.get("/checks/").status_code == 404
-        assert len(self.client.get("/api/catalog").json()["rules"]) == 100
+        assert len(self.client.get("/api/catalog").json()["rules"]) == 114
         removed = self.client.post("/api/models", json={"key": self.key})
         assert removed.status_code in {404, 405}
         rejected = self.client.post("/api/run", json={**self.run, "key": self.key, "model": "vendor/demo"})

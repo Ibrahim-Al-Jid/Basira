@@ -88,14 +88,14 @@ def test_disappearing_file_or_rule_never_claims_a_fix(platform):
 def test_extended_lab_records_rules_tools_and_subtasks(platform):
     client, _, _ = platform
     catalog = client.get("/api/catalog").json()
-    assert len(catalog["rules"]) == len({rule["id"] for rule in catalog["rules"]}) == 100
+    assert len(catalog["rules"]) == len({rule["id"] for rule in catalog["rules"]}) == 114
     assert all(rule["title_ar"] != rule["id"] for rule in catalog["rules"])
     response = client.post("/api/run", json={
         "profile": "extended", "source": '<form action="https://example.test"><input name="pw" type="password"></form>',
     })
     report = json.loads(response.text.splitlines()[-1])["report"]
     assert report["status"] == "completed"
-    assert len(report["coverage"]) == 100
+    assert len(report["coverage"]) == 114
     assert "HTML-17" in {finding["rule"] for finding in report["findings"]}
     selected = {item["id"] for item in report["tool_selection"] if item["status"] == "selected"}
     assert selected == {"html-attributes", "browser-controls", "browser-controls-extra"}

@@ -8,7 +8,7 @@ from .main import app
 def test_every_catalog_rule_maps_to_exactly_one_subdomain():
     ids = {rule["id"] for rule in catalog()["rules"]}
     index = taxonomy.rule_index()
-    assert set(index) == ids and len(ids) == 100
+    assert set(index) == ids and len(ids) == 114
     assert all(len(places) == 1 for places in index.values())
 
 

@@ -24,9 +24,9 @@ MAX_ARTIFACT = 2_000_000
 MAX_EXPANDED = 8_000_000
 MAX_FILE = 1_000_000
 MAX_FILES = 200
-RULESET_VERSION = "basira-static-2"
+RULESET_VERSION = "basira-static-3"
 DOMAINS = {"HTML": "html", "WEB": "web", "DEP": "dependencies", "INF": "infrastructure",
-           "CI": "ci", "APP": "application"}
+           "CI": "ci", "APP": "application", "SRC": "source"}
 
 
 def rule_ids(*ranges):
@@ -48,12 +48,13 @@ ADAPTERS = (
     Adapter("browser-controls-extra", "web_extra", rule_ids(("HTML", 11, 20), ("WEB", 11, 25)), "ضوابط المتصفح الإضافية"),
     Adapter("deployment-config-extra", "config_extra", rule_ids(("DEP", 9, 16), ("INF", 11, 18),
             ("CI", 7, 10), ("APP", 7, 11)), "إعدادات التبعيات والبنية الإضافية"),
+    Adapter("source-code", "source_code", rule_ids(("SRC", 1, 14)), "تحليل الكود المصدري"),
 )
 EXTENDED_IDS = [rule for adapter in ADAPTERS for rule in adapter.rules]
 TEXT_SUFFIXES = {
     ".html", ".htm", ".css", ".json", ".yaml", ".yml", ".env", ".properties", ".ini", ".conf",
     ".cfg", ".py", ".sql", ".lock", ".toml", ".pem", ".key", ".txt", ".tf", ".xml",
-    ".js", ".ts", ".jsx", ".tsx", ".sh", ".rb", ".php", ".java", ".cs", ".go", ".rs",
+    ".js", ".ts", ".jsx", ".tsx", ".mjs", ".cjs", ".phtml", ".inc", ".sh", ".rb", ".php", ".java", ".cs", ".go", ".rs",
 }
 ARCHIVE_SUFFIXES = {".zip", ".tar", ".gz", ".bz2", ".xz", ".7z", ".rar", ".jar"}
 

@@ -13,7 +13,7 @@ def render():
     lines = ["# Vulnerability taxonomy", "",
              "Generated from `backend/taxonomy.py` by `ops/build-taxonomy-docs.py`. Edit the module, not this file.", "",
              f"{s['domains']} domains, {s['subdomains']} subdomains, {s['problems']} named problems. "
-             f"{s['subdomains_with_rules']} subdomains are backed by at least one of the 100 shipped checks; "
+             f"{s['subdomains_with_rules']} subdomains are backed by at least one of the {len(t.rule_index())} shipped checks; "
              f"{s['subdomains_gap']} are documented gaps that need active probing or human review.", "",
              "Reference sets: OWASP Top 10:2025, OWASP API Security Top 10 2023, OWASP WSTG 4.x chapters, CWE (2025 Top 25 informs ranking).",
              "", "Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or header capture. "
