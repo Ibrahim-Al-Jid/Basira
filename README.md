@@ -40,43 +40,27 @@ Pick a project and an evidence source, follow the scan as it runs, and open a re
 
 Working memory is the LangGraph state. Completed reports persist in SQLite, tied to the browser session profile; a session keeps its last 100 reports for 30 days.
 
-## Run it
+## Run it locally
 
-Two ways. Both serve the app at http://127.0.0.1:8765.
-
-### 1. Local lab (Python and Node, no Docker)
-
-Needs Python 3.13 and Node 22. From the repo root (use `.venv/bin/python` on macOS and Linux, `.\.venv\Scripts\python` on Windows):
-
-```bash
-python -m venv .venv
-.venv/bin/python -m pip install -r requirements-dev.txt
-npm --prefix frontend ci
-npm run build
-npm start
-```
-
-Open http://127.0.0.1:8765/demo, choose an HTML file, paste markup, or use the built-in sample. Set `PORT` to change the port. Run the tests with `npm test`.
-
-Verified on 27 November 2026 on Linux: the app starts, serves the UI and `/demo`, and `GET /api/taxonomy` answers. The lab keeps reports in SQLite; accounts and projects need option 2.
-
-### 2. Docker Compose (accounts, projects, background jobs)
-
-Needs Docker Desktop or Docker Engine with Compose. On Windows, one command does everything, including random passwords in `.env.local`:
+**New Windows machine.** Start Docker Desktop, then run this from the repo root in PowerShell to open the projects edition with accounts:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\ops\start-local.ps1
 ```
 
-On macOS and Linux, copy `ops/platform.env.example` to `.env.local`, fill the three `*_PASSWORD` values with random letters and digits, then:
+Open the [local sign-in](http://127.0.0.1:8765/signin) and choose "Create account" on a fresh install. Accounts and projects are stored in PostgreSQL on the machine that runs it. See the [platform guide](docs/PLATFORM.md) for manual setup and sign-in troubleshooting.
 
-```bash
-docker compose -p marsad-local -f compose.yaml -f compose.local.yaml --env-file .env.local up -d --build
+**Lab only**, in an isolated dev environment. Run these from the repo root before starting anything else on port 8765:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python -m pip install -r requirements-dev.txt
+npm --prefix frontend ci
+npm run build
+npm start
 ```
 
-Open the sign-in page and choose "Create account" on a fresh install. More detail is in the [platform guide](docs/PLATFORM.md).
-
-Verification status: the Docker image build and these Compose commands have not been run in the review environment, which has no Docker. The same stack (PostgreSQL 17, Redis, API, dispatcher, Celery worker, Chromium) was run there without containers and passed the Personal projects browser acceptance in Arabic and English.
+Open the [lab](http://127.0.0.1:8765/demo), choose an HTML file, paste markup, or use the built-in sample. Extended mode is the default; switch back to basic with the scan scope field. Open reports from [lab reports](http://127.0.0.1:8765/reports?scope=demo) in the browser session that created them, or download HTML (Arabic or English) or JSON.
 
 ## Status
 
@@ -87,4 +71,4 @@ Verification status: the Docker image build and these Compose commands have not 
 
 ## Documentation
 
-Start at the [documentation index](docs/README.md). The plan, phase status and conventions are in [docs/PLAN.md](docs/PLAN.md), and the [vulnerability taxonomy](docs/taxonomy.md) shows what Marsad covers and what it does not yet.
+Start at the [documentation index](docs/README.md). The plan and phase status are in [work/plan.md](work/plan.md), and the [vulnerability taxonomy](docs/taxonomy.md) shows what Marsad covers and what it does not yet.

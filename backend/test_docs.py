@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def markdown_files():
-    return [*ROOT.glob("*.md"), *(ROOT / "docs").rglob("*.md")]
+    return [*ROOT.glob("*.md"), *(ROOT / "docs").rglob("*.md"), *(ROOT / "work").glob("*.md")]
 
 
 def test_relative_markdown_links_resolve():

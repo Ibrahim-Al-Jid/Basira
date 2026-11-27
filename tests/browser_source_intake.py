@@ -7,7 +7,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 from playwright.sync_api import expect, sync_playwright
 
-from browser_release import ORIGIN, open_report_section
+from browser_phase6 import ORIGIN, open_report_section
 
 
 def submit(page, project, kind, name, content, target=None):

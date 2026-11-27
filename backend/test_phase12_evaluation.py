@@ -1,7 +1,7 @@
 """Exercise the benchmark contract with local process and provider simulation."""
 import pytest
 
-from .corpus_evaluation import MANIFEST, evaluate, load_manifest
+from .phase12_evaluation import MANIFEST, evaluate, load_manifest
 
 
 def test_manifest_pin_rejects_changed_annotation(tmp_path):

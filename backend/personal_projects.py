@@ -11,7 +11,7 @@ from .platform_db import (
     GitHubConnection, Project, bind_owner, bind_project, personal_namespace_id,
     personal_projects_enabled, platform_session, utc_now,
 )
-from .scan_contracts import Identifier
+from .phase9_contracts import Identifier
 
 router = APIRouter(prefix="/api/platform", tags=["Personal projects"])
 

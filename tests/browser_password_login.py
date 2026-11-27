@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from playwright.sync_api import expect, sync_playwright
 
-from browser_release import ORIGIN, open_report_section, project_scan
+from browser_phase6 import ORIGIN, open_report_section, project_scan
 
 
 def main():

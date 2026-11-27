@@ -5,7 +5,7 @@ import httpx
 import pytest
 import sqlalchemy as sa
 
-from . import scan_contracts, platform_jobs as jobs, platform_runtime as store
+from . import phase9_contracts, platform_jobs as jobs, platform_runtime as store
 from .artifact_review import RULESET_VERSION, catalog
 from .offline_worker import scan_payload
 from .platform_db import platform_session
@@ -26,7 +26,7 @@ def reviewed(version, **extra):
 ])
 def test_offline_worker_rejects_tools_outside_approved_plan(monkeypatch, tool_id, version):
     monkeypatch.setenv("MARSAD_SOURCE_ADAPTERS", "gitleaks")
-    pins = scan_contracts.analyzer_plan("config")
+    pins = phase9_contracts.analyzer_plan("config")
     result = scan_payload({
         "kind": "config", "name": "review.json", "content": "eyJmaWxlcyI6eyJhLnR4dCI6InNhZmUifX0=",
         "policy": {"_ruleset_version": RULESET_VERSION, "_analysis_plan": [
@@ -38,8 +38,8 @@ def test_offline_worker_rejects_tools_outside_approved_plan(monkeypatch, tool_id
 
 def test_analyzer_registry_keeps_shadow_and_offline_decisions(monkeypatch):
     monkeypatch.setenv("MARSAD_SOURCE_ADAPTERS", "gitleaks,semgrep")
-    pins = scan_contracts.analyzer_plan("config")
-    decisions = {row.id: row for row in scan_contracts.resolve_analyzers("config", pinned=pins, external=False)}
+    pins = phase9_contracts.analyzer_plan("config")
+    decisions = {row.id: row for row in phase9_contracts.resolve_analyzers("config", pinned=pins, external=False)}
     assert decisions["gitleaks"].reason == "offline_runner_required"
     assert decisions["osv-scanner"].reason == "not_in_pinned_plan"
     assert decisions["semgrep"].reason == decisions["trivy"].reason == "shadow_only"
@@ -59,7 +59,7 @@ def test_scoped_snapshot_pins_policy_and_tool_versions(platform):
     owner, stranger, ctx = platform
     path = root(ctx)
     original = owner.get(path + "/scan-profile").json()
-    assert original["allowed_kinds"] == list(scan_contracts.DEFAULT_INPUTS)
+    assert original["allowed_kinds"] == list(phase9_contracts.DEFAULT_INPUTS)
     assert original["scope_version"] == 0
     assert original["mode"] == "offline"
     assert {tool["id"] for tool in original["tools_by_input"]["html"]} == {
@@ -168,14 +168,14 @@ def test_changed_raw_snapshot_fails_closed_before_analysis(platform):
 def test_missing_eligible_adapter_is_skipped_without_changing_the_catalog(platform, monkeypatch):
     owner, _, ctx = platform
     path = root(ctx)
-    load = scan_contracts.import_module
+    load = phase9_contracts.import_module
 
     def unavailable(name, package):
         if name == ".checks.web":
             raise ImportError("Not installed in the test image")
         return load(name, package)
 
-    monkeypatch.setattr(scan_contracts, "import_module", unavailable)
+    monkeypatch.setattr(phase9_contracts, "import_module", unavailable)
     profile = owner.get(path + "/scan-profile").json()
     assert "browser-controls" not in {tool["id"] for tool in profile["tools_by_input"]["html"]}
     registry = owner.get(path + "/technical").json()
