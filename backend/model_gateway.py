@@ -14,6 +14,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field
 import sqlalchemy as sa
 
+from . import llm_providers
 from .artifact_review import EXTENDED_IDS
 from .contracts import AgentAdvisory, Severity
 from .model_connections import (
@@ -194,6 +195,43 @@ def provider_models(key):
         return available
     except (ValueError, KeyError, TypeError, RecursionError, httpx.HTTPError):
         raise HTTPException(503, "OpenRouter verification is unavailable") from None
+
+
+def other_provider_models(provider, key, base_url=None):
+    """Model catalog for OpenAI, Anthropic, Google or a custom provider. Raises 422 for a rejected key
+    and 503 when the provider cannot be reached. Redirects are never followed, so a key is only ever
+    sent to the address that was validated for this request."""
+    try:
+        request = llm_providers.models_request(provider, key, base_url)
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from None
+    try:
+        response = httpx.get(request["url"], headers=request["headers"], timeout=8.0, trust_env=False, follow_redirects=False)
+        if response.status_code in (401, 403):
+            raise HTTPException(422, "The provider rejected the API key")
+        response.raise_for_status()
+        rows = llm_providers.parse_models(provider, response.json())
+    except (ValueError, KeyError, TypeError, RecursionError, httpx.HTTPError):
+        raise HTTPException(503, "Provider verification is unavailable") from None
+    if not rows:
+        raise HTTPException(503, "The provider returned no usable models")
+    return rows
+
+
+def other_provider_reply(provider, key, model, system, user, base_url=None):
+    """One bounded completion from a non-OpenRouter provider; returns the reply text and the usage dict."""
+    try:
+        request = llm_providers.chat_request(provider, key, model, system, user, MAX_OUTPUT_TOKENS, base_url)
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from None
+    try:
+        response = httpx.post(request["url"], headers=request["headers"], json=request["body"], timeout=12.0,
+                              trust_env=False, follow_redirects=False)
+        response.raise_for_status()
+        payload = response.json()
+    except (ValueError, httpx.HTTPError, RecursionError):
+        raise HTTPException(502, "Model could not provide a valid order") from None
+    return llm_providers.parse_chat(provider, payload), payload.get("usage") if isinstance(payload, dict) else None
 
 
 def verify_provider(key, model):

@@ -6,6 +6,7 @@
 - The product is renamed from Marsad to Basira (بصيرة) in code, UI, docs, tests and fixtures; the reference-corpus manifest checksum was recomputed. Environment variables are now `BASIRA_*` and database roles `basira_*`; existing local setups must be recreated.
 
 ### Added
+- Gateway functions for non-OpenRouter providers (`other_provider_models`, `other_provider_reply`): catalog and completion for OpenAI, Anthropic, Google and custom providers; no redirects, base URL checked on every request, key rejected gives 422, outage gives 503. Not yet reachable from the settings API (P21).
 - Plan review: added P22 self-security, P23 quality gates (precision, not only detection), P24 thesis and defense package; P19 now names source-code analysis as the main coverage gap; order of work re-sorted by value for the demo.
 - Report findings can be revealed one at a time for presenting: "Step-by-step view" with Next finding, Restart, Show all and keyboard control.
 - Provider adapters for OpenRouter, OpenAI, Anthropic and Google Gemini (`backend/llm_providers.py`): model listing, free/paid classification, cost warning text, chat request and response shapes, custom OpenAI-compatible provider with base-URL safety checks (https, no credentials, public addresses only), key masking. Not yet connected to the gateway or settings UI (P21).
