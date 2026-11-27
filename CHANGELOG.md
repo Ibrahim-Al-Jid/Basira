@@ -20,6 +20,7 @@
 - Tests for taxonomy, markdown links and generated-doc freshness (251 backend tests pass).
 - `docs/README.md`, the single documentation index.
 - Scan page lists the five agents with state, duration and tools used, from persisted `agent_done` events.
+- CI (P22, P23): `.github/workflows/ci.yml` runs the backend tests and the quality gate on every pull request and push to main. Not yet seen running on GitHub.
 
 ### Changed
 - One plan: `docs/PLAN.md` (product, current position, 18 phases P01 to P18, contracts, acceptance gates, decisions, naming conventions). It replaces the blueprint, the 19-phase plan and `work/plan.md`.
