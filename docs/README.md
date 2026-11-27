@@ -12,6 +12,7 @@ One topic, one file. If two files say different things, the one in this table wi
 | Using the workspace: journeys, themes, tests | [WORKSPACE.md](WORKSPACE.md) |
 | The 100 checks (and the HTML/HAR and config extensions) | [checks/README.md](checks/README.md), [checks/web-extra.md](checks/web-extra.md), [checks/config-extra.md](checks/config-extra.md) |
 | Vulnerability taxonomy (generated) | [taxonomy.md](taxonomy.md) |
+| Thesis and defense package (chapters, slides outline, questions) | [thesis/README.md](thesis/README.md) |
 | Release acceptance | [RELEASE.md](RELEASE.md) |
 | Quality gates: precision, recall, regression baseline, flaky-test policy | [QUALITY.md](QUALITY.md) |
 | Research: competitors and benchmarks | [research/competitors.md](research/competitors.md), [research/benchmarks.md](research/benchmarks.md), [research/detection-experiment.md](research/detection-experiment.md) |
