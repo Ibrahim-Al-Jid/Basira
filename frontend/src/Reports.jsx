@@ -167,7 +167,6 @@ const copy = {
     done: "اكتمل",
     system: "محلي",
     json: "تحميل JSON",
-    sarif: "تحميل SARIF",
     downloadAr: "تحميل HTML عربي",
     downloadEn: "تحميل HTML إنجليزي",
     benchmark: "نتيجة العينة المرجعية",
@@ -332,7 +331,6 @@ const copy = {
     done: "Finished",
     system: "Local",
     json: "Download JSON",
-    sarif: "Download SARIF",
     downloadAr: "Download Arabic HTML",
     downloadEn: "Download English HTML",
     benchmark: "Reference fixture",
@@ -848,7 +846,6 @@ function ReportDetails({ report, t, lang, params, pathname, hash, navigate, repo
     ["lang=en", t.downloadEn],
     ["format=json", t.json],
   ];
-  if (projectApi) downloads.push([`format=sarif&lang=${lang}`, t.sarif]);
   const baseline = params.get("baseline");
   const linkable = projectApi && ["repository", "har", "zap", "openapi"].includes(source?.kind);
   const sections = [

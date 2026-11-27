@@ -79,7 +79,7 @@ def main():
         if "osv-scanner" in enabled:
             assert any(item["rule"] == "SCA-01" and item["path"] == "requirements.txt"
                        and item["line"] == 2 and item["advisory"]["database_date"] for item in report["findings"])
-        for format in ("json", "sarif", "pdf"):
+        for format in ("json", "pdf"):
             exported = owner.get(path + f"/reports/{scan}/download?format={format}")
             assert exported.is_success and secret.encode() not in exported.content
         assert len({entry["role"] for entry in report["steps"] if entry["status"] == "done"}) == 5

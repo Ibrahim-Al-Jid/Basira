@@ -280,16 +280,12 @@ def report_detail(project_id: str, report_id: str, request: Request):
 
 @router.get("/reports/{report_id}/download")
 def export(project_id: str, report_id: str, request: Request, lang: Literal["ar", "en"] = "en",
-           format: Literal["html", "json", "sarif", "pdf"] = "html"):
+           format: Literal["html", "json", "pdf"] = "html"):
     from .main import report_html
     value = load(project(request, project_id, "export"), report_id)
     if format == "pdf":
         from .report_pdf import pdf_download
         return pdf_download(value, lang)
-    if format == "sarif":
-        return JSONResponse(advanced.sarif(value, lang), headers={
-            "Content-Disposition": 'attachment; filename="basira-report.sarif"',
-        })
     report = value.model_dump(mode="json")
     filename = "basira-report.json" if format == "json" else f"basira-report-{lang}.html"
     headers = {"Content-Disposition": f'attachment; filename="{filename}"'}

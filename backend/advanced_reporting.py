@@ -1,4 +1,4 @@
-"""Compare eligible project reports, preserve review history and export SARIF."""
+"""Compare eligible project reports, and preserve review history."""
 import hashlib
 import json
 from typing import Literal
@@ -214,39 +214,3 @@ def change_review(ctx, report_id, action):
                    body=(action.body if action.action == "comment" else action.reason).strip()))
         return review_items(db, ctx, {action.fingerprint: point})[action.fingerprint]
 
-
-SARIF_SCHEMA = "https://docs.oasis-open.org/sarif/sarif/v2.1.0/cos02/schemas/sarif-schema-2.1.0.json"
-
-
-def sarif(report, lang):
-    rules = {}
-    results = []
-    for item in report.findings:
-        if not item.path or (report.input_artifact and report.input_artifact.kind == "har"):
-            continue
-        try:
-            location = quote(safe_path(item.path), safe="/")
-        except InputError:
-            continue
-        title = (item.title_ar or item.title) if lang == "ar" else item.title
-        remediation = (item.remediation_ar or item.remediation) if lang == "ar" else item.remediation
-        rules.setdefault(item.rule, {"id": item.rule, "shortDescription": {"text": title},
-                                     "help": {"text": remediation}})
-        level = {"high": "error", "medium": "warning", "low": "note"}[item.severity]
-        properties = {"assessment": item.assessment} if item.assessment else {}
-        if item.origins:
-            properties["observedBy"] = [origin.model_dump(mode="json") for origin in item.origins]
-        if item.advisory:
-            properties["advisory"] = item.advisory.model_dump(mode="json")
-        physical = {"artifactLocation": {"uri": location}}
-        if item.domain != "api" and not (report.input_artifact and report.input_artifact.kind == "zap"):
-            physical["region"] = {"startLine": item.line}
-        results.append({"ruleId": item.rule, "level": level, "message": {"text": title + " · " + item.evidence},
-                        "locations": [{"physicalLocation": physical}],
-                        **({"properties": properties} if properties else {}),
-                        **({"partialFingerprints": {"basiraEvidence/v1": item.fingerprint}} if item.fingerprint else {})})
-    return {"$schema": SARIF_SCHEMA, "version": "2.1.0", "runs": [{
-        "tool": {"driver": {"name": "Basira", "version": report.ruleset_version or "legacy",
-                             "rules": list(rules.values())}},
-        "language": lang, "results": results, "properties": {"reportId": report.id},
-    }]}

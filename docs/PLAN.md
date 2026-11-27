@@ -91,7 +91,7 @@ Status: **done** (built, tests exist, acceptance re-run or re-checked on 27 Nove
 | ID | Phase | Scope | Status |
 |---|---|---|---|
 | P01 | Foundations | Agent roles and contracts, rule registry, evidence-verified output, file selection | done |
-| P02 | Reports and export | Report pages, Arabic and English HTML, JSON, SARIF, PDF, comparison, comments, finding statuses | done |
+| P02 | Reports and export | Report pages, Arabic and English HTML, JSON, PDF, comparison, comments, finding statuses | done |
 | P03 | Platform core | Local accounts, OIDC, PostgreSQL with row-level security, Redis and Celery with outbox and leases | done |
 | P04 | Detection catalog | 100 checks in six families, vulnerability taxonomy and API, input adapters | done |
 | P05 | Evidence and provenance | Evidence contracts, source analysis, evidence links, web and API evidence | done |
@@ -132,7 +132,7 @@ Release 1 closes first (see Release 1 above): P10, P20, then the P18 release che
 | Model | Optional OpenRouter through a separate gateway, strict schemas, invalid citations rejected | `backend/model_gateway.py`, `backend/model_connections.py` |
 | Memory | Six types, recovery checkpoints bound to owner, project, lease and digests | `backend/scan_memory.py`, [architecture](ARCHITECTURE.md) |
 | Platform | Accounts, OIDC, RLS, outbox, Celery, GitHub App | `backend/platform_*.py`, `backend/personal_*.py`, [platform](PLATFORM.md) |
-| Reports | HTML (ar, en), JSON, SARIF, PDF with embedded Arabic font, comparison, comments | `backend/report_pdf.py`, `backend/advanced_reporting.py` |
+| Reports | HTML (ar, en), JSON, PDF with embedded Arabic font, comparison, comments | `backend/report_pdf.py`, `backend/advanced_reporting.py` |
 | Evaluation | Synthetic corpus (18 cases), reference corpus manifest, analyzer baseline | `backend/synthetic_evaluation.py`, `backend/corpus_evaluation.py`, `backend/analyzer_baseline.py`, [release](RELEASE.md) |
 | Research | 72 competing tools, benchmark survey | [competitors](research/competitors.md), [benchmarks](research/benchmarks.md) |
 
@@ -141,7 +141,7 @@ Open items inside P07: failure and recovery acceptance (crash after checkpoint, 
 ### P09 Live experience and report model
 
 1. Live agent view. Shipped so far: the scan page lists the five roles with state, duration and tools used, from persisted `agent_done` events (`frontend/src/AgentLanes.jsx`). The model stage now has its own lane that shows Running while the one model request is in flight (`stage_start` then `agent_done`, written only by the current lease holder). Still open: events while the five analysis roles are running (they appear when the analysis step ends; the analysis runs in an isolated worker and takes milliseconds on small inputs), and per-tool progress. Target design: lanes for the five roles with state (waiting, running, done, skipped, failed), current task, tool in use, items done and remaining, elapsed time and evidence produced. Fed by persisted stage events with a cursor. Percentages only with a real denominator; stale data is shown as stale.
-2. Frozen `ReportModel` per scan (section 7), rendered to web, Arabic and English text, PDF and SARIF. A cross-format test compares finding IDs, severity totals, evidence IDs and coverage.
+2. Frozen `ReportModel` per scan (section 7), rendered to web, Arabic and English text, and PDF. A cross-format test compares finding IDs, severity totals, evidence IDs and coverage.
 3. PDF tests for shaping, mixed direction, long paths, many pages and selectable Arabic text.
 4. Intake accepts drag and drop, file picker, paste and URL.
 
@@ -158,7 +158,7 @@ The owner asked for a radical redesign: easier flows, less manual work, more aut
 **Flows.**
 1. Start: one "Scan" screen. A large drop zone (file, paste, GitHub or approved page URL tabs). On drop: input type detected, scope summary shown inline (what will and will not be read), one consent checkbox, one Start button. The consent checkbox, idempotency key and scope check stay; only the extra screens go.
 2. Live: the five agents and the model lane as a pipeline with real events, elapsed time and what each produced; the page opens the report on completion (with a Stay option) and shows a plain error with a Retry on failure.
-3. Report: first screen is the decision, not the table: counts by severity, the three things to fix first with the reason, coverage and what was not checked. Then findings, step-by-step mode, evidence, export menu (PDF, JSON, SARIF).
+3. Report: first screen is the decision, not the table: counts by severity, the three things to fix first with the reason, coverage and what was not checked. Then findings, step-by-step mode, evidence, export menu (PDF, JSON).
 4. Dashboard: scans over time, new and fixed since the last scan (by finding fingerprint), freshness stamp on every number, each number traceable to its scan.
 5. Automation backlog, in order: auto-open report (done, 4 s countdown with Stay); skip the project step and open the review as soon as a file is chosen (done for personal mode: after the project exists the flow is New scan, choose file, tick permission, Submit = 4 actions, measured in a real browser, down from 8; the target of 3 needs the automatic default project, still open); remember last project and input type; saved scan presets; one-click replay of a stored scan (P20); recheck after a fix (P11); scan on push for a connected repository.
 

@@ -7,6 +7,9 @@
 - UI labels match the code: the scan profile says "Extended · 114 rules" (3 baseline plus 111 extended, counted from the registry), and the landing page lists the source-code domain.
 - The product is renamed from Marsad to Basira (بصيرة) in code, UI, docs, tests and fixtures; the reference-corpus manifest checksum was recomputed. Environment variables are now `BASIRA_*` and database roles `basira_*`; existing local setups must be recreated.
 
+### Removed
+- SARIF export, by owner decision: the download button, the `format=sarif` endpoint option, the generator in `backend/advanced_reporting.py`, its tests and every mention in the docs. Reports still export to HTML (Arabic and English), JSON and PDF.
+
 ### Added
 - New "Pop" design language (P10 slice a), picked by the owner from four concepts: cream, ink and five accent colours (60/30/10), Cairo Black headings, thick ink lines, offset shadows and springy motion, in light and dark. Applied to the landing page, shell, projects, scan flow, report and settings. Layouts are unchanged; structural slices follow. Backend tests 387 passed, 2 skipped; personal-projects browser test passes; other Playwright suites not re-run; no contrast audit.
 - Decision-first report (P10 slice d): the report starts with the verdict, the top three fixes (severity, file, line), rules run out of total with a link to what was not checked, and a caution that a clean result is not proof. Arabic and English. Browser acceptance extended to check the block; other Playwright suites not re-run.
