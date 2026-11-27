@@ -21,6 +21,7 @@
 - `docs/README.md`, the single documentation index.
 - Scan page lists the five agents with state, duration and tools used, from persisted `agent_done` events.
 - Self-security tests (P22): `backend/test_self_security.py`, 56 offline tests. Injected instructions in scanned file text, paths and evidence never reach the model request; a model that obeys an injection (unapproved tool, extra field, prose) is rejected and the report stays deterministic; custom-provider URLs are checked against 29 SSRF forms, numeric host spellings, DNS rebinding at every request and unfollowed redirects; stored keys are bound to organization and generation and absent from errors. Threat model table added to `docs/ARCHITECTURE.md`. Not yet in CI.
+- Upload and export self-security tests (P22): `backend/test_upload_and_export.py`, 29 offline tests. Hostile ZIPs (escaping paths, symlink, encrypted flag, nested archives, compression bomb, 200-file and 8 MB limits, a size that lies), hostile JSON, secrets in file names, and HTML export of report text containing markup (escaped, CSP set, hostile report IDs give 404). Basira scanned its own 166 text files with the built-in checks: 0 findings, which proves little until P19 lands.
 
 ### Changed
 - One plan: `docs/PLAN.md` (product, current position, 18 phases P01 to P18, contracts, acceptance gates, decisions, naming conventions). It replaces the blueprint, the 19-phase plan and `work/plan.md`.
