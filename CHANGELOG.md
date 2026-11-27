@@ -8,6 +8,7 @@
 - The product is renamed from Marsad to Basira (بصيرة) in code, UI, docs, tests and fixtures; the reference-corpus manifest checksum was recomputed. Environment variables are now `BASIRA_*` and database roles `basira_*`; existing local setups must be recreated.
 
 ### Added
+- Design tokens (P10 slice a): new midnight navy and teal palette for dark and light themes, spacing, type, shadow and motion tokens, reduced-motion support. Colour layer only, no layout change. Backend tests 387 passed, 2 skipped; personal-projects browser test run; other Playwright suites not re-run.
 - Personal scan flow is shorter: the project step is skipped when a project is already chosen, and choosing or dropping a file opens the review step directly. From New scan to a started scan is now 4 actions (was 8); the report then opens by itself. Browser acceptance for personal projects updated and passing; other Playwright suites not re-run. Organization mode keeps the three-step flow.
 - Scan page opens the report by itself 4 seconds after a scan you just submitted finishes, with a "Stay here" button (P10, flow automation). Scans opened from history do not redirect. Checked in a real browser (Arabic); the older Playwright suites were not re-run.
 - Plan: P10 is now the redesign (new UI/UX, 10 user actions to 3, automation backlog, six PR slices) and moves ahead of P20 and P19. The order of work was reset by the agent as the owner delegated sequencing.

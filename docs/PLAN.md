@@ -98,7 +98,7 @@ Status: **done** (built, tests exist, acceptance re-run or re-checked on 27 Nove
 | P06 | Intake | ZIP, GitHub App, approved website pages, HAR, ZAP and OpenAPI import, quarantine lifecycle | done |
 | P07 | Tools, agents and memory | Pinned tool registry, offline execution, five-stage graph, model gateway and advisor, checkpoints, scan memory | partial |
 | P08 | Product journey | Personal projects workspace, ownership migration, project pages | done |
-| P09 | Live experience and report model | Per-agent live view, frozen report model, report and PDF parity tests | open (current) |
+| P09 | Live experience and report model | Per-agent live view, frozen report model, report and PDF parity tests | in progress: slice (a) tokens done |
 | P10 | Redesign: UI/UX, fewer steps, automation | Design system, single-screen Scan flow, live view, decision-first report, dashboard, landing; 10 actions to 3 | open (current) |
 | P11 | Recheck and history | Fixed, Still present, New, Changed, Inconclusive, Needs review | future (after Release 1) (open) |
 | P12 | Remediation | Repair plans, approval, optional sandbox patch draft | future (after Release 1) (open) |
@@ -164,6 +164,8 @@ The owner asked for a radical redesign: easier flows, less manual work, more aut
 
 **Design system.** Tokens first (color, type scale, spacing, radius, elevation, motion with reduced-motion respected), built on the existing dark and light themes, with the blueprint palette. Components get one definition each: button, field, card, status chip, severity chip, lane, empty state, toast. Pages are migrated one at a time so main stays shippable.
 
+**Slice (a) status (27 Nov 2026).** Palette and tokens only: midnight navy and teal in dark and light, spacing, type, shadow and motion tokens, a reduced-motion rule, and no leftover green in platform.css. This is the token layer, not the structural redesign; that comes with slices (c) to (f). Contrast pairs for the main text and accent colours were computed to meet WCAG AA; no automated accessibility audit was run.
+
 **Slices, each a small PR to main.** (a) tokens and shared components; (b) single-screen Scan flow; (c) live view and auto-open; (d) decision-first report; (e) dashboard; (f) landing and sign-in. After each slice: screenshots in Arabic and English, dark and light, and a before/after action count.
 
 Done when: the 3-action flow passes the browser test in both languages, every route has screenshots in both languages and both themes, keyboard use works on the Scan, live and report screens, and each dashboard number reconciles with its scan records. Not claimed: any accessibility audit by a tool, unless one is run and recorded.
@@ -223,6 +225,13 @@ Deliverables: problem statement and scope; related work using the 72-tool survey
 ### P18 Hardening and release
 
 Failure injection (crash at dispatch, after checkpoint, before publish), duplicate dispatch, stale lease, cancel; isolation with controlled egress; restore on a copied database with matching digests; Docker image and Compose verified on a real Docker host; merge ARCHITECTURE, PLATFORM and WORKSPACE into fewer topic files (translate if the owner asks); remove `/demo`, remaining organization keys and legacy report compatibility after a verified migration; release manifest with hashes and known limits; go or no-go record; rename if decided.
+
+**Release 1 checklist, including the documentation audit (requested by the owner, 27 Nov 2026).** The audit is run and its results are written into `docs/RELEASE.md` with the checklist; each item is marked passed, failed or not run, with the command or file that shows it.
+1. Tests: backend suite green; browser suites run and listed by name; anything not run is stated.
+2. Documentation audit: (a) everything done is recorded in this plan with its status; (b) `docs/RELEASE.md` is current; (c) every number in `docs/thesis` and `docs/QUALITY.md` matches the measured source on main; (d) naming is consistent (Basira, `BASIRA_*`, `basira_*`, no stale Marsad outside history and redirects); (e) no stale or contradicting docs, checked by comparing README, DEMO and WORKSPACE against the running app; (f) all links resolve.
+3. Docker: stated as verified or not verified.
+4. No secrets in the repo or history.
+5. Release notes and known limits.
 
 ## 5. Architecture
 

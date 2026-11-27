@@ -53,7 +53,7 @@
 .project-workspace .btn, .project-account .btn { min-block-size: var(--control-height); text-decoration: none; }
 .project-form { display: grid; gap: .85rem; margin: 0; }
 .project-panel .project-check { display: flex; align-items: start; gap: .6rem; }
-.project-panel .project-check input { width: auto; min-height: 0; margin-block: .4em 0; accent-color: var(--accent, #548626); }
+.project-panel .project-check input { width: auto; min-height: 0; margin-block: .4em 0; accent-color: var(--accent, #0b6f66); }
 .project-panel input:not([type=checkbox]),
 .project-panel select,
 .project-panel textarea {
@@ -69,7 +69,7 @@
 .project-panel button:focus-visible,
 .project-panel a:focus-visible,
 .project-panel :is(input, select, textarea):focus-visible {
-  outline: 2px solid var(--accent, #548626);
+  outline: 2px solid var(--accent, #0b6f66);
   outline-offset: 3px;
 }
 .workspace-scan-list time, .workspace-timeline time { color: var(--muted); }
@@ -134,13 +134,13 @@
   font-size: .8rem;
   white-space: nowrap;
 }
-.workspace-badge[data-state="running"], .workspace-badge[data-state="completed"] { border-color: var(--accent, #548626); }
+.workspace-badge[data-state="running"], .workspace-badge[data-state="completed"] { border-color: var(--accent, #0b6f66); }
 .workspace-back {
   display: inline-flex;
   align-items: center;
   justify-self: start;
   gap: .35rem;
-  color: var(--accent, #548626);
+  color: var(--accent, #0b6f66);
   text-underline-offset: .24em;
 }
 .workspace-scan-list, .workspace-timeline { list-style: none; margin: 0; padding: 0; }
@@ -162,7 +162,7 @@
   overflow-wrap: anywhere;
   text-underline-offset: .24em;
 }
-.workspace-scan-title svg { color: var(--accent, #548626); flex-shrink: 0; margin-block-start: .12em; }
+.workspace-scan-title svg { color: var(--accent, #0b6f66); flex-shrink: 0; margin-block-start: .12em; }
 .workspace-scan-status { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; overflow-wrap: anywhere; }
 .workspace-timeline { display: grid; }
 .workspace-timeline li {
@@ -181,7 +181,7 @@
   height: .5rem;
   content: "";
   border-radius: 50%;
-  background: var(--accent, #548626);
+  background: var(--accent, #0b6f66);
 }
 .workspace-timeline time { font-size: .82rem; }
 .workspace-wizard { inline-size: min(100%, 62rem); }
@@ -217,7 +217,7 @@
   border: 1px solid var(--line);
   border-radius: 50%;
 }
-.workspace-steps li[aria-current="step"] span { color: var(--on-accent, #fff); background: var(--accent, #548626); border-color: transparent; }
+.workspace-steps li[aria-current="step"] span { color: var(--on-accent, #fff); background: var(--accent, #0b6f66); border-color: transparent; }
 .project-panel .workspace-upload {
   align-items: start;
   gap: .5rem;
@@ -226,7 +226,7 @@
   border-radius: .8rem;
   background: var(--surface-alt, #f7f7fa);
 }
-.workspace-upload svg { color: var(--accent, #548626); }
+.workspace-upload svg { color: var(--accent, #0b6f66); }
 .workspace-upload input::file-selector-button {
   min-height: 2.15rem;
   margin-inline-end: .55rem;
