@@ -20,6 +20,7 @@
 - Tests for taxonomy, markdown links and generated-doc freshness (251 backend tests pass).
 - `docs/README.md`, the single documentation index.
 - Scan page lists the five agents with state, duration and tools used, from persisted `agent_done` events.
+- Quality gate (P23): `python -m backend.quality_gate` measures precision, recall and false-positive rate and fails when any gets worse than `tests/fixtures/quality-baseline.json`. Measured today: reference corpus (mocked profile) precision 0.900, recall 0.900; DVWA static recall 0 of 13, precision undefined (no findings), 0 of 13 fixed files flagged. Flaky-test policy and run instructions in `docs/QUALITY.md`. Not yet in CI.
 
 ### Changed
 - One plan: `docs/PLAN.md` (product, current position, 18 phases P01 to P18, contracts, acceptance gates, decisions, naming conventions). It replaces the blueprint, the 19-phase plan and `work/plan.md`.
