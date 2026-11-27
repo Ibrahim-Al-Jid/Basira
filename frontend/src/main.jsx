@@ -235,7 +235,7 @@ function App() {
                 <div className="profile-setting">
                   <label htmlFor="scan-profile">{t("نطاق الفحص", "Scan profile")}</label>
                   <select id="scan-profile" value={profile} disabled={busy} onChange={(event) => setProfile(event.target.value)}>
-                    <option value="extended">{t("موسّع · ١٠٠ قاعدة", "Extended · 100 rules")}</option>
+                    <option value="extended">{t("موسّع · ١١٤ قاعدة", "Extended · 114 rules")}</option>
                     <option value="baseline">{t("أساسي · ٣ قواعد HTML", "Baseline · 3 HTML rules")}</option>
                   </select>
                   <small className="hint">{t("التغطية الفعلية بتتحدد حسب نوع الملف ومحتواه.", "Coverage depends on the evidence in your file.")}</small>

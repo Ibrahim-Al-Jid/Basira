@@ -13,6 +13,7 @@ const domains = [
   { id: "infrastructure", icon: Cloud, names: ["البنية التحتية", "Infrastructure"] },
   { id: "ci", icon: GitBranch, names: ["مسارات CI/CD", "CI/CD pipelines"] },
   { id: "application", icon: SlidersHorizontal, names: ["إعدادات التطبيق", "Application configuration"] },
+  { id: "source", icon: Braces, names: ["كود المصدر (PHP وJS وPython)", "Source code (PHP, JS, Python)"] },
 ];
 
 const content = {
