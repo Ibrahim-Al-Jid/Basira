@@ -35,6 +35,7 @@
 
 ### Fixed
 - `check_dockerfile` used `current_alias` before assignment.
+- Same-line findings (P19 follow-up): two identical findings from one tool on one line, such as two HTTP scripts in minified HTML, are no longer merged into one. The same finding from two different tools still merges. Synthetic evaluation HTML recall is 1.0 (5 of 5), was 0.8.
 
 ### Removed
 - `work/` folder (its content moved into `docs/PLAN.md`).

@@ -133,3 +133,15 @@ def test_openapi_rejects_invalid_contract(mutate):
 def test_openapi_rejects_duplicate_security_definitions():
     result = scan("openapi", "contract.json", b'{"openapi":"3.1.0","security":[],"security":[{}]}')
     assert "error" in result
+
+
+def test_unique_observations_keeps_same_line_instances_but_merges_tools():
+    from backend.artifact_review import unique_observations
+
+    def hit(tool):
+        return {"rule": "http-script", "path": "a.html", "line": 1, "evidence": "x",
+                "origins": [{"tool": tool, "rule": "http-script"}]}
+
+    assert len(unique_observations([hit("html"), hit("html")])) == 2
+    merged = unique_observations([hit("html"), hit("other")])
+    assert len(merged) == 1 and len(merged[0]["origins"]) == 2

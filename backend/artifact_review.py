@@ -288,13 +288,25 @@ def source_observations(observations, findings):
 
 
 def unique_observations(findings):
+    # The same finding reported by two tools merges into one. Two identical
+    # findings from one tool (two scripts on one minified line) stay separate:
+    # each takes the next occurrence slot, and slot 0 keeps the old fingerprint.
     by_fingerprint = {}
+    slots = {}
     for item in findings:
-        identity = [item["rule"], item.get("path"), item["line"], item["evidence"]]
-        fingerprint = json_digest(identity)
-        previous = by_fingerprint.get(fingerprint)
+        base = [item["rule"], item.get("path"), item["line"], item["evidence"]]
+        origins = {json_digest(origin) for origin in item["origins"]}
+        buckets = slots.setdefault(json_digest(base), [])
+        for bucket in buckets:
+            if not origins & bucket["seen"]:
+                break
+        else:
+            bucket = {"seen": set(), "fingerprint": json_digest(base if not buckets else [*base, len(buckets)])}
+            buckets.append(bucket)
+        bucket["seen"] |= origins
+        previous = by_fingerprint.get(bucket["fingerprint"])
         if previous is None:
-            by_fingerprint[fingerprint] = {**item, "fingerprint": fingerprint}
+            by_fingerprint[bucket["fingerprint"]] = {**item, "fingerprint": bucket["fingerprint"]}
         else:
             for origin in item["origins"]:
                 if origin not in previous["origins"]:
