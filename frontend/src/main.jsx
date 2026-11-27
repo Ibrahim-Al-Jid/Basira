@@ -56,6 +56,7 @@ function App() {
   });
   const [theme, setTheme] = useState(() => readPreference("theme", "dark") === "light" ? "light" : "dark");
   const landingPage = location.pathname === "/";
+  const signingInPage = /^\/signin\/?$/.test(location.pathname);
   const [product, setProduct] = useState(null);
   const [productError, setProductError] = useState(false);
   const [productAttempt, setProductAttempt] = useState(0);
@@ -203,8 +204,8 @@ function App() {
     metrics = latest?.metrics;
   return (
     <>
-      <SiteHeader pathname={location.pathname} follow={follow} lang={lang} authenticated={Boolean(session.user)}
-        personal={personal} showSignIn={!projectsPage && !reportsPage && !findingsPage} />
+      {!signingInPage && <SiteHeader pathname={location.pathname} follow={follow} lang={lang} authenticated={Boolean(session.user)}
+        personal={personal} showSignIn={!projectsPage && !reportsPage && !findingsPage} />}
       <div className={personalWorkspace ? "personal-shell" : undefined}>
       {personalWorkspace && <PersonalSidebar key={session.user.id} location={location} navigate={navigate} lang={lang}
         revision={projectRevision} onLogout={() => { session.setUser(null); navigate("/", { replace: true }); }} />}
@@ -212,7 +213,8 @@ function App() {
         {productError ? <div role="alert"><p>{t("تعذّر تحميل إعدادات بصيرة.", "Basira settings could not be loaded.")}</p>
           <button className="btn" type="button" onClick={() => setProductAttempt((attempt) => attempt + 1)}>{t("إعادة المحاولة", "Retry")}</button></div>
           : !product ? <p role="status">{t("جاري تحميل بصيرة…", "Loading Basira…")}</p>
-          : landingPage ? <Landing follow={follow} lang={lang} theme={theme} authenticated={Boolean(session.user)} personal={personal} />
+          : landingPage ? <Landing follow={follow} lang={lang} theme={theme} authenticated={Boolean(session.user)} personal={personal}
+            preferences={{ lang, setLang, theme, setTheme }} />
           : reportsPage ? <Reports location={location} navigate={navigate} revision={latest?.id} lang={lang} session={session} personal={personal} />
           : findingsPage ? <p role="status">{t("جاري فتح التقارير…", "Opening reports…")}</p>
           : projectsPage ? <Platform location={location} navigate={navigate} lang={lang} session={session}

@@ -168,6 +168,8 @@ The owner asked for a radical redesign: easier flows, less manual work, more aut
 
 **Slice (d) status (27 Nov 2026).** The report now opens with a Decision block: the headline ("N fixes before handover" or "No findings in what was checked"), the top three fixes by severity with file and line, rules run out of rules in coverage with a link to what was not checked, and a standing caution that no findings is not proof of a clean project. Counts come from the stored report only. Checked in a real browser (personal projects acceptance); Arabic checked visually; the other Playwright suites were not re-run.
 
+**Slice (f) status (27 Nov 2026).** Landing and sign-in redesigned in Pop: the landing gains an evidence section (three tiles and a limits note) and a footer with theme and language toggles; sign-in is its own page with a stage panel and the form card, in Arabic and English, light and dark, with the account form moved out of `Platform.jsx` into `SignIn.jsx`. Screenshots checked by eye in all four combinations; the Playwright suites were not re-run and there was no contrast audit.
+
 **Slices, each a small PR to main.** (a) tokens and shared components; (b) single-screen Scan flow; (c) live view and auto-open; (d) decision-first report; (e) dashboard; (f) landing and sign-in. After each slice: screenshots in Arabic and English, dark and light, and a before/after action count.
 
 Done when: the 3-action flow passes the browser test in both languages, every route has screenshots in both languages and both themes, keyboard use works on the Scan, live and report screens, and each dashboard number reconciles with its scan records. Not claimed: any accessibility audit by a tool, unless one is run and recorded.

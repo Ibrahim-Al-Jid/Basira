@@ -1,11 +1,12 @@
 import React, { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { Activity, ArrowLeft, ArrowRight, Building2, Eye, EyeOff, FileText, FolderOpen, Mail, Plus, ShieldCheck, UploadCloud } from "lucide-react";
+import { Activity, FileText, Plus, UploadCloud } from "lucide-react";
 import { post } from "./data";
 import { api, action, errorText, json, translate } from "./platformClient";
 import { AccountSettings } from "./AccountSettings";
 import { ProjectAccess } from "./ProjectAccess";
 import { DirectoryLink, ProjectDirectory } from "./ProjectDirectory";
 import { PersonalDirectory, PersonalGitHub, PersonalProjectManagement } from "./PersonalWorkspace";
+import { SignIn } from "./SignIn";
 import AgentLanes from "./AgentLanes";
 import ReplayPanel from "./ReplayPanel";
 import DashboardView from "./DashboardView";
@@ -71,182 +72,6 @@ function encoded(file) {
 
 function Panel({ title, children }) {
   return <section className="card project-panel">{title && <h2>{title}</h2>}{children}</section>;
-}
-
-const accountFieldMessages = {
-  first_name: ["اكتب الاسم الأول بحروف من غير أرقام أو شرطة سفلية.", "Enter a first name using letters, without digits or underscores."],
-  last_name: ["اكتب اسم العائلة بحروف من غير أرقام أو شرطة سفلية.", "Enter a last name using letters, without digits or underscores."],
-  email: ["اكتب البريد الإلكتروني بصيغة صحيحة.", "Enter a valid email address."],
-  password: ["راجع كلمة المرور. الحد الأقصى ١٢٨ حرف.", "Check your password. The maximum length is 128 characters."],
-};
-
-function AccountAccess({ onAuthenticated, lang, personal, startInRegister }) {
-  const t = translate(lang);
-  const [options, setOptions] = useState(null);
-  const [optionsError, setOptionsError] = useState("");
-  const [attempt, setAttempt] = useState(0);
-  const [mode, setMode] = useState(startInRegister ? "register" : "login");
-  const [showPassword, setShowPassword] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
-  const activeRequest = useRef(null);
-  const titleId = useId();
-  const title = useRef(null);
-  const focusTitle = useRef(false);
-  const passwordId = useId();
-  const hintId = useId();
-  const errorId = useId();
-  const register = mode === "register" && options?.registration !== false;
-  const DirectionArrow = lang === "ar" ? ArrowLeft : ArrowRight;
-
-  function fieldError(name) {
-    return error?.fields.includes(name)
-      ? { "aria-invalid": true, "aria-errormessage": errorId }
-      : {};
-  }
-
-  useEffect(() => {
-    const controller = new AbortController();
-    action(api + "/auth/options", { signal: controller.signal }).then(
-      (value) => { if (!controller.signal.aborted) setOptions(value); },
-      (err) => { if (!controller.signal.aborted) setOptionsError(errorText(err, t)); },
-    );
-    return () => controller.abort();
-  }, [attempt]);
-  useEffect(() => () => activeRequest.current?.abort(), []);
-  useEffect(() => {
-    if (focusTitle.current) title.current?.focus();
-  }, [mode]);
-
-  function changeMode(next) {
-    if (next === mode) return;
-    focusTitle.current = true;
-    setMode(next);
-    setError(null);
-    setShowPassword(false);
-  }
-
-  async function submit(event) {
-    event.preventDefault();
-    if (activeRequest.current) return;
-    const form = event.currentTarget;
-    const data = new FormData(form);
-    const password = data.get("password");
-    const length = [...password].length;
-    if (length > 128 || (register && length < 12)) {
-      setError({
-        fields: ["password"],
-        message: register ? t("كلمة المرور لازم تكون بين ١٢ و١٢٨ حرف.", "Use a password with 12 to 128 characters.")
-          : t("الحد الأقصى لكلمة المرور ١٢٨ حرف.", "Your password can have up to 128 characters."),
-      });
-      return;
-    }
-    setError(null);
-    setBusy(true);
-    const controller = new AbortController();
-    activeRequest.current = controller;
-    try {
-      const account = await action(`${api}/auth/password/${register ? "register" : "login"}`, {
-        ...post({
-          email: data.get("email").trim(), password,
-          ...(register ? { first_name: data.get("first_name").trim(), last_name: data.get("last_name").trim() } : {}),
-        }),
-        signal: controller.signal,
-      });
-      if (controller.signal.aborted) return;
-      if (!account?.id || typeof account.display_name !== "string") throw Error("رد تسجيل الدخول غير صالح.");
-      form.reset();
-      onAuthenticated(account);
-    } catch (err) {
-      if (!controller.signal.aborted) {
-        const fields = (err.fields ?? []).filter((field) => Object.hasOwn(accountFieldMessages, field));
-        const message = fields.map((field) => t(...accountFieldMessages[field])).join(" ") || errorText(err, t);
-        setError({ fields, message });
-      }
-    } finally {
-      activeRequest.current = null;
-      if (!controller.signal.aborted) setBusy(false);
-    }
-  }
-
-  return (
-    <section className="account-layout" aria-labelledby={titleId}>
-      <aside className="account-context" aria-label={t("مساحة بصيرة", "Basira workspace")}>
-        <div className="account-context-mark" aria-hidden="true"><ShieldCheck size={26} strokeWidth={1.7} /></div>
-        <div className="account-context-copy">
-          <strong>{t("من ملفات المشروع إلى تقرير واضح.", "From project files to a clear report.")}</strong>
-          <ul>
-            <li><FolderOpen size={18} aria-hidden="true" />{t("نظّم ملفاتك حسب المشروع", "Organize files by project")}</li>
-            <li><FileText size={18} aria-hidden="true" />{t("راجع الدليل وخطوات الإصلاح", "Review evidence and fixes")}</li>
-          </ul>
-        </div>
-        <div className="account-context-grid" aria-hidden="true"><i /><i /><i /></div>
-      </aside>
-      <div className="project-panel project-account">
-        <header className="project-account-heading">
-          <h1 id={titleId} ref={title} tabIndex={-1}>{register ? t("أنشئ حسابك", "Create your account") : t("سجّل دخولك إلى بصيرة", "Sign in to Basira")}</h1>
-          <p>{register ? t("ابدأ مشروعك الأول واحتفظ بتقاريرك في مكان واحد.", "Start your first project and keep your reports in one place.")
-            : t("ادخل على مشاريعك وتقاريرك.", "Access your projects and reports.")}</p>
-        </header>
-        {!options && !optionsError && <p role="status">{t("جاري تحميل طرق تسجيل الدخول…", "Loading sign-in options…")}</p>}
-        {optionsError && <div className="project-account-feedback">
-          <p className="error" role="alert">{optionsError}</p>
-          <button className="btn" type="button" onClick={() => {
-            setOptionsError("");
-            setAttempt((value) => value + 1);
-          }}>{t("إعادة المحاولة", "Retry")}</button>
-        </div>}
-        {options?.password && <form className="project-form project-account-form" onSubmit={submit} aria-busy={busy}>
-          {register && <div className="account-name-fields">
-            <label>{t("الاسم الأول", "First name")}
-              <input name="first_name" dir="auto" autoComplete="given-name" maxLength={80} required disabled={busy} {...fieldError("first_name")} />
-            </label>
-            <label>{t("اسم العائلة", "Last name")}
-              <input name="last_name" dir="auto" autoComplete="family-name" maxLength={80} required disabled={busy} {...fieldError("last_name")} />
-            </label>
-          </div>}
-          <label>{t("البريد الإلكتروني", "Email")}
-            <span className="account-input">
-              <Mail size={17} aria-hidden="true" />
-              <input name="email" type="email" autoComplete="username" dir="ltr" maxLength={254} required disabled={busy} {...fieldError("email")} />
-            </span>
-          </label>
-          <div className="account-password">
-            <label htmlFor={passwordId}>{t("كلمة المرور", "Password")}</label>
-            <div className="account-input account-secret">
-              <input key={mode} id={passwordId} name="password" type={showPassword ? "text" : "password"} dir="ltr"
-                autoComplete={register ? "new-password" : "current-password"}
-                aria-describedby={register ? hintId : undefined}
-                maxLength={256} required disabled={busy} {...fieldError("password")} />
-              <button type="button" aria-controls={passwordId} disabled={busy}
-                aria-label={showPassword ? t("إخفاء كلمة المرور", "Hide password") : t("إظهار كلمة المرور", "Show password")}
-                onClick={() => setShowPassword((value) => !value)}>
-                {showPassword ? <EyeOff size={19} aria-hidden="true" /> : <Eye size={19} aria-hidden="true" />}
-              </button>
-            </div>
-            {register && <p id={hintId} className="project-account-hint">{t("من ١٢ إلى ١٢٨ حرف.", "12 to 128 characters.")}</p>}
-          </div>
-          {error && <p id={errorId} className="error" role="alert">{error.message}</p>}
-          <button className="btn primary account-submit" disabled={busy}>
-            {busy ? (register ? t("جاري إنشاء الحساب…", "Creating account…") : t("جاري تسجيل الدخول…", "Signing in…"))
-              : (register ? t("إنشاء الحساب", "Create account") : t("تسجيل الدخول", "Sign in"))}
-            <DirectionArrow size={18} aria-hidden="true" />
-          </button>
-        </form>}
-        {options?.oidc && <a className="btn account-organization" href={api + "/auth/login"}>
-          <Building2 size={18} aria-hidden="true" />{personal ? t("الدخول بمزوّد الهوية", "Sign in with identity provider")
-            : t("الدخول بحساب المؤسسة", "Sign in with your organization")}
-        </a>}
-        {options && !options.password && !options.oidc && <p role="status">{t("تسجيل الدخول للمشاريع غير متاح حاليًا.", "Project sign-in is currently unavailable.")}</p>}
-        {options?.password && options.registration && <div className="account-mode-switch">
-          <span>{register ? t("عندك حساب بالفعل؟", "Already have an account?") : t("أول مرة تستخدم بصيرة؟", "New to Basira?")}</span>
-          <button type="button" disabled={busy} onClick={() => changeMode(register ? "login" : "register")}>
-            {register ? t("عندي حساب", "I have an account") : t("إنشاء حساب", "Create an account")}
-          </button>
-        </div>}
-      </div>
-    </section>
-  );
 }
 
 function ScanStatus({ projectId, scanId, lang }) {
@@ -993,7 +818,8 @@ export function Platform({ location, navigate, lang, session, preferences, perso
   }, [user, signingIn, location.hash, location.search, pendingInvite, personal, navigate]);
   if (failure) return <p className="workspace-error" role="alert">{errorText(failure, t)} <button className="btn" onClick={retry}>{t("إعادة المحاولة", "Retry")}</button></p>;
   if (user === undefined) return <p role="status">{t("جاري التحقق من الجلسة…", "Checking your session…")}</p>;
-  if (!user) return <AccountAccess key={String(startInRegister)} lang={lang} personal={personal} startInRegister={startInRegister}
+  if (!user) return <SignIn key={String(startInRegister)} lang={lang} personal={personal} startInRegister={startInRegister}
+    navigate={navigate} preferences={preferences}
     onAuthenticated={(account) => {
     setUser(account);
     if (!signingIn && !pendingInvite) navigate(personal ? "/projects" : "/dashboard", { replace: true });
