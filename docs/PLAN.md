@@ -30,7 +30,7 @@ Analysis modes:
 
 ## 2. Current position
 
-Phases P01 to P08 are built. **Work is in P09** (live experience and report model), then P10 (visual redesign and dashboard).
+Phases P01 to P08 are built; this plan has 18 phases (P01 to P18). **Work is in P09** (live experience and report model), then P10 (visual redesign and dashboard).
 
 Verified on 27 November 2026:
 - Python 3.13: 251 backend tests pass, 1 skipped.
@@ -62,12 +62,14 @@ Status: **done** (built, tests exist, acceptance re-run or re-checked on 27 Nove
 | P10 | Visual redesign and dashboard | New design system across every page, project dashboard, accessibility | open |
 | P11 | Recheck and history | Fixed, Still present, New, Changed, Inconclusive, Needs review | open |
 | P12 | Remediation | Repair plans, approval, optional sandbox patch draft | open |
-| P13 | Help and assistant | Static contextual help, then optional cited report assistant | open |
+| P13 | Help and report assistant | Static contextual help, then the cited read-only report assistant (committed) | open |
 | P14 | Active verification | Owner-proven, rate-limited, non-destructive probes for the taxonomy gaps | proposed |
-| P15 | Evaluation | Benchmarks, labeled corpus, four-configuration comparison | open |
-| P16 | Hardening and release | Isolation and recovery acceptance, Docker verified, legacy removal, release manifest, rename | open |
+| P15 | Learning from past scans | Owner decisions and recheck outcomes feed ranking, confidence and suppression, measured before it is enabled | open |
+| P16 | Performance and data design | Latency budgets, incremental scans, caching, indexes, schema review, load tests | open |
+| P17 | Evaluation | Benchmarks, labeled corpus, four-configuration comparison with measured detection rates | open |
+| P18 | Hardening and release | Isolation and recovery acceptance, Docker verified, legacy removal, release manifest, rename | open |
 
-Order of work: P07 gaps (checkpoint failure and isolation acceptance), P09, P10, P11, P13, P15, P12, P16. P14 follows decision A and ships before P15 if approved, so evaluation covers it.
+Order of work: P07 gaps (checkpoint failure and isolation acceptance), P09, P10, P11, P13, P16, P15, P12, P17, P18. P14 follows decision A and ships before P17 if approved, so evaluation covers it.
 
 ## 4. Phase details
 
@@ -111,21 +113,40 @@ Compare the original report with a recheck of the new revision under an equivale
 
 Recommendation from a validated finding, repair plan, owner approval bound to source digest, plan digest, permitted paths and expiry. Optional draft in an isolated worktree, trusted pre-vetted checks, review, reject or roll back. Deployment, push and merge are never automatic. Ships behind a flag, one labeled fixture first. States: Proposed, Awaiting approval, Approved, Sandbox created, Patch drafted, Testing, Ready for review, Completed; plus Rejected, Failed, Rolled back.
 
-### P13 Help and assistant
+### P13 Help and report assistant
 
-Static bilingual help works without any provider. A cited read-only report assistant is optional: it authorizes the report, answers from validated records, cites evidence IDs, and abstains when no approved source matches. Session-only context by default.
+Committed by the owner. Scope, so it stays safe and useful:
+1. Static bilingual help works with no provider.
+2. The report assistant is read-only and bound to one project report. It classifies the question locally, retrieves redacted structured records (findings, evidence, coverage, recheck outcomes), and answers from them with citation IDs. A model may phrase the answer but receives only the approved projection and cannot add facts; every citation is validated against the report, otherwise the answer is dropped.
+3. It abstains when no approved source matches, says so, and points to the nearest finding or help page.
+4. Session-only memory by default; nothing persisted unless the owner opts in. It cannot start scans, change decisions, or touch other projects.
+5. It is measured: a labeled question set with grounding, correctness and abstention scores, in both languages.
+
+Done when: authorization, unsupported-question, invalid-citation and provider-down tests pass and the question set is scored.
 
 ### P14 Active verification (proposed)
 
 For sites the owner proves they control (DNS TXT record or a file token): bounded, rate-limited, non-destructive probes for the largest taxonomy gaps (reflected XSS, SQL injection signals, open redirect, exposed files, CORS and header behavior, TLS, rate limit presence). Allowlist per probe, kill switch, full audit, safe by default. Findings enter the same evidence contract. Not started. Needs decision A.
 
-### P15 Evaluation
+### P15 Learning from past scans
 
-Four configurations on the same corpus: native rules, deterministic tools, tools plus one advisory model, tools plus multiple roles. Corpus: vulnerable apps and benchmarks listed in [benchmarks](research/benchmarks.md), with at least 24 independently labeled holdout cases (12 clean, 12 positive) for the passive scope. Report precision, recall, F1 where a denominator exists, duplicates, runtime and cost. No number is published before a run, and a zero or negative result is reported as is.
+The system improves from its own history without letting a model rewrite findings. Three loops, each off until measured on held-out data:
+1. Ranking and confidence calibration. Owner decisions (accepted risk, false positive, fixed) and recheck outcomes become labels per rule and per finding fingerprint. A per-rule precision estimate (with a minimum sample size and a confidence interval) adjusts confidence and ordering, never the existence of a finding.
+2. Project memory. Repeated fingerprints are recognized across scans; a decision the owner made earlier is offered again, marked as carried over, and expires when the evidence changes.
+3. Corpus growth. Confirmed true and false positives (redacted, with consent) are added to the regression corpus so every rule change is scored against them.
+Rule changes stay human-approved and versioned. Done when a replay on held-out scans shows the calibrated ranking beats the static one (or the result is reported as no gain) and nothing changes without a recorded version.
 
-### P16 Hardening and release
+### P16 Performance and data design
 
-Failure injection (crash at dispatch, after checkpoint, before publish), duplicate dispatch, stale lease, cancel; isolation with controlled egress; restore on a copied database with matching digests; Docker image and Compose verified on a real Docker host; merge ARCHITECTURE, PLATFORM and WORKSPACE into fewer topic files and translate them if the owner asks; remove `/demo`, remaining organization keys and legacy report compatibility after a verified migration; release manifest with hashes and known limits; go or no-go record; rename if decided.
+Targets are set from a measured baseline, not guessed. Work: profile the scan path; incremental scans that skip files whose digest and rule versions are unchanged; cache artifact inventories and parsed manifests by digest; stream stage events instead of polling; parallel analysis branches within the worker budget; report and PDF rendering cached by report version; index review for every hot query (`EXPLAIN` evidence kept); schema review against [ERD](ERD.md): keys, constraints, retention, partitioning decisions for events and findings; load test with many projects and large archives, reporting p50 and p95 for queue wait, scan time and report time. Done when baseline and after numbers are recorded in the release notes and no regression test is slower than its budget.
+
+### P17 Evaluation
+
+Fixed test targets, same inputs for every configuration: (1) static checks only, (2) one agent with no tools, (3) multiple agents with no tools, (4) multiple agents with tools. Measure detection rate (share of labeled vulnerabilities found), false positives, duplicates, runtime and cost, and show the progression from 1 to 4. Targets: vulnerable apps and benchmarks listed in [benchmarks](research/benchmarks.md), plus at least 24 independently labeled holdout cases (12 clean, 12 positive) for the passive scope. Configurations (2) to (4) need a model provider; without one only (1) and the deterministic tool runs can be measured, and the report says so. Published comparisons with other systems use only their own published numbers, with source and benchmark version, and are marked as not like-for-like unless the same target and scoring are used. A zero or negative result is reported as is. Nothing is published before a run.
+
+### P18 Hardening and release
+
+Failure injection (crash at dispatch, after checkpoint, before publish), duplicate dispatch, stale lease, cancel; isolation with controlled egress; restore on a copied database with matching digests; Docker image and Compose verified on a real Docker host; merge ARCHITECTURE, PLATFORM and WORKSPACE into fewer topic files (translate if the owner asks); remove `/demo`, remaining organization keys and legacy report compatibility after a verified migration; release manifest with hashes and known limits; go or no-go record; rename if decided.
 
 ## 5. Architecture
 
@@ -150,7 +171,7 @@ The database is authoritative for work state and reports. The broker only transp
 |---|---|
 | Web | React, Vite, Arabic and English, RTL and LTR, dark and light |
 | API | Python 3.13, FastAPI, Pydantic; routes under `/api/platform` |
-| Data | PostgreSQL 17, SQLAlchemy, Alembic, row-level security; SQLite only for the anonymous lab until it is removed in P16 |
+| Data | PostgreSQL 17, SQLAlchemy, Alembic, row-level security; SQLite only for the anonymous lab until it is removed in P18 |
 | Jobs | Redis, Celery, transactional outbox, leases, bounded retries |
 | Agents | LangGraph, five deterministic stages |
 | PDF | fpdf2, uharfbuzz, embedded Arabic font |
@@ -200,10 +221,15 @@ Tools: each analyzer needs a registry entry, license review, pinned version and 
 
 Test layers: unit and contracts; database and API with two owners; worker and queue failure injection; browser (Playwright) in both languages; fix and regression; recovery and release. Unit and docs tests run with `npm test`.
 
+## Graduation scope
+
+What makes this graduation-worthy, in priority order: (1) live multi-agent view with real events (P09); (2) a measured four-configuration evaluation with honest numbers (P17); (3) recheck of a fix with Fixed and Inconclusive outcomes (P11); (4) learning from past scans, measured (P15); (5) cited report assistant (P13); (6) performance numbers (P16); (7) active verification for owned sites (P14, if approved); (8) patch draft on one fixture (P12). Items 1 to 3 and 6 are the core; 4, 5, 7 and 8 are added only when their phase gate passes.
+
 ## 9. Risks and limits
 
 - Passive checks cannot find injection, XSS, IDOR or SSRF. Until P14 these stay listed as gaps.
 - No accuracy is published. The synthetic corpus proves rule behavior, not real-world detection.
+- Model-backed configurations in P17 need a provider key and budget; none is configured in the review environment.
 - Docker has not been run in the review environment.
 - The model is advisory only. It cannot add, remove or rewrite findings.
 - Hosted or team use needs a separate design: tenant access, storage, cost and support.
@@ -214,9 +240,10 @@ Test layers: unit and contracts; database and API with two owners; worker and qu
 |---|---|---|
 | A | Add the owner-verified active verification tier (P14) | open, owner |
 | B | Keep the name Marsad or rename (one switch across repo, package, UI, README, logo) | open, owner |
+| F | Report assistant stays in scope (owner decision 27 November 2026), read-only and cited | decided |
 | C | One tracker, this file; blueprint and repository phase IDs retired | decided 27 November 2026 |
 | D | Initial user is the individual developer, local first | decided |
-| E | Patch drafting stays behind a flag until A3 and A4 pass | decided |
+| E | Patch drafting stays behind a flag until gates A3 and A4 pass | decided |
 
 ## 11. Conventions
 
