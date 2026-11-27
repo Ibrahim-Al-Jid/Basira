@@ -4,6 +4,7 @@
 
 ### Changed
 - Plan: Release 1 is defined (P10 redesign, P20 replay, what is already merged, and a short P18 release checklist). The assistant (P13), recheck, remediation, learning, active verification, performance work and the full four-configuration evaluation are listed as future additions.
+- UI labels match the code: the scan profile says "Extended · 114 rules" (3 baseline plus 111 extended, counted from the registry), and the landing page lists the source-code domain.
 - The product is renamed from Marsad to Basira (بصيرة) in code, UI, docs, tests and fixtures; the reference-corpus manifest checksum was recomputed. Environment variables are now `BASIRA_*` and database roles `basira_*`; existing local setups must be recreated.
 
 ### Added

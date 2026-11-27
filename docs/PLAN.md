@@ -105,7 +105,7 @@ Release 1 closes first (see Release 1 above): P10, P20, then the P18 release che
 
 | Area | What exists | Where |
 |---|---|---|
-| Detection | 100 checks, six families (HTML, Web headers and cookies, Dependencies, Infrastructure, CI, App config) | `backend/checks/`, `backend/artifact_review.py`, [checks](checks/README.md) |
+| Detection | 114 checks, seven families (HTML, Web headers and cookies, Dependencies, Infrastructure, CI, App config, and 14 source-code checks added in P19) | `backend/checks/`, `backend/artifact_review.py`, [checks](checks/README.md) |
 | Taxonomy | 17 domains, 75 subdomains, 159 problems, mapped to CWE, OWASP Top 10:2025, OWASP API Top 10 2023, WSTG | `backend/taxonomy.py`, [taxonomy](taxonomy.md) |
 | Tools | Gitleaks 8.30.1 and OSV-Scanner 2.7.1 pinned, offline; saved ZAP and OpenAPI import | `backend/source_adapters.py`, `Dockerfile` |
 | Workflow | Five stages in LangGraph, parallel branches that merge before verification, deterministic fallback | `backend/graph.py`, `backend/offline_worker.py` |
