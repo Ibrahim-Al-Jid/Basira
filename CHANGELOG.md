@@ -8,6 +8,8 @@
 - Tests for taxonomy, markdown links and generated-doc freshness (251 backend tests pass).
 - `docs/README.md`, the single documentation index.
 
+- Scan page lists the five agents with state, duration and tools used, from persisted `agent_done` events.
+
 ### Changed
 - One plan: `docs/PLAN.md` (product, current position, 18 phases P01 to P18, contracts, acceptance gates, decisions, naming conventions). It replaces the blueprint, the 19-phase plan and `work/plan.md`.
 - Names: files, tests, fixtures and environment variables no longer carry phase numbers (for example `phase9_contracts.py` is now `scan_contracts.py`, `browser_phase13.py` is now `browser_personal_projects.py`, `MARSAD_PHASE13_QA_ORIGIN` is now `MARSAD_QA_ORIGIN`).

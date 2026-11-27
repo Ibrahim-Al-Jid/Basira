@@ -92,7 +92,7 @@ Open items inside P07: failure and recovery acceptance (crash after checkpoint, 
 
 ### P09 Live experience and report model
 
-1. Live agent view. Lanes for the five roles with state (waiting, running, done, skipped, failed), current task, tool in use, items done and remaining, elapsed time and evidence produced. Fed by persisted stage events with a cursor. Percentages only with a real denominator; stale data is shown as stale.
+1. Live agent view. Shipped so far: the scan page lists the five roles with state, duration and tools used, from persisted `agent_done` events (`frontend/src/AgentLanes.jsx`). Still open: events while a stage is running (today a stage appears when the analysis step ends), the model enrichment stage, and per-tool progress. Target design: lanes for the five roles with state (waiting, running, done, skipped, failed), current task, tool in use, items done and remaining, elapsed time and evidence produced. Fed by persisted stage events with a cursor. Percentages only with a real denominator; stale data is shown as stale.
 2. Frozen `ReportModel` per scan (section 7), rendered to web, Arabic and English text, PDF and SARIF. A cross-format test compares finding IDs, severity totals, evidence IDs and coverage.
 3. PDF tests for shaping, mixed direction, long paths, many pages and selectable Arabic text.
 4. Intake accepts drag and drop, file picker, paste and URL.

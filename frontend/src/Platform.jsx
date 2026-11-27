@@ -6,6 +6,7 @@ import { AccountSettings } from "./AccountSettings";
 import { ProjectAccess } from "./ProjectAccess";
 import { DirectoryLink, ProjectDirectory } from "./ProjectDirectory";
 import { PersonalDirectory, PersonalGitHub, PersonalProjectManagement } from "./PersonalWorkspace";
+import AgentLanes from "./AgentLanes";
 import "./platform.css";
 import "./scan-source.css";
 
@@ -315,9 +316,10 @@ function ScanStatus({ projectId, scanId, lang }) {
         {scan.artifact.profile && <p className="workspace-hint">
           {label(kinds, scan.artifact.profile.mode === "zip" ? "repository" : scan.artifact.profile.mode, t)}
         </p>}
+        <AgentLanes events={events} active={isActive(scan.state)} t={t} lang={lang} />
         {!!events.length && <section className="workspace-management">
           <h3>{t("سجل الفحص", "Scan activity")}</h3>
-          <ol className="workspace-timeline" aria-label={t("سجل الفحص", "Scan events")}>{events.map((item) => <li key={item.sequence}>
+          <ol className="workspace-timeline" aria-label={t("سجل الفحص", "Scan events")}>{events.filter((item) => item.kind !== "agent_done").map((item) => <li key={item.sequence}>
           <b>{label(states, item.kind, t)}</b>
           <p dir="auto">{t(item.detail, eventDetail(item))}</p>
           <time dateTime={item.occurred_at}>{new Date(item.occurred_at).toLocaleString(lang === "ar" ? "ar-EG" : "en")}</time>
