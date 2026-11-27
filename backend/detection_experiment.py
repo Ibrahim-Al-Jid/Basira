@@ -9,9 +9,11 @@ file that map elsewhere, are reported separately as false positives and extras.
 """
 import argparse
 import io
+import os
 import json
 from hashlib import sha256
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 from time import perf_counter
 from urllib.request import urlopen
 from zipfile import ZipFile
@@ -64,15 +66,61 @@ def score(manifest, found):
             "clean_files": len(clean), "clean_files_flagged": len(false_positives), "hits": hits}
 
 
+def run_model_config(config, manifest, sources, log_path, cache_path, budget=int(os.environ.get("DET_BUDGET", "10")), workers=int(os.environ.get("DET_WORKERS", "5"))):
+    from .detection_agents import Client, run_single, run_team
+    client = Client(log_path)
+
+    cache = json.loads(Path(cache_path).read_text()) if Path(cache_path).exists() else {}
+    deadline = perf_counter() + budget
+
+    def one(case):
+        if case["path"] in cache or perf_counter() > deadline:
+            return case["path"], cache.get(case["path"])
+        source = sources[case["id"]]
+        if config == "single":
+            labels = run_single(client, source)
+        elif config == "team":
+            labels = run_team(client, source)
+        else:
+            def hook(case=case, source=source):
+                report = defensive_review("repository", "f.zip", _zip({case["path"]: source}), {"allowed_kinds": ["repository"]})
+                return json.dumps(sorted({item["rule"] for item in report["findings"]})) or "[]"
+            labels = run_team(client, source, tools_enabled=True, static_hook=hook)
+        cache[case["path"]] = sorted(labels)
+        Path(cache_path).write_text(json.dumps(cache))
+        return case["path"], sorted(labels)
+
+    started = perf_counter()
+    with ThreadPoolExecutor(workers) as pool:
+        found = dict(pool.map(one, manifest["cases"]))
+    pending = [path for path, value in found.items() if value is None]
+    if pending:
+        raise SystemExit(f"{len(pending)} of {len(found)} cases still pending; run the same command again to resume")
+    return {path: set(value) for path, value in found.items()}, perf_counter() - started, client.calls
+
+
+def _zip(files):
+    buffer = io.BytesIO()
+    with ZipFile(buffer, "w") as archive:
+        for name, text in files.items():
+            archive.writestr(name, text)
+    return buffer.getvalue()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", choices=["static"], default="static")
+    parser.add_argument("--config", choices=["static", "single", "team", "team-tools"], default="static")
+    parser.add_argument("--cache", default="/tmp/detection-cache.json")
+    parser.add_argument("--log", default="/tmp/detection-requests.jsonl")
     args = parser.parse_args()
     manifest = load_manifest()
     sources = fetch_sources(manifest)
-    found, elapsed, total = run_static(manifest, sources)
+    if args.config == "static":
+        found, elapsed, calls = run_static(manifest, sources)
+    else:
+        found, elapsed, calls = run_model_config(args.config, manifest, sources, args.log, args.cache)
     result = {"config": args.config, "target": manifest["target"], "commit": manifest["commit"],
-              "seconds": round(elapsed, 3), "findings_total": total, **score(manifest, found)}
+              "seconds": round(elapsed, 3), "requests_or_findings": calls, **score(manifest, found)}
     print(json.dumps(result, indent=2))
 
 
