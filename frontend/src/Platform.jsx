@@ -465,6 +465,9 @@ function NewScan({ projects, project, choose, navigate, lang, personal }) {
             <input name="commit" dir="ltr" autoComplete="off" spellCheck={false} required maxLength={personal ? 200 : 40}
               value={commit} onChange={(event) => updateEvidence(() => setCommit(event.target.value))} />
           </label>
+          {personal && <p className="project-hint">{t(
+            "بصيرة بتقرا ملفات الكود والإعدادات (py، js، ts، json، yaml، toml، xml، Dockerfile وأشباهها) لحد ٢٠٠ ملف و٨ ميجا بعد الفك. ملفات Markdown والصور مش بتتفحص، ومستودع من غيرها هيترفض.",
+            "Basira reads code and config files (py, js, ts, json, yaml, toml, xml, Dockerfile and similar), up to 200 files and 8 MB unpacked. Markdown and images are not scanned, and a repository with none of the supported files is rejected.")}</p>}
         </>}
       </> : useWebsite ? <label>{t("رابط الصفحة المعتمدة", "Approved page URL")}
         <input type="url" dir="ltr" value={targetReference} maxLength={250} required placeholder="https://example.com/"
