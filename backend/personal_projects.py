@@ -32,12 +32,21 @@ def project_view(project):
     }
 
 
-def list_owned(user_id):
+def list_owned(user_id, archived=False):
+    """Active projects by name, or the account's deleted projects, newest deletion first."""
     with platform_session() as db:
-        projects = db.scalars(select(Project).where(
-            Project.owner_user_id == user_id, Project.deleted_at.is_(None),
-        ).order_by(Project.name, Project.id))
-        return {"projects": [project_view(project) for project in projects]}
+        if archived:
+            query = select(Project).where(Project.owner_user_id == user_id, Project.deleted_at.is_not(None)
+                                          ).order_by(Project.deleted_at.desc(), Project.id)
+        else:
+            query = select(Project).where(Project.owner_user_id == user_id, Project.deleted_at.is_(None)
+                                          ).order_by(Project.name, Project.id)
+        return {"projects": [project_view(project) | ({"deleted_at": _utc(project.deleted_at)} if archived else {})
+                             for project in db.scalars(query)]}
+
+
+def _utc(value):
+    return (value if value.tzinfo else value.replace(tzinfo=UTC)).astimezone(UTC)
 
 
 def owned(db, project_id, user_id, *, lock=False):
@@ -95,6 +104,21 @@ def archive_project(project_id: Identifier, request: Request):
         for scan in pending:
             store.close_scan(db, scan, "cancelled", "اتلغى الفحص بعد حذف المشروع.")
         project.deleted_at = project.updated_at = utc_now()
+
+
+@router.post("/projects/{project_id}/restore")
+def restore_project(project_id: Identifier, request: Request):
+    """Bring a deleted project back. Scans cancelled by the deletion stay cancelled."""
+    user = personal_user(request)
+    with platform_session() as db:
+        project = db.scalar(select(Project).where(
+            Project.id == project_id, Project.owner_user_id == user.id, Project.deleted_at.is_not(None),
+        ).with_for_update())
+        if not project:
+            raise HTTPException(404, "المشروع غير متاح.")
+        project.deleted_at = None
+        project.updated_at = utc_now()
+        return project_view(project)
 
 
 @router.get("/github-connections")

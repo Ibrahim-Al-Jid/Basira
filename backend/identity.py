@@ -458,12 +458,12 @@ def create_project(org_id: str, body: NamedResource, request: Request):
 
 
 @router.get("/projects")
-def list_projects(request: Request):
+def list_projects(request: Request, archived: bool = False):
     user = require_user(request)
     if personal_projects_enabled():
         from .personal_projects import list_owned
 
-        return list_owned(user.id)
+        return list_owned(user.id, archived)
     with platform_session() as db:
         items = db.execute(select(Project.id, Project.org_id, Project.name, Membership.role).join(
             Membership, and_(Membership.org_id == Project.org_id, Membership.user_id == user.id,

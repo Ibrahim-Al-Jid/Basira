@@ -188,3 +188,13 @@
   .personal-links { display: none; }
   .personal-links.is-open { display: grid; margin-block-start: .5rem; }
 }
+
+.personal-project-toolbar { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; margin-block-end: 1rem; }
+.personal-project-search { display: flex; align-items: center; gap: .5rem; flex: 1 1 14rem; max-inline-size: 22rem; }
+.personal-project-search input { flex: 1; min-inline-size: 0; }
+.personal-project-list li { align-content: start; gap: .5rem; }
+.personal-project-actions, .personal-project-inline { margin: 0; }
+.personal-project-actions .btn { padding-block: .35rem; font-size: .85rem; }
+.personal-archived-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem; }
+.personal-archived-list li { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; }
+.personal-archived-list time { color: var(--muted); font-size: .85rem; }

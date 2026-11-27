@@ -195,3 +195,22 @@ def test_backfill_quarantines_shared_and_ownerless_projects(tmp_path, monkeypatc
     assert owners == {"personal": "owner", "shared": None, "ownerless": None}
     assert reviews == {"shared": "shared_membership_or_grant", "ownerless": "missing_owner"}
     engine.dispose()
+
+
+def test_deleted_projects_can_be_listed_and_restored_by_their_owner_only(personal_clients):
+    owner, other = personal_clients
+    project = owner.post(API + "/projects", json={"name": "Keep me"}).json()
+    path = API + "/projects/" + project["id"]
+    assert owner.get(API + "/projects?archived=true").json()["projects"] == []
+    assert owner.delete(path).status_code == 204
+    assert owner.get(API + "/projects").json()["projects"] == []
+    archived = owner.get(API + "/projects?archived=true").json()["projects"]
+    assert [item["id"] for item in archived] == [project["id"]] and archived[0]["deleted_at"]
+    assert other.get(API + "/projects?archived=true").json()["projects"] == []
+    assert other.post(path + "/restore").status_code == 404
+    assert owner.post(path + "/restore", headers={"Origin": "https://other.example"}).status_code == 403
+    restored = owner.post(path + "/restore")
+    assert restored.status_code == 200 and restored.json()["name"] == "Keep me"
+    assert [item["id"] for item in owner.get(API + "/projects").json()["projects"]] == [project["id"]]
+    assert owner.get(API + "/projects?archived=true").json()["projects"] == []
+    assert owner.post(path + "/restore").status_code == 404
