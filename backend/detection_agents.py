@@ -7,6 +7,8 @@ Every request and response is appended to a JSONL log so a run can be audited.
 import json
 import os
 import re
+import subprocess
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from urllib.error import HTTPError
@@ -33,18 +35,31 @@ TOOLS = [
 NESTED_QUANTIFIER = re.compile(r"\([^()]*[+*][^()]*\)\s*(?:[+*]|\{\d*,\d*\})|\\[1-9]")
 
 
+SEARCH_TIMEOUT = 2
+SEARCH_SCRIPT = (
+    "import json,re,sys\n"
+    "d=json.load(sys.stdin)\n"
+    "c=re.compile(d['p'])\n"
+    "print(json.dumps('\\n'.join(f'{n}: {l[:400]}' for n,l in enumerate(d['s'],1) if c.search(l))[:2000] or 'no match'))\n"
+)
+
+
 def search_lines(source, pattern):
-    """Regex search for the search_code tool. The pattern comes from a model, so it is bounded:
-    short, no nested quantifiers or backreferences (the usual catastrophic-backtracking shapes), no
-    more than 2000 lines. This is a heuristic guard, not a proof against every slow pattern."""
+    """Regex search for the search_code tool. The pattern comes from a model that file content may have steered, so it
+    is short, free of the usual catastrophic shapes (nested quantifiers, backreferences), and runs in a child process
+    with a time limit, because the shape check alone misses patterns such as (a|aa)+$."""
     if not isinstance(pattern, str) or not pattern or len(pattern) > 200 or NESTED_QUANTIFIER.search(pattern):
         return "pattern rejected"
     try:
-        compiled = re.compile(pattern)
+        re.compile(pattern)
     except re.error:
         return "invalid pattern"
-    lines = source.splitlines()[:2000]
-    return "\n".join(f"{n}: {line[:400]}" for n, line in enumerate(lines, 1) if compiled.search(line))[:2000] or "no match"
+    payload = json.dumps({"p": pattern, "s": source.splitlines()[:2000]})
+    try:
+        done = subprocess.run([sys.executable, "-I", "-c", SEARCH_SCRIPT], input=payload, capture_output=True, text=True, timeout=SEARCH_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        return "pattern too slow"
+    return json.loads(done.stdout) if done.returncode == 0 else "invalid pattern"
 
 
 def taxonomy_text(domain_ids=None):
