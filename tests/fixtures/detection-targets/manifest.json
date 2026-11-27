@@ -1,0 +1,192 @@
+{
+  "version": "detection-targets-1",
+  "target": "DVWA",
+  "repository": "https://github.com/digininja/DVWA",
+  "commit": "502ac150ce37c20ca6e04cab7c5ca959f315f2d0",
+  "license": "GPL-3.0, files are downloaded at run time and never committed",
+  "labeling": "Labels come from DVWA's own module names: low.php is the intentionally vulnerable level, impossible.php is the project's fixed version. Subdomain IDs are from docs/taxonomy.md. Labeled by one reader (the author of this repo's harness) and published for audit; a second reader is still needed before headline use.",
+  "cases": [
+    {
+      "id": "dvwa-brute-low",
+      "path": "vulnerabilities/brute/source/low.php",
+      "sha256": "304781c4f17bdccbf85f834e29fa42ee9e0aa44658b2a261c3b32ce178713be9",
+      "vulnerable": true,
+      "subdomain": "D02.3"
+    },
+    {
+      "id": "dvwa-brute-impossible",
+      "path": "vulnerabilities/brute/source/impossible.php",
+      "sha256": "bd6765867b75932df92fbb00fdbcb773e3a223132ab81cfe7e825be01e59e0e8",
+      "vulnerable": false,
+      "subdomain": null
+    },
+    {
+      "id": "dvwa-exec-low",
+      "path": "vulnerabilities/exec/source/low.php",
+      "sha256": "399a0d5dd28436a952a5bb0d14390eb421e57ab2e7add68813b6ce283cc70f28",
+      "vulnerable": true,
+      "subdomain": "D04.2"
+    },
+    {
+      "id": "dvwa-exec-impossible",
+      "path": "vulnerabilities/exec/source/impossible.php",
+      "sha256": "26b294a69538ae5de36b8669fdaef85022814bfaa253f7678b2ac5fa295ab543",
+      "vulnerable": false,
+      "subdomain": null
+    },
+    {
+      "id": "dvwa-csrf-low",
+      "path": "vulnerabilities/csrf/source/low.php",
+      "sha256": "d718de6b22eabe0f1a2f0f2b0c148c251787a46ed334a4496857a1cf12155ec6",
+      "vulnerable": true,
+      "subdomain": "D01.3"
+    },
+    {
+      "id": "dvwa-csrf-impossible",
+      "path": "vulnerabilities/csrf/source/impossible.php",
+      "sha256": "cf93ff925216475c0b47bd2b7aa0a55cafeed5a3a76c66fbed776c2746b0c05f",
+      "vulnerable": false,
+      "subdomain": null
+    },
+    {
+      "id": "dvwa-fi-low",
+      "path": "vulnerabilities/fi/source/low.php",
+      "sha256": "ac675d111bc8f81ac257f68563d5f26ece31afad7021a469d2c51babff867dad",
+      "vulnerable": true,
+      "subdomain": "D12.2"
+    },
+    {
+      "id": "dvwa-fi-impossible",
+      "path": "vulnerabilities/fi/source/impossible.php",
+      "sha256": "66fa964b231cfb7dfc67d39bbfb2532bf1cd0449579152c4d675b617100b69ba",
+      "vulnerable": false,
+      "subdomain": null
+    },
+    {
+      "id": "dvwa-upload-low",
+      "path": "vulnerabilities/upload/source/low.php",
+      "sha256": "a958136c538b253829ffbb8d8e6e7daee5061b31a531c4b9bcc99e8d2099503f",
+      "vulnerable": true,
+      "subdomain": "D12.1"
+    },
+    {
+      "id": "dvwa-upload-impossible",
+      "path": "vulnerabilities/upload/source/impossible.php",
+      "sha256": "078410f8f0263eccc0a6c7a2599c0481d502a153cc91ea6f5e5f3fc0bcad8b8c",
+      "vulnerable": false,
+      "subdomain": null
+    },
+    {
+      "id": "dvwa-sqli-low",
+      "path": "vulnerabilities/sqli/source/low.php",
+      "sha256": "652bb44d14a9d81c9245f05ed8440beecf7977e982e00d3ddb916126a72e85bf",
+      "vulnerable": true,
+      "subdomain": "D04.1"
+    },
+    {
+      "id": "dvwa-sqli-impossible",
+      "path": "vulnerabilities/sqli/source/impossible.php",
+      "sha256": "f4dcc92946933a31b0e93362a184ff776da9736036e99bec79f119cc2128aa8c",
+      "vulnerable": false,
+      "subdomain": null
+    },
+    {
+      "id": "dvwa-sqli_blind-low",
+      "path": "vulnerabilities/sqli_blind/source/low.php",
+      "sha256": "28e34b5f7f4dd2ae1a38b1fae4c1bf67aaf3b98791c4a6c7560e322d1079f73a",
+      "vulnerable": true,
+      "subdomain": "D04.1"
+    },
+    {
+      "id": "dvwa-sqli_blind-impossible",
+      "path": "vulnerabilities/sqli_blind/source/impossible.php",
+      "sha256": "ccd72dcc781d921f3acbc02da2609018f2d604921a51e74d6b097624ddc18f83",
+      "vulnerable": false,
+      "subdomain": null
+    },
+    {
+      "id": "dvwa-weak_id-low",
+      "path": "vulnerabilities/weak_id/source/low.php",
+      "sha256": "c88680e13f976f129b956cee00a7c426b6a29da9e678677b7d2881109f02b2d0",
+      "vulnerable": true,
+      "subdomain": "D03.3"
+    },
+    {
+      "id": "dvwa-weak_id-impossible",
+      "path": "vulnerabilities/weak_id/source/impossible.php",
+      "sha256": "3ce73ba8804c5395f0f537e98bf37a8afa1ea16701e87179046f8231f8dfed35",
+      "vulnerable": false,
+      "subdomain": null
+    },
+    {
+      "id": "dvwa-xss_d-low",
+      "path": "vulnerabilities/xss_d/source/low.php",
+      "sha256": "7fdc47cbbcdaa9abd594671ea46babfb7a370a7a91687ed77a57118de53df681",
+      "vulnerable": true,
+      "subdomain": "D05.1"
+    },
+    {
+      "id": "dvwa-xss_d-impossible",
+      "path": "vulnerabilities/xss_d/source/impossible.php",
+      "sha256": "afc52f50b776249510940a7599afdcb4bbb3f8ddc86d70761a5ce95f6fda19eb",
+      "vulnerable": false,
+      "subdomain": null
+    },
+    {
+      "id": "dvwa-xss_r-low",
+      "path": "vulnerabilities/xss_r/source/low.php",
+      "sha256": "fb3c6fd9937697d4473cb9a2a9267df44b7e8620b16a4189189e76455d351833",
+      "vulnerable": true,
+      "subdomain": "D05.1"
+    },
+    {
+      "id": "dvwa-xss_r-impossible",
+      "path": "vulnerabilities/xss_r/source/impossible.php",
+      "sha256": "6cff3122f97aec856e57134f497cb79079929d7efa1aca3eb75748ea3cc28dd3",
+      "vulnerable": false,
+      "subdomain": null
+    },
+    {
+      "id": "dvwa-xss_s-low",
+      "path": "vulnerabilities/xss_s/source/low.php",
+      "sha256": "fd08b4c5d29111581d0ce36ce2a54febd236d4ed3bd7b64d53d6eae9b0f433a0",
+      "vulnerable": true,
+      "subdomain": "D05.1"
+    },
+    {
+      "id": "dvwa-xss_s-impossible",
+      "path": "vulnerabilities/xss_s/source/impossible.php",
+      "sha256": "aa8c2d4ea5e990441070a57a33c92afb7562ecb1fa621a056624d40263cbd5be",
+      "vulnerable": false,
+      "subdomain": null
+    },
+    {
+      "id": "dvwa-authbypass-low",
+      "path": "vulnerabilities/authbypass/source/low.php",
+      "sha256": "6c959af90b19be7be17b14760701b605a12e295e261a96a2d53655de419571b3",
+      "vulnerable": true,
+      "subdomain": "D01.2"
+    },
+    {
+      "id": "dvwa-authbypass-impossible",
+      "path": "vulnerabilities/authbypass/source/impossible.php",
+      "sha256": "3214fa65ca0207b262c5027159d997bb4c2c7f4c4c5711a707a9e4fdccd97a21",
+      "vulnerable": false,
+      "subdomain": null
+    },
+    {
+      "id": "dvwa-open_redirect-low",
+      "path": "vulnerabilities/open_redirect/source/low.php",
+      "sha256": "d9839b61e112df946429ec3b8f2de8a3e4f0ac741842fcd34cce0a1ab3363861",
+      "vulnerable": true,
+      "subdomain": "D01.6"
+    },
+    {
+      "id": "dvwa-open_redirect-impossible",
+      "path": "vulnerabilities/open_redirect/source/impossible.php",
+      "sha256": "82c04f35908168ad2d4f948006c89a5fd6586cf335b771963ed839a7d06dd22a",
+      "vulnerable": false,
+      "subdomain": null
+    }
+  ]
+}
