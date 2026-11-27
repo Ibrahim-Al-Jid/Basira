@@ -58,7 +58,7 @@ npm start
 
 Open http://127.0.0.1:8765/demo, choose an HTML file, paste markup, or use the built-in sample. Set `PORT` to change the port. Run the tests with `npm test`.
 
-Verified on 27 November 2026 on Linux: the app starts, serves the UI and `/demo`, and `GET /api/taxonomy` answers. The lab keeps reports in SQLite; accounts and projects need option 2.
+Verified on 27 November 2026 on Linux with Python 3.13 and Node 22, following exactly the commands above: the build succeeds, the app starts, `/`, `/demo` and `GET /api/taxonomy` return 200, and `npm test` gives 284 passed, 1 skipped. The lab keeps reports in SQLite; accounts and projects need option 2.
 
 ### 2. Docker Compose (accounts, projects, background jobs)
 
@@ -87,4 +87,4 @@ Verification status: the Docker image build and these Compose commands have not 
 
 ## Documentation
 
-Start at the [documentation index](docs/README.md). The plan, phase status and conventions are in [docs/PLAN.md](docs/PLAN.md), and the [vulnerability taxonomy](docs/taxonomy.md) shows what Basira covers and what it does not yet.
+Start at the [documentation index](docs/README.md). The plan, phase status and conventions are in [docs/PLAN.md](docs/PLAN.md), the [vulnerability taxonomy](docs/taxonomy.md) shows what Basira covers and what it does not yet, and the [thesis and defense package](docs/thesis/README.md) holds the written thesis, slides outline and prepared answers.
