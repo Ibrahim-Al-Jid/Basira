@@ -21,7 +21,7 @@ Five LangGraph nodes with role-limited tools and recorded runs: coordinator, pla
 Findings come from the rule catalog with redacted evidence, line number and location; verification re-checks rule version, applicability, evidence and location. The model cannot create a finding. In the DVWA experiment, model findings are scored against labels, and the 5 flagged fixed files are exactly where this is unresolved.
 
 **7. How do you handle prompt injection from scanned files?**
-Design: scanned content is untrusted data, the model gets IDs and counts rather than file content, and the reply is validated whole. Tests that attack the agents with instructions inside scanned files are planned (P22) and not yet passing in CI, so we call it designed, not proven.
+Design: scanned content is untrusted data, the model gets IDs and counts rather than file content, and the reply is validated whole. `backend/test_self_security.py` (56 offline tests) checks that injected instructions in file text, paths and evidence never reach the model request, and that a model that obeys an injection (unapproved tool, extra field, prose) is rejected and the report stays deterministic. Limit: tested with a fake model, not live models; CI wiring of the gate is P23.
 
 **8. Why not use an existing tool such as Semgrep or an AI pentest agent?**
 Semgrep and OSV-Scanner are in the design as pinned tools. The AI pentest agents in the survey act on live targets with exploit attempts, which is a different job and a different trust level. We do not claim to beat them. Evidence: `related_work.md`.
@@ -36,7 +36,7 @@ The scan completes with local analysis and says so. The runbook has a pre-run re
 Free OpenRouter models are the default. Saving a non-free or unknown-price model requires an explicit cost acknowledgement; custom models are always cost-unknown with a warning. No scan-level cost measurement exists yet; the cap is one request per scan.
 
 **12. How do you protect API keys?**
-Encrypted server-side, masked in the UI, never shown back. A stored key is refused for a different provider or address. Custom provider URLs must be https, public IPs only, checked again at request time. Review of this by a security test is planned (P22).
+Encrypted server-side, masked in the UI, never shown back. A stored key is refused for a different provider or address. Custom provider URLs must be https, public IPs only, checked again at request time. Offline tests cover URL checks (29 SSRF forms, DNS rebinding at every request, no followed redirects) and key handling (`backend/test_self_security.py`).
 
 **13. What happens on a crash or duplicate job?**
 Idempotency key per job, an outbox row in the same transaction as the job, a lease per attempt, and checkpoint writes only by the current lease holder. Failure-injection acceptance (P18) is planned and not run; do not claim it.

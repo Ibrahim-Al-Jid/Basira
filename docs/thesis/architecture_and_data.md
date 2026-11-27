@@ -38,4 +38,4 @@ Key entities: accounts, projects (owned by an account), source snapshots (SHA-25
 - Ownership is checked on every project, scan, finding and report route.
 - Provider keys are encrypted server-side and masked in the UI; a stored key is refused for a different provider or address. Custom provider URLs must be https on port 443, no credentials, public IPs only, and are checked again at request time.
 - Website collection: one GET per approved public HTTPS page, at most three pages of the same origin, all resolved addresses checked before connecting, redirects refused.
-- Scanned content is untrusted data. Prompt-injection and authorization tests are planned in P22; do not claim them before they pass in CI.
+- Scanned content is untrusted data. Self-security tests (P22) exist in `backend/test_self_security.py` (56 offline tests: injected instructions in scanned content, SSRF forms, DNS rebinding, key handling) and run with `npm test`. They test the design with fakes, not a live model; a threat model table is in the architecture file.
