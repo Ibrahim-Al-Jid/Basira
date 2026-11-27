@@ -76,7 +76,7 @@ docker compose -p marsad-local -f compose.yaml -f compose.local.yaml --env-file 
 
 Open the sign-in page and choose "Create account" on a fresh install. More detail is in the [platform guide](docs/PLATFORM.md).
 
-Verification status: the Docker image build and these Compose commands have not been run in the review environment, which has no Docker. The same stack (PostgreSQL 17, Redis, API, dispatcher, Celery worker, Chromium) was run there without containers and passed the Phase 13 browser acceptance in Arabic and English.
+Verification status: the Docker image build and these Compose commands have not been run in the review environment, which has no Docker. The same stack (PostgreSQL 17, Redis, API, dispatcher, Celery worker, Chromium) was run there without containers and passed the Personal projects browser acceptance in Arabic and English.
 
 ## Status
 
@@ -87,4 +87,4 @@ Verification status: the Docker image build and these Compose commands have not 
 
 ## Documentation
 
-Start at the [documentation index](docs/README.md). The plan and phase status are in [work/plan.md](work/plan.md), and the [vulnerability taxonomy](docs/taxonomy.md) shows what Marsad covers and what it does not yet.
+Start at the [documentation index](docs/README.md). The plan, phase status and conventions are in [docs/PLAN.md](docs/PLAN.md), and the [vulnerability taxonomy](docs/taxonomy.md) shows what Marsad covers and what it does not yet.

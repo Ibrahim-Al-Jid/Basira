@@ -18,7 +18,7 @@ from .contracts import History, HistoryItem, Report, history_item
 from .identity import ROLE_ACTIONS, require_project
 from .intake_storage import StorageUnavailable
 from .personal_intake import compatible_zip
-from .phase9_contracts import (
+from .scan_contracts import (
     ArtifactKind, DEFAULT_INPUTS, FindingObservation, ModelConnection, ScanProfile, ScanProvenance,
     TechnicalRegistry, analyzer_plan, manifests,
 )

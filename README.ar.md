@@ -34,4 +34,4 @@ npm start
 
 ## دليل المشروع
 
-ابدأ من [فهرس التوثيق](docs/README.md). الخطة وحالة المراحل في [work/plan.md](work/plan.md)، و[تصنيف الثغرات](docs/taxonomy.md) يوضح اللي مرصد بيغطيه واللي لسه لأ.
+ابدأ من [فهرس التوثيق](docs/README.md). الخطة وحالة المراحل في [docs/PLAN.md](docs/PLAN.md)، و[تصنيف الثغرات](docs/taxonomy.md) يوضح اللي مرصد بيغطيه واللي لسه لأ.

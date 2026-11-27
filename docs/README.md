@@ -4,7 +4,7 @@ One topic, one file. If two files say different things, the one in this table wi
 
 | Topic | File |
 |---|---|
-| Plan, phases and status | [../work/plan.md](../work/plan.md) |
+| Plan, phases and status | [PLAN.md](PLAN.md) |
 | Architecture: roles, tools, memory, technology | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | Data model | [ERD.md](ERD.md) |
 | Running and operating the platform | [PLATFORM.md](PLATFORM.md) |
@@ -14,4 +14,4 @@ One topic, one file. If two files say different things, the one in this table wi
 | Release acceptance | [RELEASE.md](RELEASE.md) |
 | Research: competitors and benchmarks | [research/competitors.md](research/competitors.md), [research/benchmarks.md](research/benchmarks.md) |
 
-Rules: phase work is recorded in `work/plan.md`, not in new `PHASE*.md` files. Generated files carry a header saying so. Many existing files are still written in Arabic; merging `ARCHITECTURE`, `PLATFORM` and `WORKSPACE` into fewer topic files is tracked in Phase 9 of the plan.
+Rules: phase work is recorded in `PLAN.md`, not in new files. Generated files carry a header saying so. Many existing files are still written in Arabic; merging `ARCHITECTURE`, `PLATFORM` and `WORKSPACE` into fewer topic files is tracked in P16 of the plan.

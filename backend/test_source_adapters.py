@@ -14,7 +14,7 @@ from . import source_adapters as adapters
 from .artifact_review import RULESET_VERSION, catalog
 from .contracts import Report
 from .offline_worker import scan_payload
-from .phase9_contracts import analyzer_plan
+from .scan_contracts import analyzer_plan
 
 
 SYNTHETIC_GITHUB = "gh" "p_" + "A1b2C3d4E5F6G7h8i9JkLmNoPqRstUvW0123"

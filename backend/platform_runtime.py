@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 
 from .platform_db import Base, bind_job_project, bind_project_context, personal_projects_enabled, platform_session
 from .contracts import Report, history_item
-from .phase9_contracts import (
+from .scan_contracts import (
     DEFAULT_INPUTS, PROFILE, RAW_RETENTION_MINUTES, Asset, FindingObservation, ScanProvenance,
     ScopeVersion, SourceSnapshot, analyzer_plan, json_digest,
 )

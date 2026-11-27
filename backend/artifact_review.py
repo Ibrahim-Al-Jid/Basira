@@ -16,7 +16,7 @@ import zlib
 
 from .checks import openapi_contract, zap_passive
 from .contracts import Finding, RuleCoverage
-from .phase9_contracts import ANALYZER_INPUTS, TOOL_PROTOCOL_VERSION, json_digest, resolve_analyzers
+from .scan_contracts import ANALYZER_INPUTS, TOOL_PROTOCOL_VERSION, json_digest, resolve_analyzers
 from .rules import RULES, SourceIndex
 from .source_adapters import GITLEAKS, GITLEAKS_PROVIDERS, SOURCE_TOOLS, review_source
 

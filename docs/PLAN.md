@@ -1,0 +1,229 @@
+# Marsad plan
+
+The single source of truth for what Marsad is, what is built, what is next, and how each piece is accepted. Everything else in the repo supports this file. Edited on 27 November 2026.
+
+Contents: [1 Product](#1-product) · [2 Current position](#2-current-position) · [3 Phases](#3-phases) · [4 Phase details](#4-phase-details) · [5 Architecture](#5-architecture) · [6 Agents, tools, memory](#6-agents-tools-and-memory) · [7 Contracts](#7-contracts) · [8 Acceptance](#8-acceptance) · [9 Risks](#9-risks-and-limits) · [10 Decisions](#10-decisions) · [11 Conventions](#11-conventions)
+
+## 1. Product
+
+**Marsad (مرصد)** is a multi-agent web security review workspace. A developer gives it a project (ZIP, authorized GitHub repository, approved website pages, or captured evidence), watches named agents work on it live, and gets an evidence-linked report in Arabic or English, with repair guidance and a recheck after the fix.
+
+Tagline from the blueprint: Detect. Verify. Remediate. Secure.
+
+| Audience | Job | Evidence it works |
+|---|---|---|
+| Individual developer (first audience) | Review a change or release with no setup | Starts a review, sees what each agent did, gets a next action or an explicit coverage limit |
+| Reviewer | Check why a finding appeared and record a decision | Opens the source location, tool and snapshot, records a decision apart from the technical finding |
+| Local operator | Keep the install repeatable and recoverable | Installs from the documented profile, restores a backup, report digests match |
+| Small team (hypothesis) | Share reviews | Only after demand and the ownership model are validated |
+
+Principles: no manual steps beyond one permission statement; every input accepted in more than one way; findings only with verified evidence; Arabic and English share the same facts; the report works with no model provider; nothing is called accurate until measured; unsupported coverage is shown as a gap, never as clean.
+
+Analysis modes:
+
+| Mode | Inputs | Limits |
+|---|---|---|
+| White-box | ZIP, GitHub snapshot pinned to a commit, manifests, lockfiles, Docker, Kubernetes, CI, IaC, OpenAPI | Read-only, offline; every source, rule, policy and tool version recorded |
+| Passive web | Approved website pages, saved HTTP evidence, HTML, HAR, saved passive ZAP output | Records capture scope; importers do not replay or resolve external references |
+| Active verification | Owner-proven sites only | Proposed, see P14 and decision A |
+| Remediation | Human-reviewed recommendations, optional approved patch draft | Isolated draft, deployment and merge stay with the human |
+
+## 2. Current position
+
+Phases P01 to P08 are built. **Work is in P09** (live experience and report model), then P10 (visual redesign and dashboard).
+
+Verified on 27 November 2026:
+- Python 3.13: 251 backend tests pass, 1 skipped.
+- Real stack without containers (PostgreSQL 17, Redis 7.2, API, dispatcher, Celery worker, Chromium): personal-projects browser acceptance passed in Arabic and English, covering ZIP scan, report, PDF export and cross-account isolation.
+- Local lab starts with `npm start`; UI, `/demo` and `/api/taxonomy` respond.
+- Not run: Docker image build and Compose, `tests/container_smoke.py`, the other browser suites, real model provider calls, S3 intake.
+
+Measured gaps:
+- Scan page shows one "Queued" entry, no per-agent view.
+- All 100 checks are passive. 41 of 75 taxonomy subdomains have no check ([taxonomy](taxonomy.md)).
+- Anonymous lab (`/demo`) and organization compatibility keys still exist.
+- No accuracy number exists. No benchmark has been run.
+
+## 3. Phases
+
+Status: **done** (built, tests exist, acceptance re-run or re-checked on 27 November 2026 unless noted), **partial**, **open**, **proposed** (needs an owner decision).
+
+| ID | Phase | Scope | Status |
+|---|---|---|---|
+| P01 | Foundations | Agent roles and contracts, rule registry, evidence-verified output, file selection | done |
+| P02 | Reports and export | Report pages, Arabic and English HTML, JSON, SARIF, PDF, comparison, comments, finding statuses | done |
+| P03 | Platform core | Local accounts, OIDC, PostgreSQL with row-level security, Redis and Celery with outbox and leases | done |
+| P04 | Detection catalog | 100 checks in six families, vulnerability taxonomy and API, input adapters | done |
+| P05 | Evidence and provenance | Evidence contracts, source analysis, evidence links, web and API evidence | done |
+| P06 | Intake | ZIP, GitHub App, approved website pages, HAR, ZAP and OpenAPI import, quarantine lifecycle | done |
+| P07 | Tools, agents and memory | Pinned tool registry, offline execution, five-stage graph, model gateway and advisor, checkpoints, scan memory | partial |
+| P08 | Product journey | Personal projects workspace, ownership migration, project pages | done |
+| P09 | Live experience and report model | Per-agent live view, frozen report model, report and PDF parity tests | open (current) |
+| P10 | Visual redesign and dashboard | New design system across every page, project dashboard, accessibility | open |
+| P11 | Recheck and history | Fixed, Still present, New, Changed, Inconclusive, Needs review | open |
+| P12 | Remediation | Repair plans, approval, optional sandbox patch draft | open |
+| P13 | Help and assistant | Static contextual help, then optional cited report assistant | open |
+| P14 | Active verification | Owner-proven, rate-limited, non-destructive probes for the taxonomy gaps | proposed |
+| P15 | Evaluation | Benchmarks, labeled corpus, four-configuration comparison | open |
+| P16 | Hardening and release | Isolation and recovery acceptance, Docker verified, legacy removal, release manifest, rename | open |
+
+Order of work: P07 gaps (checkpoint failure and isolation acceptance), P09, P10, P11, P13, P15, P12, P16. P14 follows decision A and ships before P15 if approved, so evaluation covers it.
+
+## 4. Phase details
+
+### Built (P01 to P08), with the evidence
+
+| Area | What exists | Where |
+|---|---|---|
+| Detection | 100 checks, six families (HTML, Web headers and cookies, Dependencies, Infrastructure, CI, App config) | `backend/checks/`, `backend/artifact_review.py`, [checks](checks/README.md) |
+| Taxonomy | 17 domains, 75 subdomains, 159 problems, mapped to CWE, OWASP Top 10:2025, OWASP API Top 10 2023, WSTG | `backend/taxonomy.py`, [taxonomy](taxonomy.md) |
+| Tools | Gitleaks 8.30.1 and OSV-Scanner 2.7.1 pinned, offline; saved ZAP and OpenAPI import | `backend/source_adapters.py`, `Dockerfile` |
+| Workflow | Five stages in LangGraph, parallel branches that merge before verification, deterministic fallback | `backend/graph.py`, `backend/offline_worker.py` |
+| Model | Optional OpenRouter through a separate gateway, strict schemas, invalid citations rejected | `backend/model_gateway.py`, `backend/model_connections.py` |
+| Memory | Six types, recovery checkpoints bound to owner, project, lease and digests | `backend/scan_memory.py`, [architecture](ARCHITECTURE.md) |
+| Platform | Accounts, OIDC, RLS, outbox, Celery, GitHub App | `backend/platform_*.py`, `backend/personal_*.py`, [platform](PLATFORM.md) |
+| Reports | HTML (ar, en), JSON, SARIF, PDF with embedded Arabic font, comparison, comments | `backend/report_pdf.py`, `backend/advanced_reporting.py` |
+| Evaluation | Synthetic corpus (18 cases), reference corpus manifest, analyzer baseline | `backend/synthetic_evaluation.py`, `backend/corpus_evaluation.py`, `backend/analyzer_baseline.py`, [release](RELEASE.md) |
+| Research | 72 competing tools, benchmark survey | [competitors](research/competitors.md), [benchmarks](research/benchmarks.md) |
+
+Open items inside P07: failure and recovery acceptance (crash after checkpoint, before publish), worker isolation acceptance with controlled egress, preflight reasons for unsupported files.
+
+### P09 Live experience and report model
+
+1. Live agent view. Lanes for the five roles with state (waiting, running, done, skipped, failed), current task, tool in use, items done and remaining, elapsed time and evidence produced. Fed by persisted stage events with a cursor. Percentages only with a real denominator; stale data is shown as stale.
+2. Frozen `ReportModel` per scan (section 7), rendered to web, Arabic and English text, PDF and SARIF. A cross-format test compares finding IDs, severity totals, evidence IDs and coverage.
+3. PDF tests for shaping, mixed direction, long paths, many pages and selectable Arabic text.
+4. Intake accepts drag and drop, file picker, paste and URL.
+
+Done when: scan page shows each role live in a browser test, and the parity test passes in both languages.
+
+### P10 Visual redesign and dashboard
+
+New design system, not a recolor: tokens, type, layout, motion, applied to landing, sign-in, projects, new review, live view, report, dashboard, settings. Palette from the blueprint: Midnight Navy `#0B1220`, Cyber Teal `#19C7B5`, Electric Blue `#4385F6`, Critical Red `#EF4444`, High Orange `#F97316`, amber for Medium, green for resolved. Every state has a design: loading, empty, partial, error, permission denied. Severity always has a text label as well as color. Dashboard cards derive from owner-scoped persisted data and show period and freshness.
+
+Done when: every route has screenshots in both languages and both themes, keyboard use passes, and each dashboard number reconciles with its source records.
+
+### P11 Recheck and history
+
+Compare the original report with a recheck of the new revision under an equivalent scope. Outcomes: Fixed (comparable evidence eligible, check executed, result supports the fix), Still present, New, Changed, Inconclusive (missing input, eligibility or tool success), Needs review (conflicting or ambiguous identity). Missing coverage never yields Fixed. Done when the two-ZIP demo and a missing-file fixture give Fixed and Inconclusive.
+
+### P12 Remediation
+
+Recommendation from a validated finding, repair plan, owner approval bound to source digest, plan digest, permitted paths and expiry. Optional draft in an isolated worktree, trusted pre-vetted checks, review, reject or roll back. Deployment, push and merge are never automatic. Ships behind a flag, one labeled fixture first. States: Proposed, Awaiting approval, Approved, Sandbox created, Patch drafted, Testing, Ready for review, Completed; plus Rejected, Failed, Rolled back.
+
+### P13 Help and assistant
+
+Static bilingual help works without any provider. A cited read-only report assistant is optional: it authorizes the report, answers from validated records, cites evidence IDs, and abstains when no approved source matches. Session-only context by default.
+
+### P14 Active verification (proposed)
+
+For sites the owner proves they control (DNS TXT record or a file token): bounded, rate-limited, non-destructive probes for the largest taxonomy gaps (reflected XSS, SQL injection signals, open redirect, exposed files, CORS and header behavior, TLS, rate limit presence). Allowlist per probe, kill switch, full audit, safe by default. Findings enter the same evidence contract. Not started. Needs decision A.
+
+### P15 Evaluation
+
+Four configurations on the same corpus: native rules, deterministic tools, tools plus one advisory model, tools plus multiple roles. Corpus: vulnerable apps and benchmarks listed in [benchmarks](research/benchmarks.md), with at least 24 independently labeled holdout cases (12 clean, 12 positive) for the passive scope. Report precision, recall, F1 where a denominator exists, duplicates, runtime and cost. No number is published before a run, and a zero or negative result is reported as is.
+
+### P16 Hardening and release
+
+Failure injection (crash at dispatch, after checkpoint, before publish), duplicate dispatch, stale lease, cancel; isolation with controlled egress; restore on a copied database with matching digests; Docker image and Compose verified on a real Docker host; merge ARCHITECTURE, PLATFORM and WORKSPACE into fewer topic files and translate them if the owner asks; remove `/demo`, remaining organization keys and legacy report compatibility after a verified migration; release manifest with hashes and known limits; go or no-go record; rename if decided.
+
+## 5. Architecture
+
+```mermaid
+flowchart LR
+  U[Developer] --> W[React workspace]
+  W --> A[FastAPI application]
+  A --> P[(PostgreSQL)]
+  A --> I[Intake and snapshot validation]
+  P --> D[Outbox dispatcher]
+  D --> Q[Redis]
+  Q --> J[Celery worker]
+  J --> X[Offline analysis]
+  J --> P
+  J --> G[Optional model gateway]
+  A --> R[Report and PDF renderer]
+```
+
+The database is authoritative for work state and reports. The broker only transports jobs. A stale lease cannot publish. Provider calls happen after deterministic verification and receive a minimized projection.
+
+| Concern | Decision |
+|---|---|
+| Web | React, Vite, Arabic and English, RTL and LTR, dark and light |
+| API | Python 3.13, FastAPI, Pydantic; routes under `/api/platform` |
+| Data | PostgreSQL 17, SQLAlchemy, Alembic, row-level security; SQLite only for the anonymous lab until it is removed in P16 |
+| Jobs | Redis, Celery, transactional outbox, leases, bounded retries |
+| Agents | LangGraph, five deterministic stages |
+| PDF | fpdf2, uharfbuzz, embedded Arabic font |
+| Deploy | Local lab, Docker Compose; pytest and Playwright |
+
+ZIP limits: 2,000,000 bytes per archive, 8,000,000 expanded, 1,000,000 per file, 200 entries. Details: [architecture](ARCHITECTURE.md), [data model](ERD.md), [operations](PLATFORM.md), [workspace](WORKSPACE.md).
+
+## 6. Agents, tools and memory
+
+Five stages run in order. They are responsibilities, not model calls; queueing, auth, export, tool dispatch and proof validation are ordinary services.
+
+| Role | Reads | Writes | Denied |
+|---|---|---|---|
+| Coordinator | Snapshot envelope, approved source identity, limits | Source kind, routing decision | Scope or digest mismatch |
+| Planning | Source kind, artifact inventory, pinned policy and registry | Immutable tool selection with reason, expected coverage | Model-originated commands, network, installs |
+| Analysis | Matched artifacts, allowlisted adapters | Candidate findings, per-tool status and coverage | Network, project code execution, writes |
+| Verification | Artifacts, plan, candidates, results | Validated findings, evidence digest | Invalid scope, path, position or rule cannot publish |
+| Reporting | Validated findings, scope, coverage | `ReportModel` and projections | Publishing a provisional result |
+
+Role manifests carry ID, typed input and output, allowed tools, budgets, failure behavior and fixtures. The ten-role specialist catalogue (injection, authentication, authorization, API, client, infrastructure, file, business logic, remediation, coordinator) is a design target. A role is added only when it fills a named gap and beats the simpler alternative on held-out fixtures at equal budget.
+
+Memory: working state (job service, cleared after terminal state), episodic (published scans and reports), procedural (versioned rules and tool registry), project (owner notes, never sent to a model by default), finding and review (fingerprints, human decisions separate), semantic (curated help, proposed), conversational (session only, proposed). Every record carries owner and project; the app authorizes before the query and at delivery; RLS is defense in depth.
+
+Tools: each analyzer needs a registry entry, license review, pinned version and data, positive and negative fixtures, offline isolation, normalized output and partial-failure behavior. Semgrep CE and Trivy stay shadow-only.
+
+## 7. Contracts
+
+**ReportModel** (frozen at publication): `report_version`, scan ID, source and scope digests, policy version, tool manifest digest, state, timestamps, findings, evidence references, severity totals, coverage. Translated text is separate from the technical record. Old reports are read through a compatibility adapter; unknown legacy fields stay unknown.
+
+**Coverage states:** registered, eligible, executed, matched or clear, skipped, error, requires context, not applicable. Only executed and eligible checks count as clear.
+
+**Finding:** ID and fingerprint, project, scan, snapshot, title, category, severity (Critical, High, Medium, Low, Informational, with rationale), confidence (evidence strength, independent of severity), verification status, location, rule and tool versions, evidence references, fix, timestamps. Duplicates group by fingerprint and keep each original reference.
+
+**Interaction modes** (stored with the scan): Manual (owner selects and submits), Ask (owner confirms the suggested plan), Agent (owner confirms scope, agents choose eligible checks). A new mode or broader scope is a new request.
+
+**Screens:** welcome and sign-in, projects, project home and dashboard, new review, live scan, findings explorer and finding detail, report, recheck, remediation, help, settings. Each has empty, partial, failure and permission-denied behavior.
+
+## 8. Acceptance
+
+| Gate | Pass condition |
+|---|---|
+| A1 Scope and intake | Scan starts from a ZIP only after scope is confirmed; invalid archives rejected; a second account cannot read the scan, report or export |
+| A2 Execution and evidence | Job ID survives reload; a tool timeout gives a partial report with explicit coverage; duplicate dispatch cannot publish twice |
+| A3 Bilingual report | Arabic and English web and PDF match finding IDs, severity totals, evidence IDs and coverage; keyboard-only core flow |
+| A4 Recheck | Original and repaired ZIP give Fixed; missing coverage gives Inconclusive |
+| A5 Evaluation and handoff | Frozen manifest reproduces the comparison; test summary, digests, known limits and an isolated restore record attached |
+
+Test layers: unit and contracts; database and API with two owners; worker and queue failure injection; browser (Playwright) in both languages; fix and regression; recovery and release. Unit and docs tests run with `npm test`.
+
+## 9. Risks and limits
+
+- Passive checks cannot find injection, XSS, IDOR or SSRF. Until P14 these stay listed as gaps.
+- No accuracy is published. The synthetic corpus proves rule behavior, not real-world detection.
+- Docker has not been run in the review environment.
+- The model is advisory only. It cannot add, remove or rewrite findings.
+- Hosted or team use needs a separate design: tenant access, storage, cost and support.
+
+## 10. Decisions
+
+| ID | Decision | Status |
+|---|---|---|
+| A | Add the owner-verified active verification tier (P14) | open, owner |
+| B | Keep the name Marsad or rename (one switch across repo, package, UI, README, logo) | open, owner |
+| C | One tracker, this file; blueprint and repository phase IDs retired | decided 27 November 2026 |
+| D | Initial user is the individual developer, local first | decided |
+| E | Patch drafting stays behind a flag until A3 and A4 pass | decided |
+
+## 11. Conventions
+
+- This file is the only tracker. Do not add phase notes elsewhere. Record shipped changes in `CHANGELOG.md`.
+- IDs: phases `P01` to `P16`, gates `A1` to `A5`, decisions letters, rules keep their registry IDs (for example `WEB-05`, `INF-03`).
+- Files: Python and docs use lowercase snake_case (`scan_contracts.py`) except `README`, `PLAN`, `CHANGELOG`, `LICENSE`; docs folders use lowercase kebab-case. Names describe what a file does, never when it was written. No phase numbers in file, function or variable names.
+- Tests: `backend/test_<module>.py`; browser suites `tests/browser_<what>.py`; fixtures under `tests/fixtures/<what>/`.
+- Environment variables start with `MARSAD_`.
+- Generated files say so in their header and have a freshness test.
+- Documentation language: English for new files; existing Arabic files stay Arabic until translated. The owner decides the language.
