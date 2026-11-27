@@ -94,3 +94,15 @@ def test_catalog_lists_the_source_tool_and_version():
     assert data["version"] == RULESET_VERSION == "basira-static-3"
     tool = next(item for item in data["tools"] if item["id"] == "source-code")
     assert tool["rules"] == list(source_code.RULE_IDS)
+
+
+def test_search_code_tool_rejects_backtracking_patterns_and_still_searches():
+    import time
+    from .detection_agents import search_lines
+    started = time.monotonic()
+    assert search_lines("a" * 34 + "!\n", "(a+)+$") == "pattern rejected"
+    assert search_lines("x", "(a*)*b") == "pattern rejected"
+    assert search_lines("x", "(a)\\1") == "pattern rejected"
+    assert time.monotonic() - started < 1
+    assert search_lines("one\ntwo $_GET\nthree", r"\$_GET") == "2: two $_GET"
+    assert search_lines("x", "[") == "invalid pattern"

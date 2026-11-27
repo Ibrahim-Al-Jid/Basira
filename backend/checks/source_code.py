@@ -828,6 +828,29 @@ class PyScope:
         self.vars = {name: set(CLASSES - {"upload"}) for name in tainted_params}
         self.guarded = set()
         self.text = {}
+        self.built = set()
+        self.local = set()
+
+
+PY_PASS_METHODS = {"strip", "lstrip", "rstrip", "lower", "upper", "title", "casefold", "capitalize", "replace", "format",
+                   "join", "encode", "decode", "split", "rsplit", "splitlines", "get", "getlist", "read", "get_json",
+                   "get_data", "items", "values", "keys", "copy", "removeprefix", "removesuffix", "zfill", "ljust", "rjust"}
+PY_PASS_FUNCTIONS = {"str", "repr", "bytes", "list", "tuple", "dict", "sorted", "set", "min", "max", "unquote",
+                     "unquote_plus", "urlparse", "loads", "dumps", "format", "join", "getattr", "next", "reversed", "dedent"}
+
+
+def py_built(node, scope):
+    """True when the expression builds a string by formatting or joining pieces."""
+    if isinstance(node, ast.JoinedStr):
+        return any(isinstance(value, ast.FormattedValue) for value in node.values)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Mod)):
+        return (isinstance(node.left, ast.Constant) and isinstance(node.left.value, str)) or py_built(node.left, scope) \
+            or py_built(node.right, scope) or isinstance(node.right, ast.Constant) and isinstance(node.right.value, str)
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr in {"format", "join"}:
+        return True
+    if isinstance(node, ast.Name):
+        return node.id in scope.built
+    return False
 
 
 def py_names(node):
@@ -863,7 +886,8 @@ def py_classes(node, scope):
         while isinstance(root, (ast.Attribute, ast.Subscript, ast.Call)):
             root = root.func if isinstance(root, ast.Call) else root.value
         chain = dotted(node.value if isinstance(node, ast.Subscript) else node)
-        if isinstance(root, ast.Name) and root.id in {"request", "flask.request"} or chain.startswith(("request.", "flask.request.")):
+        local = isinstance(root, ast.Name) and root.id in scope.local
+        if not local and (isinstance(root, ast.Name) and root.id in {"request", "flask.request"} or chain.startswith(("request.", "flask.request."))):
             attribute = chain.split(".")[1] if "." in chain else ""
             if attribute in PY_SOURCE_ATTR or attribute == "":
                 return set(CLASSES - ({"upload"} if attribute != "files" else set()))
@@ -882,9 +906,11 @@ def py_classes(node, scope):
     if isinstance(node, ast.Call):
         name = dotted(node.func).split(".")[-1]
         full = dotted(node.func)
+        if full.startswith(("request.", "flask.request.")) and full.split(".")[1] in scope.local:
+            return set()
         if full in {"input", "raw_input"}:
             return set(CLASSES - {"upload"})
-        if full.startswith(("request.get_json", "request.get_data", "request.args.get", "request.form.get",
+        if "request" not in scope.local and full.startswith(("request.get_json", "request.get_data", "request.args.get", "request.form.get",
                             "request.values.get", "request.GET.get", "request.POST.get", "request.cookies.get",
                             "request.headers.get")):
             return set(CLASSES - {"upload"})
@@ -899,7 +925,11 @@ def py_classes(node, scope):
             return set()
         result = set()
         if isinstance(node.func, ast.Attribute):
+            if name not in PY_PASS_METHODS:
+                return set()
             result |= py_classes(node.func.value, scope)
+        elif name not in PY_PASS_FUNCTIONS:
+            return set()
         for argument in [*node.args, *[kw.value for kw in node.keywords]]:
             result |= py_classes(argument, scope)
         return result
@@ -996,6 +1026,10 @@ def py_statement(path, node, scope, results, state, *, route):
     if value is not None:
         taint = py_classes(value, scope)
         for target in targets:
+            for name in py_names(target):
+                scope.local.add(name)
+                if py_built(value, scope):
+                    scope.built.add(name)
             for name in ([target.id] if isinstance(target, ast.Name) else sorted(py_names(target))):
                 if isinstance(node, ast.AugAssign):
                     taint |= scope.vars.get(name, set())
@@ -1053,7 +1087,7 @@ def py_call(path, call, scope, results, state):
             pass
         elif name == "execute" and isinstance(first, ast.Name) and False:
             pass
-        elif "sql" in py_classes(first, scope):
+        elif "sql" in py_classes(first, scope) and py_built(first, scope):
             results.add("SRC-01", path, call.lineno, f"Python request input reaches {name}() inside a query string.")
         sql_text = literal_text(first) + " " + " ".join(scope.text.get(n, "") for n in py_names(first))
         if re.search(r"\b(?:insert\s+into|update\s+\w+\s+set|delete\s+from)\b", sql_text, re.I):
