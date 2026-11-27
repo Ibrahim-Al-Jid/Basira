@@ -7,7 +7,6 @@
 - Research: `docs/research/competitors.md` (72 tools from public listings) and `docs/research/benchmarks.md`.
 - Tests for taxonomy, markdown links and generated-doc freshness (251 backend tests pass).
 - `docs/README.md`, the single documentation index.
-
 - Scan page lists the five agents with state, duration and tools used, from persisted `agent_done` events.
 
 ### Changed
