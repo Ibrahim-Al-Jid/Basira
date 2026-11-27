@@ -20,6 +20,7 @@
 - Tests for taxonomy, markdown links and generated-doc freshness (251 backend tests pass).
 - `docs/README.md`, the single documentation index.
 - Scan page lists the five agents with state, duration and tools used, from persisted `agent_done` events.
+- Self-security tests (P22): `backend/test_self_security.py`, 56 offline tests. Injected instructions in scanned file text, paths and evidence never reach the model request; a model that obeys an injection (unapproved tool, extra field, prose) is rejected and the report stays deterministic; custom-provider URLs are checked against 29 SSRF forms, numeric host spellings, DNS rebinding at every request and unfollowed redirects; stored keys are bound to organization and generation and absent from errors. Threat model table added to `docs/ARCHITECTURE.md`. Not yet in CI.
 - Quality gate (P23): `python -m backend.quality_gate` measures precision, recall and false-positive rate and fails when any gets worse than `tests/fixtures/quality-baseline.json`. Measured today: reference corpus (mocked profile) precision 0.900, recall 0.900; DVWA static recall 0 of 13, precision undefined (no findings), 0 of 13 fixed files flagged. Flaky-test policy and run instructions in `docs/QUALITY.md`. Not yet in CI.
 
 ### Changed
