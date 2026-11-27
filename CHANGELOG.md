@@ -20,7 +20,8 @@
 - Tests for taxonomy, markdown links and generated-doc freshness (251 backend tests pass).
 - `docs/README.md`, the single documentation index.
 - Scan page lists the five agents with state, duration and tools used, from persisted `agent_done` events.
-- CI (P22, P23): `.github/workflows/ci.yml` runs the backend tests and the quality gate on every pull request and push to main. Not yet seen running on GitHub.
+- CI (P22, P23): `.github/workflows/ci.yml` builds the frontend, then runs the backend tests and the quality gate on every pull request and push to main. The frontend build is needed: with `frontend/dist` missing `test_api.py` fails locally, with it built all 7 pass. Not yet seen running on GitHub.
+- Self-security tests (P22): `backend/test_self_security.py`, 56 offline tests. Injected instructions in scanned file text, paths and evidence never reach the model request; a model that obeys an injection (unapproved tool, extra field, prose) is rejected and the report stays deterministic; custom-provider URLs are checked against 29 SSRF forms, numeric host spellings, DNS rebinding at every request and unfollowed redirects; stored keys are bound to organization and generation and absent from errors. Threat model table added to `docs/ARCHITECTURE.md`. Not yet in CI.
 
 ### Changed
 - One plan: `docs/PLAN.md` (product, current position, 18 phases P01 to P18, contracts, acceptance gates, decisions, naming conventions). It replaces the blueprint, the 19-phase plan and `work/plan.md`.
