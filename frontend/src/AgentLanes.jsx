@@ -20,7 +20,7 @@ export function laneStates(events, active) {
     finished.set(role, { millis: Number(millis), tools: tools ? tools.split(",") : [] });
   }
   let running = active;
-  return ROLES.map(([id, ar, en, taskAr, taskEn]) => {
+  const lanes = ROLES.map(([id, ar, en, taskAr, taskEn]) => {
     const result = finished.get(id);
     let state = "skipped";
     if (result) state = "done";
@@ -28,6 +28,13 @@ export function laneStates(events, active) {
     else if (active) state = "waiting";
     return { id, ar, en, taskAr, taskEn, state, ...result };
   });
+  const modelDone = finished.get("model");
+  const modelStarted = events.some((item) => item.kind === "stage_start" && item.detail === "model");
+  if (modelDone || modelStarted) {
+    lanes.push({ id: "model", ar: "الموديل", en: "Model", taskAr: "يرتّب الأولويات (طلب واحد كحد أقصى)",
+      taskEn: "Ranks priorities (at most one request)", state: modelDone ? "done" : active ? "running" : "skipped", ...modelDone });
+  }
+  return lanes;
 }
 
 export default function AgentLanes({ events, active, t, lang }) {

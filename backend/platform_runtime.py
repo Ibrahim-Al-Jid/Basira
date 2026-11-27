@@ -510,6 +510,24 @@ def save_analysis_checkpoint(org_id, project_id, scan_id, lease, analysis):
         return result
 
 
+STAGE_KINDS = {"stage_start", "agent_done"}
+
+
+def record_stage(org_id, project_id, scan_id, lease, kind, detail):
+    """Persist a live stage event while the scan runs; only the current lease holder may write it."""
+    if kind not in STAGE_KINDS:
+        raise ValueError("Unsupported stage event")
+    with platform_session() as db:
+        if not bind_job_project(db, org_id, project_id):
+            return False
+        row = select_scan(db, org_id, project_id, scan_id, lock=True)
+        if not row or row["state"] != "running" or row["lease"] != lease or row["lease_until"] <= now():
+            return False
+        cursor = record(db, row, kind, detail[:350])
+        db.execute(scans.update().where(scans.c.id == scan_id).values(cursor=cursor))
+        return True
+
+
 def agent_activity(result):
     """One (role, detail) pair per finished agent stage: `role|milliseconds|tool,tool`."""
     started, rows = {}, []
