@@ -5,13 +5,22 @@
   "sets": {
     "reference_corpus": {
       "profile": "mocked",
-      "tp": 9, "fp": 1, "fn": 1,
-      "precision": 0.9, "recall": 0.9, "false_positive_rate": null
+      "tp": 9,
+      "fp": 1,
+      "fn": 1,
+      "precision": 0.9,
+      "recall": 0.9,
+      "false_positive_rate": null
     },
     "dvwa_static": {
       "target": "DVWA 502ac150ce37c20ca6e04cab7c5ca959f315f2d0, 13 vulnerable and 13 fixed files, static checks only",
-      "tp": 0, "fp": 0, "fn": 13,
-      "precision": null, "recall": 0.0, "false_positive_rate": 0.0
+      "tp": 8,
+      "fp": 7,
+      "fn": 5,
+      "precision": 0.5333,
+      "recall": 0.6154,
+      "false_positive_rate": 0.0769,
+      "note": "After P19 (SRC-01..14). Development score: rules were written after reading these files. fp counts findings beyond the expected ones, 1 of 13 clean files flagged."
     }
   }
 }
