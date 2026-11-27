@@ -1,7 +1,7 @@
 import json
 
 from . import platform_jobs as jobs
-from .advanced_reporting import compare, sarif
+from .advanced_reporting import compare
 from .contracts import Report
 from .test_platform_identity import invite_member
 from .test_platform_runtime import artifact, platform, submit  # noqa: F401
@@ -15,7 +15,7 @@ def create(client, scope, source, key):
     return scan
 
 
-def test_compare_comments_status_memory_sarif_and_project_scope(platform):
+def test_compare_comments_status_memory_and_project_scope(platform):
     owner, other, ctx = platform
     path = f"/api/platform/projects/{ctx.project_id}"
     reports = path + "/reports/"
@@ -50,17 +50,10 @@ def test_compare_comments_status_memory_sarif_and_project_scope(platform):
 
     memory = owner.get(path + "/memory").json()
     assert any(row["fingerprint"] == fingerprint and row["status"] == "triaged" for row in memory["finding"])
-    export = owner.get(new + "/download", params={"format": "sarif", "lang": "ar"})
+    export = owner.get(new + "/download", params={"format": "json", "lang": "ar"})
     assert export.status_code == 200
-    data = export.json()
-    assert data["version"] == "2.1.0"
-    first = data["runs"][0]["results"][0]
-    assert first["ruleId"] == "http-form"
-    assert first["locations"][0]["physicalLocation"] == {
-        "artifactLocation": {"uri": "release.html"}, "region": {"startLine": 1},
-    }
-    assert "example.test" not in export.text
-    assert ".sarif" in export.headers["content-disposition"]
+    assert export.json()["findings"]
+    assert owner.get(new + "/download", params={"format": "sarif"}).status_code == 422
 
     assert owner.put(path + "/policy", json={"allowed_kinds": ["html"]}).is_success
     changed = reports + create(owner, ctx, fixed, "compare-3")
@@ -80,9 +73,6 @@ def test_disappearing_file_or_rule_never_claims_a_fix(platform):
     data["coverage"][0].update(status="error", match_count=0)
     data["input_paths"] = ["release.html"]
     assert compare(Report.model_validate(data), old, {}, {})["changes"][0]["change"] == "coverage_changed"
-    data["findings"] = old.model_dump(mode="json")["findings"]
-    data["findings"][0]["path"] = "../outside.js"
-    assert sarif(Report.model_validate(data), "en")["runs"][0]["results"] == []
 
 
 def test_extended_lab_records_rules_tools_and_subtasks(platform):

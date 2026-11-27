@@ -76,7 +76,7 @@ def lab_check(browser):
     open_report_section(tab, "technical")
     expect(tab.get_by_role("heading", name="سجل تشغيل الأدوات")).to_be_visible()
     open_report_section(tab, "export")
-    assert tab.get_by_role("link", name="تحميل SARIF").count() == 0
+    assert tab.get_by_text("SARIF").count() == 0
 
 
 def main():
@@ -151,14 +151,7 @@ def main():
         with page.expect_download() as arabic_pdf:
             page.get_by_role("link", name="Download Arabic PDF").click()
         assert arabic_pdf.value.suggested_filename.endswith("-ar.pdf")
-        report = download(page, page.get_by_role("link", name="Download SARIF"))
-        assert report["version"] == "2.1.0"
-        assert report["runs"][0]["results"][0]["ruleId"] == "http-form"
-        schema = os.environ.get("BASIRA_TEST_SARIF_SCHEMA")
-        if schema:
-            from jsonschema.validators import validator_for
-            specification = json.loads(Path(schema).read_text(encoding="utf-8"))
-            validator_for(specification)(specification).validate(report)
+        assert page.get_by_text("SARIF").count() == 0
         assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
         other = browser.new_context(locale="en-US").new_page()
         other.goto(page.url)
@@ -173,7 +166,7 @@ def main():
         expect(page.get_by_text("سياسة الفحص اتغيّرت. اختار تقرير بنفس إصدار السياسة.")).to_be_visible()
         assert errors == [], errors
         browser.close()
-    print("Release browser acceptance passed: upload, recovery, diff, reviews, SARIF, AR/EN, and access.")
+    print("Release browser acceptance passed: upload, recovery, diff, reviews, AR/EN, and access.")
 
 
 if __name__ == "__main__":

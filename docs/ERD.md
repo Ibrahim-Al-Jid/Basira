@@ -212,7 +212,7 @@ erDiagram
 | finding_comments | `finding_id → findings, actor_id → users, body, created_at, deleted_at?`. |
 | finding_status_events | `finding_id → findings, actor_id → users, from_status, to_status, reason, occurred_at`. |
 | reports | `scan_id → scans, revision, schema_version, summary_ar, summary_en, summary_source, snapshot, published_at`. فريد `(org_id,project_id,scan_id,revision)`. |
-| report_exports | `report_id → reports, artifact_id → artifacts, format, locale, renderer_version`. فريد لكل تركيبة report/format/locale/renderer؛ SARIF وJSON يُسجلا locale محايدة. |
+| report_exports | `report_id → reports, artifact_id → artifacts, format, locale, renderer_version`. فريد لكل تركيبة report/format/locale/renderer؛ JSON يُسجَّل locale محايدة. |
 | scan_metrics | PK/FK `(org_id,project_id,scan_id) → scans`، مع أعداد القواعد حسب حالة التنفيذ ومدة القياس وموديل/توكنز وتكلفة decimal وعملة عند توفرها. |
 | audit_events | `actor_id? → users, project_id? → projects, action, resource_ref, outcome, occurred_at, trace_id?, safe_details`. actor فارغ لأحداث خدمة موثقة. |
 | memory_records | `project_id → projects, class, subject_key, revision, provenance, payload, expires_at?, revoked_at?`. للمراجع المنقّحة، وباقي الأنواع تُقرأ من جداولها الأصلية حسب التصميم. فريد `(org_id,project_id,class,subject_key,revision)`. |
