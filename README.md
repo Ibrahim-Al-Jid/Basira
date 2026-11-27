@@ -60,6 +60,23 @@ Open http://127.0.0.1:8765/demo, choose an HTML file, paste markup, or use the b
 
 Verified on 27 November 2026 on Linux with Python 3.13 and Node 22, following exactly the commands above: the build succeeds, the app starts, `/`, `/demo` and `GET /api/taxonomy` return 200, and `npm test` gave 284 passed, 1 skipped at that time (the backend suite has grown since; CI on main is the current record). The lab keeps reports in SQLite; accounts and projects need option 2.
 
+### Run locally on Windows (accounts, projects, Connect GitHub)
+
+One time per machine: install Docker Desktop and Git, then clone the repo.
+
+1. Start Docker Desktop and wait for the engine to be ready.
+2. From the repo root in PowerShell, run the script once with the public identifiers of your GitHub App. It creates `.env.local` with random passwords, generates the GitHub credential key and the callback line, and asks for the Client Secret with hidden input:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\ops\start-local.ps1 -GitHubClientId <client id> -GitHubAppSlug <app slug>
+```
+
+3. Open http://127.0.0.1:8765/signin, create the local account, and press Connect GitHub.
+
+Every later run: start Docker Desktop, run `.\ops\start-local.ps1`, open the same address. Stop with `docker compose -p basira-local down` (data is kept).
+
+The GitHub App itself is created once by the project owner, with the callback `http://127.0.0.1:8765/api/platform/github/callback` (use 127.0.0.1, not localhost) and Contents read-only. The script fills only empty lines in `.env.local`, stops with a clear message if the credential key is malformed, and warns when the GitHub lines are incomplete. Without them the app still starts, but Connect GitHub is unavailable. Not verified end to end: Docker is not available in the review environment.
+
 ### 2. Docker Compose (accounts, projects, background jobs)
 
 Needs Docker Desktop or Docker Engine with Compose. On Windows, one command does everything, including random passwords in `.env.local`:
