@@ -6,6 +6,7 @@
 - Plan: Release 1 is defined (P10 redesign, P20 replay, what is already merged, and a short P18 release checklist). The assistant (P13), recheck, remediation, learning, active verification, performance work and the full four-configuration evaluation are listed as future additions.
 - UI labels match the code: the scan profile says "Extended · 114 rules" (3 baseline plus 111 extended, counted from the registry), and the landing page lists the source-code domain.
 - The product is renamed from Marsad to Basira (بصيرة) in code, UI, docs, tests and fixtures; the reference-corpus manifest checksum was recomputed. Environment variables are now `BASIRA_*` and database roles `basira_*`; existing local setups must be recreated.
+- PLAN status matches the merged state: P10 slices a to f and P20 are marked merged, with the automatic default project as the one open P10 item.
 
 ### Removed
 - SARIF export, by owner decision: the download button, the `format=sarif` endpoint option, the generator in `backend/advanced_reporting.py`, its tests and every mention in the docs. Reports still export to HTML (Arabic and English), JSON and PDF.
