@@ -1,6 +1,6 @@
 import pytest
 
-from .llm_providers import (PROVIDERS, chat_request, cost_warning, mask_key, models_request, parse_chat, parse_models,
+from .llm_providers import (CUSTOM, PROVIDERS, custom_base, chat_request, cost_warning, mask_key, models_request, parse_chat, parse_models,
                             public_providers)
 
 
@@ -46,3 +46,29 @@ def test_unknown_provider_is_rejected_and_keys_are_masked():
     with pytest.raises(ValueError):
         models_request("evil", "k")
     assert mask_key("sk-abcdefghijkl") == "********ijkl" and mask_key("") == "" and "abc" not in mask_key("abc")
+
+
+def public(*addresses):
+    return lambda host, port, type=None: [(0, 0, 0, "", (address, port)) for address in addresses]
+
+
+def test_custom_provider_accepts_a_public_https_base_and_builds_openai_style_requests():
+    base = custom_base("https://API.Example.com/v1/", public("93.184.216.34"))
+    assert base == "https://api.example.com/v1"
+    assert [item["id"] for item in public_providers() if item["custom"]] == [CUSTOM]
+    rows = parse_models(CUSTOM, {"data": [{"id": "my-model"}]})
+    assert rows[0]["cost"] == "unknown" and cost_warning(CUSTOM, rows[0])
+
+
+@pytest.mark.parametrize("url", [
+    "http://api.example.com/v1", "https://user:pw@api.example.com/v1", "https://api.example.com:8443/v1",
+    "https://localhost/v1", "https://db.internal/v1", "https://127.0.0.1/v1", "https://10.0.0.5/v1",
+    "https://169.254.169.254/latest", "https://[::1]/v1", "https://api.example.com/v1?x=1", "", "ftp://x.com"])
+def test_custom_provider_rejects_unsafe_base_urls(url):
+    with pytest.raises(ValueError):
+        custom_base(url, public("93.184.216.34"))
+
+
+def test_custom_provider_rejects_names_that_resolve_to_private_addresses_even_when_mixed():
+    with pytest.raises(ValueError):
+        custom_base("https://api.example.com/v1", public("93.184.216.34", "10.1.2.3"))
