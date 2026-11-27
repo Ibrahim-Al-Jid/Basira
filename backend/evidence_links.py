@@ -5,7 +5,7 @@ import sqlalchemy as sa
 
 from . import platform_runtime as store
 from .identity import ROLE_ACTIONS, require_project
-from .phase9_contracts import Identifier
+from .scan_contracts import Identifier
 from .platform_db import new_id, tenant_session
 
 router = APIRouter(prefix="/api/platform/projects/{project_id}/reports/{report_id}",

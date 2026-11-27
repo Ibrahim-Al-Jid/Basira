@@ -77,7 +77,7 @@ def enrich_with(monkeypatch, client, answer, report):
     return calls
 
 
-def test_phase16_advisor_sends_only_allowlisted_facts_and_preserves_evidence(monkeypatch, mocked_gateway):
+def test_advisor_sends_only_allowlisted_facts_and_preserves_evidence(monkeypatch, mocked_gateway):
     report = artifact_report()
     original = deepcopy(report)
     [request] = enrich_with(monkeypatch, mocked_gateway, ADVICE, report)
@@ -117,13 +117,13 @@ def test_phase16_advisor_sends_only_allowlisted_facts_and_preserves_evidence(mon
     {"priority": [SOURCE_RULE, SOURCE_RULE]},
     {"instructions": "untrusted content"},
 ])
-def test_phase16_rejects_entire_invalid_suggestion_bundle(monkeypatch, mocked_gateway, untrusted):
+def test_rejects_entire_invalid_suggestion_bundle(monkeypatch, mocked_gateway, untrusted):
     report = artifact_report()
     assert len(enrich_with(monkeypatch, mocked_gateway, {**ADVICE, **untrusted}, report)) == 1
     assert report == {**artifact_report(), "enrichment": "fallback", "metrics": {"modelCalls": 1}}
 
 
-def test_phase16_rejects_unregistered_facts_before_taking_budget(monkeypatch, mocked_gateway):
+def test_rejects_unregistered_facts_before_taking_budget(monkeypatch, mocked_gateway):
     monkeypatch.setattr(gateway, "start_model_call", lambda _body: pytest.fail("Call slot was consumed"))
     reply = mocked_gateway.post("/priority", headers={"Authorization": "Bearer fixture-service-token"}, json={
         **IDS, **CONNECTION, "counts": {"http-script": 1}, "connection": gateway.CONNECTION_ID,
@@ -135,7 +135,7 @@ def test_phase16_rejects_unregistered_facts_before_taking_budget(monkeypatch, mo
     assert reply.status_code == 422
 
 
-def test_phase16_transport_failure_keeps_deterministic_report(monkeypatch, mocked_gateway):
+def test_transport_failure_keeps_deterministic_report(monkeypatch, mocked_gateway):
     def fail(*args, **kwargs):
         raise httpx.ConnectError("unavailable")
 

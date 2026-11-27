@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from .phase9_contracts import ArtifactKind, CoverageStatus, Digest, GitHubSnapshotRef, Identifier, TargetProfile, ToolSelection
+from .scan_contracts import ArtifactKind, CoverageStatus, Digest, GitHubSnapshotRef, Identifier, TargetProfile, ToolSelection
 
 MAX_SOURCE_BYTES = 1_000_000
 MAX_SOURCE_CHARS = 250_000

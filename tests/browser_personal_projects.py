@@ -1,4 +1,4 @@
-"""Exercise Phase 13 in a disposable personal-project environment."""
+"""Exercise personal projects in a disposable personal-project environment."""
 
 from io import BytesIO
 import os
@@ -11,7 +11,7 @@ from playwright.sync_api import expect, sync_playwright
 
 
 def signup(page, origin, language):
-    address = f"phase13-{uuid4().hex[:12]}@example.test"
+    address = f"personal-{uuid4().hex[:12]}@example.test"
     password = token_urlsafe(24)
     page.goto(origin + "/signin")
     page.get_by_role("button", name="Create an account" if language == "en" else "إنشاء حساب", exact=True).click()
@@ -27,15 +27,15 @@ def signup(page, origin, language):
 def project_zip():
     archive = BytesIO()
     with ZipFile(archive, "w") as file:
-        file.writestr("index.html", "<!doctype html><html><title>Phase 13 fixture</title><p>Sample</p></html>")
+        file.writestr("index.html", "<!doctype html><html><title>Personal project fixture</title><p>Sample</p></html>")
     return {"name": "project.zip", "mimeType": "application/zip", "buffer": archive.getvalue()}
 
 
 def main():
-    origin = os.environ["MARSAD_PHASE13_QA_ORIGIN"].rstrip("/")
+    origin = os.environ["MARSAD_QA_ORIGIN"].rstrip("/")
     parsed = urlsplit(origin)
     if parsed.scheme != "http" or parsed.hostname != "127.0.0.1" or parsed.port in (None, 8765):
-        raise ValueError("Use a disposable loopback Phase 13 instance on its own port.")
+        raise ValueError("Use a disposable loopback instance on its own port.")
     with sync_playwright() as playwright:
         channel = os.environ.get("MARSAD_BROWSER_CHANNEL")
         browser = playwright.chromium.launch(channel=channel)
@@ -137,7 +137,7 @@ def main():
         assert owner.request.get(project_api).status == 404
         assert owner.request.get(f"{project_api}/reports/{scan_id}").status == 404
         browser.close()
-    print("Phase 13 browser acceptance passed in English and Arabic.")
+    print("Personal projects browser acceptance passed in English and Arabic.")
 
 
 if __name__ == "__main__":

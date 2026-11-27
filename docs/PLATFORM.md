@@ -1,17 +1,17 @@
 # تشغيل مشاريع مرصد وفحص الملفات
 
-## تفعيل المشاريع الشخصية · Phase 13
+## تفعيل المشاريع الشخصية
 
 تفعيل المسار الشخصي قرار تشغيل بعد مراجعة نسخة البيانات. جهّز نافذة صيانة توقف الكتابة والـDispatcher والعامل، وانتظر نهاية الفحوصات الجارية. جمّد مرجع الكود وملف الإعداد وتحقق من عدم وجود وظائف معلقة. خذ نسخة PostgreSQL بصيغة `pg_dump -Fc` ونسخة SQLite عبر `python -m backend.legacy_backup <source> <backup>`. احفظ النسخ وإعداداتها في مكان خاص. استعد PostgreSQL في قاعدة منفصلة وفارغة باستخدام `pg_restore --exit-on-error --single-transaction`، وقارن أعداد الحسابات والمشاريع والفحوصات ومعرّفات التقارير وبصمات محتواها، وتحقق من أدوار قاعدة البيانات. [PostgreSQL pg_dump](https://www.postgresql.org/docs/18/app-pgdump.html) · [PostgreSQL pg_restore](https://www.postgresql.org/docs/18/app-pgrestore.html)
 
 1. شغّل `alembic upgrade head` بحساب الترحيل على النسخة المستعادة أولًا. تحقق من تطبيق `platform_personal_0012` ومن أن كل مشروع ظاهر مرتبط بالمالك الذي اعتمدته الخريطة.
 2. استخدم `python ops/review-project-ownership.py` مع `MARSAD_PLATFORM_MIGRATION_URL` لعرض الحالات الملتبسة. أمّن قرارًا إداريًا مستقلًا قبل استخدام `--project <id> --owner <user-id> --decision-ref <ref>`. قارن الحالات التي ينقصها مالك بقائمة المراجعة. لو حصلت كتابة بالنسخة القديمة بعد اللقطة، أعد التحقق قبل التفعيل.
-3. تحقق من منع حساب مختلف وغياب سياق المعاملة من الوصول إلى تقرير. شغّل `python -m pytest -q backend`، وبناء الواجهة، و`python tests/browser_phase13.py` ضد نسخة محلية منفصلة عبر `MARSAD_PHASE13_QA_ORIGIN=http://127.0.0.1:8776`. يمكن اختيار Microsoft Edge عبر `MARSAD_BROWSER_CHANNEL=msedge`.
+3. تحقق من منع حساب مختلف وغياب سياق المعاملة من الوصول إلى تقرير. شغّل `python -m pytest -q backend`، وبناء الواجهة، و`python tests/browser_personal_projects.py` ضد نسخة محلية منفصلة عبر `MARSAD_QA_ORIGIN=http://127.0.0.1:8776`. يمكن اختيار Microsoft Edge عبر `MARSAD_BROWSER_CHANNEL=msedge`.
 4. بعد قبول النسخة المستعادة، كرر الترحيل على قاعدة التشغيل وفعّل `MARSAD_PERSONAL_PROJECTS=1` في نفس النافذة لكل خدمات منصة التطبيق والعامل والـDispatcher. رابط الدخول يفتح المشاريع الشخصية. الترحيل يحافظ على التقارير المرتبطة بمشاريع، وقاعدة SQLite الخاصة بالمختبر تظل محفوظة. تأكد إن الوضع فعال من `GET /api/product`.
 
 الرجوع التشغيلي يكون بإرجاع قيمة الإعداد إلى `0` وإعادة تشغيل الخدمات على الكود المتوافق مع المخطط الموسّع، مع إبقاء التقارير محفوظة. قبل الإتاحة مجددًا، راجع أي مشاريع أو صلاحيات تغيّرت أثناء هذه الفترة. الرجوع عن المخطط بعد بدء كتابة بيانات شخصية يتطلب خطة استعادة لنسخة سبق اختبارها وقرارًا بشأن التغييرات الأحدث، لأن الاسترجاع يعيد القاعدة لنقطة النسخة. ترحيل Alembic التراكمي يحمي المخطط السابق ويمنع `downgrade` لو ظهر ما يستلزم الاحتفاظ به. [استراتيجيات ترحيل البيانات في Alembic](https://alembic.sqlalchemy.org/en/latest/cookbook.html#data-migrations-general-techniques)
 
-## تشغيل مدخلات الفحص · Phase 14
+## تشغيل مدخلات الفحص
 
 1. شغّل ترحيل PostgreSQL حتى `platform_personal_github_0014` وفعّل `MARSAD_PERSONAL_PROJECTS=1`. من تفاصيل المشروع افتح «فحص جديد»، واختار ZIP أو GitHub أو رابط موقع، ثم راجع النطاق ووافق عليه. تتوحّد المصادر في نفس حالة الفحص وسجل الأدلة، وتظل التقارير السابقة قابلة للفتح.
 2. لاستخدام S3 أو MinIO جهّز bucket خاصة مخصصة للحجر بتشفير واحتفاظ حسب بيئتك، ومن غير وصول عام. طبّق [قاعدة دورة الحياة](../ops/intake-quarantine-lifecycle.json) على `quarantine/` لتنظيف البقايا بعد تعطل العملية. امنح حساب التطبيق `s3:PutObject` و`s3:GetObject` و`s3:DeleteObject` على البادئة فقط. اضبط `MARSAD_INTAKE_S3_BUCKET` و`MARSAD_INTAKE_S3_ENDPOINT` للـMinIO وأسرار الاعتماد الخاصة بالخدمة. اضبط `MARSAD_INTAKE_STORAGE_REQUIRED=1` لإرجاع خطأ قابل لإعادة المحاولة عند غياب التخزين. وضع التطوير يدعم حجرًا مؤقتًا محليًا. لا تشارك بيانات تشغيل MinIO بين الاستضافة والاختبار. [صلاحيات S3](https://docs.aws.amazon.com/service-authorization/latest/reference/list_s3.html) · [دورة حياة كائنات S3](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html) · [MinIO](https://github.com/minio/minio/releases)
@@ -20,13 +20,13 @@
 
 لاختبار الرحلات، شغّل `python -m pytest -q backend/test_personal_intake.py backend/test_github_import.py`. اختبارات GitHub تستخدم مزودًا محاكى، وتشمل رفض مستودع خارج الإذن وتكرار callback. استخدم bucket اختبار منفصلة بتشغيل نفس المجموعة مع إعدادات S3 للتحقق من SHA-256 وتنظيف الحجر. مكوّن التحليل يستقبل المدخل المقبول من الطابور، وتظل حدود حجمه كما هي.
 
-## تشغيل الأدوات ونقطة الاستئناف · Phase 15–16
+## تشغيل الأدوات ونقطة الاستئناف
 
 1. شغّل الترحيل حتى `platform_checkpoints_0015` على نسخة مستعادة أولًا. في PostgreSQL ينشئ الترحيل دالة ومحفّز `marsad_clear_analysis_checkpoint`؛ تحقق من وجودهما ومن أن تحديث الحالة إلى `completed/partial/failed/cancelled` يصفّر `analysis_checkpoint`. على SQLite يكفي العمود الجديد لأن منطق التطبيق يتولى التنظيف.
 2. صورة `marsad-platform:scanner-local` تُبنى من الهدف `scanner-npm`. فهرس npm مبني من أرشيف OSV مثبّت بتاريخ وبصمة ظاهرين في `Dockerfile`؛ لا تحدّث البيانات بتنزيل وقت التشغيل. بناء صورة جديدة بمصدر وبصمة معلومين ثم استبدال العامل بعد التحقق هو مسار التحديث الوحيد.
 3. الوسيط يتحقق من إصدار Gitleaks وOSV-Scanner قبل كل تنفيذ ويرفض أي إصدار لا يطابق السجل. ظهور `adapter_output_limit` أو `database_unavailable` يعني تغطية جزئية أو خطأ أداة في التقرير، وليس نتيجة سليمة.
 4. الإثراء بالوكلاء اختياري. إذا كان مفعّلًا، البوابة ترسل معرّفات وأعدادًا وأسماء أدوات مسموحة فقط؛ أي رد غير مطابق يُرفض كاملًا ويظهر التقرير الحتمي. تذكّر أن `MARSAD_GATEWAY_URL` و`MARSAD_GATEWAY_TOKEN` سرّان خادميان، ولا يُكتبان في السجلات أو التقارير.
-5. للتحقق الموضعي شغّل `python -m pytest -q backend/test_source_adapters.py backend/test_phase16_workflow.py backend/test_phase16_checkpoints.py backend/test_phase16_advisor.py backend/test_personal_intake.py` ثم `npm run build`. اختبارات الـcheckpoint تستخدم قواعد SQLite مؤقتة وتغطي انهيار العامل والـlease القديم وتعديل التقرير والإلغاء وانتهاء المصدر.
+5. للتحقق الموضعي شغّل `python -m pytest -q backend/test_source_adapters.py backend/test_agent_workflow.py backend/test_checkpoints.py backend/test_advisor.py backend/test_personal_intake.py` ثم `npm run build`. اختبارات الـcheckpoint تستخدم قواعد SQLite مؤقتة وتغطي انهيار العامل والـlease القديم وتعديل التقرير والإلغاء وانتهاء المصدر.
 
 ### تجربة GitHub على Windows
 
@@ -93,7 +93,7 @@ docker compose -p marsad-local -f compose.yaml -f compose.local.yaml --env-file 
 docker compose -p marsad-local -f compose.yaml -f compose.local.yaml --env-file .env.local --profile model up -d --build
 ```
 
-بعد التشغيل، المالك أو المدير يفتح «الحساب ← اتصال الموديل»، يختار المؤسسة ويدخل مفتاح OpenRouter ومعرّف الموديل، ثم يسمح للمشروع في نفس المكان. التخزين مشفر بمفتاح خاص ببوابة الموديل. تفاصيل النسخ الاحتياطي والإعداد المشغّل القديم في [دليل Phase 10](archive/PHASE10.md).
+بعد التشغيل، المالك أو المدير يفتح «الحساب ← اتصال الموديل»، يختار المؤسسة ويدخل مفتاح OpenRouter ومعرّف الموديل، ثم يسمح للمشروع في نفس المكان. التخزين مشفر بمفتاح خاص ببوابة الموديل. تفاصيل النسخ الاحتياطي والإعداد المشغّل القديم في دليل Phase 10.
 
 ## المدخلات وتغطية الفحص
 
@@ -115,12 +115,12 @@ docker compose -p marsad-local -f compose.yaml -f compose.local.yaml --env-file 
 - PostgreSQL يخزن المهام والنسخ النهائية والأدلة ويزيل محتوى المدخل من صف الفحص عند الحالة النهائية. مساحة التحليل المؤقتة تُنظّف عند انتهاء الطلب. حافظ على تشفير ومدة احتفاظ لنسخ قاعدة البيانات في بيئتك، خصوصًا لأن المدخل موجود في قاعدة المهام أثناء التشغيل.
 - ذاكرة العمل هي الحالة والأحداث، وEpisodic تاريخ الفحوصات، وProcedural سجل القواعد، وProject نسخة السياسة، وFinding تكرار الأدلة على مستوى القاعدة والملف، وSemantic مراجع يضيفها مدير المشروع ويقدر يبطلها. واجهة الذاكرة تعزلها بالمؤسسة والمشروع. سياق المحتوى الخام والمراجع الحرة لا يدخل استدعاء النموذج.
 
-للتحقق على مشروع Compose معزول بقاعدة اختبار، شغّل `Get-Content -Raw tests/container_phase45.py | docker compose exec -T app python -` من PowerShell. الاختبار يضيف حسابين مؤقتين في القاعدة، ويتحقق من RLS ومسار الـworker والتقرير. اختبارات OIDC في `npm test` تستخدم مزوّد اختبار لتجربة التوقيع وPKCE وحالات الرفض.
+للتحقق على مشروع Compose معزول بقاعدة اختبار، شغّل `Get-Content -Raw tests/container_smoke.py | docker compose exec -T app python -` من PowerShell. الاختبار يضيف حسابين مؤقتين في القاعدة، ويتحقق من RLS ومسار الـworker والتقرير. اختبارات OIDC في `npm test` تستخدم مزوّد اختبار لتجربة التوقيع وPKCE وحالات الرفض.
 
 ## التقارير القديمة والنسخ الاحتياطي
 
 من مجلد المشروع استخدم `python -m backend.legacy_backup data/marsad.sqlite3 <backup-path>` قبل تحديث قاعدة مجهولة قديمة. الأداة تنشئ ملفًا جديدًا، وتتحقق من سلامته وتطابق المعرّفات والمالكين والأعداد. رجوع مختبر SQLite يختبر باستخدام نسخة منفصلة يحددها `MARSAD_DB_PATH`.
 
-الجلسات الجديدة لها انتهاء مفروض من السيرفر. الصفوف القديمة من غير تاريخ انتهاء لها نافذة انتقال ٧ أيام من أول ترحيل للنظام القديم. ربط تقرير بمشروع يحتاج تسجيل دخول وإذن فحص وجلسة محلية نشطة لها تاريخ انتهاء متحقق، وتأكيد المستخدم. النسخة المرتبطة تحافظ على معرّف التقرير، وتظهر تقارير المشروع في `/reports?project=<id>`. دليل القبول والحالات المتبقية في [الخطة](../work/plan.md).
+الجلسات الجديدة لها انتهاء مفروض من السيرفر. الصفوف القديمة من غير تاريخ انتهاء لها نافذة انتقال ٧ أيام من أول ترحيل للنظام القديم. ربط تقرير بمشروع يحتاج تسجيل دخول وإذن فحص وجلسة محلية نشطة لها تاريخ انتهاء متحقق، وتأكيد المستخدم. النسخة المرتبطة تحافظ على معرّف التقرير، وتظهر تقارير المشروع في `/reports?project=<id>`. دليل القبول والحالات المتبقية في [الخطة](PLAN.md).
 
 في تقرير المشروع، اختار المرجع من قسم «مقارنة الفحوصات». حالة النتيجة والتعليقات تحت «مراجعة النتائج»، وتنزيل SARIF بجانب صيغ التصدير الحالية. الترحيل `platform_observation_0004` يُنفَّذ على قاعدة فعلية باستخدام `alembic upgrade head` بحساب الترحيل. ده بيحدّث بصمات البيانات الموجودة جوّه معاملة الترحيل. [التقارير المتقدمة وحدود المقارنة](RELEASE.md)

@@ -8,7 +8,7 @@ import pytest
 
 from . import offline_worker as workflow
 from .artifact_review import InputError, RULESET_VERSION
-from .phase9_contracts import analyzer_plan, json_digest
+from .scan_contracts import analyzer_plan, json_digest
 
 
 def repository_payload(text, *, extra=""):

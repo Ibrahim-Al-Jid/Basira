@@ -21,7 +21,7 @@ from .model_connections import (
     configured_model, connections, decrypt_key, encrypt_key, gateway_config, openrouter_secret,
     operator_enabled, vault,
 )
-from .phase9_contracts import ANALYZER_INPUTS
+from .scan_contracts import ANALYZER_INPUTS
 from .platform_db import PlatformUnavailable, platform_session
 from .rules import RULES
 from .source_adapters import SOURCE_TOOLS
