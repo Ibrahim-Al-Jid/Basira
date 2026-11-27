@@ -137,7 +137,7 @@ export function Landing({ follow, lang, theme, authenticated, personal }) {
   const start = authenticated ? "/projects" : personal ? "/signin?mode=register" : "/signin";
   const Arrow = language ? ArrowRight : ArrowLeft;
   return (
-    <div className="marsad-landing" data-landing-theme={theme || "dark"} data-personal={personal || undefined}
+    <div className="basira-landing" data-landing-theme={theme || "dark"} data-personal={personal || undefined}
       lang={language ? "en" : "ar"} dir={language ? "ltr" : "rtl"}>
       <section className="landing-hero landing-inner" aria-labelledby="landing-title">
         <div className="landing-intro">

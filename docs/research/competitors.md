@@ -12,9 +12,9 @@ Total listed: 72. User estimate was about 60.
 - Findings are checked in very different ways, from a human reviewing every finding to no human at all.
 - Published benchmark scores are self-reported by each project. The listing's own source says none was independently reproduced.
 
-## Where Marsad is different, and where it is not
+## Where Basira is different, and where it is not
 
-- Marsad reviews evidence the owner supplies (ZIP, GitHub snapshot, HAR, config, an approved page). It does not exploit anything. That is a safer scope and a narrower one: injection, XSS and access-control flaws that need live probing are listed as gaps in [taxonomy.md](../taxonomy.md).
+- Basira reviews evidence the owner supplies (ZIP, GitHub snapshot, HAR, config, an approved page). It does not exploit anything. That is a safer scope and a narrower one: injection, XSS and access-control flaws that need live probing are listed as gaps in [taxonomy.md](../taxonomy.md).
 - Findings are tied to redacted evidence, a location and a fix, and every check reports matched, clear, not applicable, skipped or error. Reports are bilingual (Arabic and English) with PDF.
 - Not a claim: better detection than any listed tool. There is no head-to-head result yet. See [benchmarks.md](benchmarks.md) for how that gets measured.
 

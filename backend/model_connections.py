@@ -80,25 +80,25 @@ class CatalogRequest(CatalogKey):
 
 
 def configured_model():
-    model = os.environ.get("MARSAD_OPENROUTER_MODEL", "")
+    model = os.environ.get("BASIRA_OPENROUTER_MODEL", "")
     return model if len(model) <= 160 and MODEL_ID.fullmatch(model) else None
 
 
 def operator_enabled(org_id):
-    allowed = {value.strip() for value in os.environ.get("MARSAD_OPERATOR_MODEL_ORGS", "").split(",") if value.strip()}
+    allowed = {value.strip() for value in os.environ.get("BASIRA_OPERATOR_MODEL_ORGS", "").split(",") if value.strip()}
     model = configured_model()
-    return model if org_id in allowed and os.environ.get("MARSAD_PROJECT_MODEL_ENABLED") == "1" else None
+    return model if org_id in allowed and os.environ.get("BASIRA_PROJECT_MODEL_ENABLED") == "1" else None
 
 
 def openrouter_secret():
     """Resolve the operator file in the gateway so replacement and removal take effect."""
-    path = os.environ.get("MARSAD_OPENROUTER_KEY_FILE")
+    path = os.environ.get("BASIRA_OPENROUTER_KEY_FILE")
     try:
         if path:
             with Path(path).open(encoding="ascii") as source:
                 raw = source.read(4097)
         else:
-            raw = os.environ.get("MARSAD_OPENROUTER_KEY", "")
+            raw = os.environ.get("BASIRA_OPENROUTER_KEY", "")
     except (OSError, UnicodeError):
         return None
     value = raw.strip()
@@ -108,7 +108,7 @@ def openrouter_secret():
 
 
 def vault():
-    path = os.environ.get("MARSAD_MODEL_MASTER_KEY_FILE")
+    path = os.environ.get("BASIRA_MODEL_MASTER_KEY_FILE")
     if path:
         try:
             with Path(path).open("rb") as source:
@@ -121,7 +121,7 @@ def vault():
 
 
 def associated_data(org_id, generation):
-    return f"marsad:openrouter:v1:{org_id}:{generation}".encode("ascii")
+    return f"basira:openrouter:v1:{org_id}:{generation}".encode("ascii")
 
 
 def encrypt_key(encryptor, key, org_id, generation):
@@ -140,7 +140,7 @@ def decrypt_key(encryptor, ciphertext, org_id, generation):
 
 def bind_organization(db, org_id):
     if db.bind.dialect.name == "postgresql":
-        db.execute(sa.text("SELECT set_config('marsad.model_org_id', :org_id, true)"), {"org_id": org_id})
+        db.execute(sa.text("SELECT set_config('basira.model_org_id', :org_id, true)"), {"org_id": org_id})
 
 
 def org_connection(db, org_id):
@@ -187,8 +187,8 @@ def scan_connection(db, ctx, policy):
 
 
 def gateway_config():
-    url = os.environ.get("MARSAD_GATEWAY_URL")
-    token = os.environ.get("MARSAD_GATEWAY_TOKEN")
+    url = os.environ.get("BASIRA_GATEWAY_URL")
+    token = os.environ.get("BASIRA_GATEWAY_TOKEN")
     return (url.rstrip("/"), {"Authorization": "Bearer " + token}) if url and token else (None, None)
 
 

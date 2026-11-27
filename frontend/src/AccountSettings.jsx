@@ -72,7 +72,7 @@ function Profile({ lang, user, onProfileChange }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(null);
   const [saved, setSaved] = useState(false);
-  const name = user.display_name || t("حساب مرصد", "Marsad account");
+  const name = user.display_name || t("حساب بصيرة", "Basira account");
   const joined = user.created_at ? new Date(user.created_at) : null;
   const title = t("تعديل البروفايل", "Edit profile");
 

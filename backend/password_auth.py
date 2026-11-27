@@ -81,14 +81,14 @@ class Registration(Credentials):
 
 
 def registration(request):
-    return password_auth_enabled(request) and os.environ.get("MARSAD_PASSWORD_SELF_SIGNUP") == "1"
+    return password_auth_enabled(request) and os.environ.get("BASIRA_PASSWORD_SELF_SIGNUP") == "1"
 
 
 @router.get("/options")
 def options(request: Request):
     try:
         oidc_settings()
-        oidc = bool(os.environ.get("MARSAD_PLATFORM_DATABASE_URL"))
+        oidc = bool(os.environ.get("BASIRA_PLATFORM_DATABASE_URL"))
     except PlatformUnavailable:
         oidc = False
     return {"oidc": oidc, "password": password_auth_enabled(request), "registration": registration(request)}

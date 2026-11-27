@@ -1,4 +1,4 @@
-# Marsad documentation
+# Basira documentation
 
 One topic, one file. If two files say different things, the one in this table wins.
 
@@ -7,6 +7,7 @@ One topic, one file. If two files say different things, the one in this table wi
 | Plan, phases and status | [PLAN.md](PLAN.md) |
 | Architecture: roles, tools, memory, technology | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | Data model | [ERD.md](ERD.md) |
+| Live demo runbook and fallback | [DEMO.md](DEMO.md) |
 | Running and operating the platform | [PLATFORM.md](PLATFORM.md) |
 | Using the workspace: journeys, themes, tests | [WORKSPACE.md](WORKSPACE.md) |
 | The 100 checks (and the HTML/HAR and config extensions) | [checks/README.md](checks/README.md), [checks/web-extra.md](checks/web-extra.md), [checks/config-extra.md](checks/config-extra.md) |

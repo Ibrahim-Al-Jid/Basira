@@ -22,7 +22,7 @@ const sourceCopy = {
     title: "مصدر الفحص", hint: "اختار ملف HTML أو HTM بترميز UTF-8، لحد ١ ميجابايت و٢٥٠ ألف حرف.",
     paste: "لصق HTML", sampleAction: "تحميل العينة", drop: "اسحب ملف هنا أو اختاره من جهازك",
     replace: "استبدال الملف", upload: "اختيار ملف HTML", input: "ملف HTML", reading: "قراءة",
-    cancel: "إلغاء قراءة الملف", code: "كود HTML", sample: "عينة مرصد", pasted: "HTML ملصوق",
+    cancel: "إلغاء قراءة الملف", code: "كود HTML", sample: "عينة بصيرة", pasted: "HTML ملصوق",
     remove: "إزالة الملف", clear: "مسح المصدر",
     metadata: (bytes, lines) => `${num(bytes)} بايت · ${num(lines)} سطر`,
   },
@@ -36,7 +36,7 @@ const sourceCopy = {
     title: "Scan source", hint: "Choose a UTF-8 HTML or HTM file up to 1 MB and 250,000 characters.",
     paste: "Paste HTML", sampleAction: "Load sample", drop: "Drop a file here or choose it from your device",
     replace: "Replace file", upload: "Choose HTML file", input: "HTML file", reading: "Reading",
-    cancel: "Cancel file reading", code: "HTML code", sample: "Marsad sample", pasted: "Pasted HTML",
+    cancel: "Cancel file reading", code: "HTML code", sample: "Basira sample", pasted: "Pasted HTML",
     remove: "Remove file", clear: "Clear source",
     metadata: (bytes, lines) => `${bytes.toLocaleString("en")} bytes · ${lines.toLocaleString("en")} lines`,
   },
@@ -179,13 +179,13 @@ export function SourcePicker({ source, setSource, disabled, onBusyChange, lang =
   }
 
   return (
-    <section className="marsad-source" aria-labelledby={id + "-title"}>
-      <div className="marsad-source-heading">
+    <section className="basira-source" aria-labelledby={id + "-title"}>
+      <div className="basira-source-heading">
         <div>
           <h2 id={id + "-title"}>{t.title}</h2>
           <p id={id + "-hint"}>{t.hint}</p>
         </div>
-        <div className="marsad-source-alternatives">
+        <div className="basira-source-alternatives">
           {source.kind !== "paste" && (
             <button className="subtle" disabled={disabled} onClick={openPaste}>
               <ClipboardPaste size={15} aria-hidden="true" /> {t.paste}
@@ -200,7 +200,7 @@ export function SourcePicker({ source, setSource, disabled, onBusyChange, lang =
       </div>
 
       <div
-        className={"marsad-source-drop" + (dragging ? " dragging" : "")}
+        className={"basira-source-drop" + (dragging ? " dragging" : "")}
         onDragEnter={(event) => {
           if (!filesDragged(event)) return;
           event.preventDefault();
@@ -254,14 +254,14 @@ export function SourcePicker({ source, setSource, disabled, onBusyChange, lang =
       </div>
 
       {loadingName && (
-        <div className="marsad-source-reading">
+        <div className="basira-source-reading">
           <p role="status"><LoaderCircle className="spin" size={15} aria-hidden="true" /> {t.reading} <bdi>{loadingName}</bdi></p>
           <button className="subtle" onClick={cancelRead}>{t.cancel}</button>
         </div>
       )}
       {error && <p className="error" role="alert">{t[error]}</p>}
       {source.kind === "paste" && (
-        <div className="marsad-source-editor">
+        <div className="basira-source-editor">
           <label htmlFor={id + "-html"}>{t.code}</label>
           <textarea
             ref={editor}
@@ -279,7 +279,7 @@ export function SourcePicker({ source, setSource, disabled, onBusyChange, lang =
         </div>
       )}
       {source.text && (
-        <div className="marsad-source-current">
+        <div className="basira-source-current">
           <FileCode2 size={20} aria-hidden="true" />
           <div>
             <strong><bdi>{source.name || (source.kind === "sample" ? t.sample : t.pasted)}</bdi></strong>

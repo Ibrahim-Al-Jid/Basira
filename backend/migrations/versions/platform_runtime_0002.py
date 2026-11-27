@@ -83,15 +83,15 @@ def upgrade():
     )
     op.create_index("ix_legacy_reports_scope", "project_legacy_reports", ["org_id", "project_id"])
     if op.get_context().dialect.name == "postgresql":
-        clause = "org_id = current_setting('marsad.org_id', true) AND project_id = current_setting('marsad.project_id', true)"
+        clause = "org_id = current_setting('basira.org_id', true) AND project_id = current_setting('basira.project_id', true)"
         for name in TENANT_NAMES:
             op.execute(f"ALTER TABLE {name} ENABLE ROW LEVEL SECURITY")
             op.execute(f"ALTER TABLE {name} FORCE ROW LEVEL SECURITY")
             op.execute(f"CREATE POLICY project_access ON {name} USING ({clause}) WITH CHECK ({clause})")
         op.execute("""
             DO $$ BEGIN
-                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'marsad_dispatch') THEN
-                    GRANT SELECT, UPDATE ON scan_dispatch_outbox TO marsad_dispatch;
+                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'basira_dispatch') THEN
+                    GRANT SELECT, UPDATE ON scan_dispatch_outbox TO basira_dispatch;
                 END IF;
             END $$;
         """)

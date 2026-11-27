@@ -133,7 +133,7 @@ def snapshots(request):
         "iac/s3.tf.json": terraform(unsafe),
         "migrations/001.sql": sql(unsafe),
         ".github/workflows/build.yml": workflow(unsafe),
-        ".marsad/branch-protection.json": branch(unsafe),
+        ".basira/branch-protection.json": branch(unsafe),
         APP_PATH: app_settings(unsafe),
     }
 
@@ -181,7 +181,7 @@ def test_absence_rules_require_policy_and_complete_input(policy):
     results = config.check(inputs, None, {**policy, "snapshot_complete": False}, [])
     assert results["INF-09"] is results["INF-10"] is None
     partial = json.dumps({"complete": False, "branches": {"main": {"required_approvals": 0, "required_checks": []}}})
-    results = config.check({".marsad/branch-protection.json": partial}, None, policy, [])
+    results = config.check({".basira/branch-protection.json": partial}, None, policy, [])
     assert results["CI-05"] is results["CI-06"] is None
 
 

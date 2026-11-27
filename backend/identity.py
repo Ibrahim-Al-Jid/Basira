@@ -32,9 +32,9 @@ from .platform_db import (
 )
 
 router = APIRouter(prefix="/api/platform", tags=["Project identity"])
-SESSION_COOKIE = "marsad_platform_session"
-STATE_COOKIE = "marsad_oidc_state"
-PASSWORD_ISSUER = "urn:marsad:password"
+SESSION_COOKIE = "basira_platform_session"
+STATE_COOKIE = "basira_oidc_state"
+PASSWORD_ISSUER = "urn:basira:password"
 LOCAL_HOSTS = {"127.0.0.1", "::1", "localhost"}
 SESSION_TTL = timedelta(hours=8)
 SESSION_TOKEN = re.compile(r"[A-Za-z0-9_-]{43}")
@@ -125,7 +125,7 @@ def public_name(name):
 
 
 def member_name(name):
-    return public_name(name) or "Marsad member"
+    return public_name(name) or "Basira member"
 
 
 def account_view(user):
@@ -153,11 +153,11 @@ def endpoint_allowed(url):
 
 
 def oidc_settings():
-    issuer = os.environ.get("MARSAD_OIDC_ISSUER", "")
-    redirect_uri = os.environ.get("MARSAD_OIDC_REDIRECT_URI", "")
-    client_id = os.environ.get("MARSAD_OIDC_CLIENT_ID", "")
-    secret = os.environ.get("MARSAD_OIDC_CLIENT_SECRET", "")
-    state_secret = os.environ.get("MARSAD_OIDC_STATE_SECRET", "")
+    issuer = os.environ.get("BASIRA_OIDC_ISSUER", "")
+    redirect_uri = os.environ.get("BASIRA_OIDC_REDIRECT_URI", "")
+    client_id = os.environ.get("BASIRA_OIDC_CLIENT_ID", "")
+    secret = os.environ.get("BASIRA_OIDC_CLIENT_SECRET", "")
+    state_secret = os.environ.get("BASIRA_OIDC_STATE_SECRET", "")
     if (not endpoint_allowed(issuer) or len(issuer) > 500 or urlsplit(issuer).query or
             not endpoint_allowed(redirect_uri) or not client_id or not secret or len(state_secret) < 32):
         raise PlatformUnavailable("OIDC sign-in is not configured.")
@@ -168,7 +168,7 @@ def oidc_settings():
 def oauth_client(settings):
     oauth = OAuth()
     return oauth.register(
-        "marsad_oidc", client_id=settings.client_id, client_secret=settings.client_secret,
+        "basira_oidc", client_id=settings.client_id, client_secret=settings.client_secret,
         server_metadata_url=settings.issuer.rstrip("/") + "/.well-known/openid-configuration",
         client_kwargs={"scope": "openid profile", "code_challenge_method": "S256", "timeout": 10.0},
     )
@@ -217,8 +217,8 @@ def set_platform_cookie(response, token, *, secure):
 
 def password_auth_enabled(request):
     return (
-        os.environ.get("MARSAD_PASSWORD_AUTH_ENABLED") == "1"
-        and bool(os.environ.get("MARSAD_PLATFORM_DATABASE_URL"))
+        os.environ.get("BASIRA_PASSWORD_AUTH_ENABLED") == "1"
+        and bool(os.environ.get("BASIRA_PLATFORM_DATABASE_URL"))
         and request.url.hostname in LOCAL_HOSTS
     )
 
@@ -520,8 +520,8 @@ def remove_grant(project_id: str, user_id: str, request: Request):
 def install_identity(app):
     from .organization_invitations import router as invitation_router
 
-    state_secret = os.environ.get("MARSAD_OIDC_STATE_SECRET", "")
-    redirect_uri = os.environ.get("MARSAD_OIDC_REDIRECT_URI", "")
+    state_secret = os.environ.get("BASIRA_OIDC_STATE_SECRET", "")
+    redirect_uri = os.environ.get("BASIRA_OIDC_REDIRECT_URI", "")
     if len(state_secret) >= 32 and endpoint_allowed(redirect_uri):
         app.add_middleware(SessionMiddleware, secret_key=state_secret, session_cookie=STATE_COOKIE,
                            max_age=600, path="/api/platform/auth", same_site="lax",

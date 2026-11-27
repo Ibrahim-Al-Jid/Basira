@@ -17,7 +17,7 @@ def scope_column():
 
 def authorize_gateway():
     op.execute("""
-        CREATE FUNCTION public.marsad_model_credential(target_org text, target_generation text)
+        CREATE FUNCTION public.basira_model_credential(target_org text, target_generation text)
         RETURNS bytea LANGUAGE SQL SECURITY DEFINER SET search_path = pg_catalog SET row_security = off
         AS $credential$
             SELECT ciphertext FROM public.organization_model_connections
@@ -25,7 +25,7 @@ def authorize_gateway():
         $credential$;
     """)
     op.execute("""
-        CREATE FUNCTION public.marsad_start_model_call(
+        CREATE FUNCTION public.basira_start_model_call(
             target_org text, target_project text, target_scan text, target_lease text,
             target_generation text, target_model text
         ) RETURNS TABLE (ciphertext bytea)
@@ -86,12 +86,12 @@ def authorize_gateway():
         END;
         $start$;
     """)
-    for signature in ("marsad_model_credential(text,text)", "marsad_start_model_call(text,text,text,text,text,text)"):
+    for signature in ("basira_model_credential(text,text)", "basira_start_model_call(text,text,text,text,text,text)"):
         op.execute(f"REVOKE ALL ON FUNCTION public.{signature} FROM PUBLIC")
         op.execute(f"""
             DO $$ BEGIN
-                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'marsad_model_gateway') THEN
-                    GRANT EXECUTE ON FUNCTION public.{signature} TO marsad_model_gateway;
+                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'basira_model_gateway') THEN
+                    GRANT EXECUTE ON FUNCTION public.{signature} TO basira_model_gateway;
                 END IF;
             END $$;
         """)
@@ -112,7 +112,7 @@ def upgrade():
     )
     op.add_column("project_scans", sa.Column("enrichment_started_at", sa.DateTime))
     if op.get_context().dialect.name == "postgresql":
-        filter_ = "org_id = current_setting('marsad.model_org_id', true)"
+        filter_ = "org_id = current_setting('basira.model_org_id', true)"
         for name in TABLES:
             op.execute(f"ALTER TABLE {name} ENABLE ROW LEVEL SECURITY")
             op.execute(f"ALTER TABLE {name} FORCE ROW LEVEL SECURITY")
@@ -122,8 +122,8 @@ def upgrade():
 
 def downgrade():
     if op.get_context().dialect.name == "postgresql":
-        op.execute("DROP FUNCTION public.marsad_start_model_call(text,text,text,text,text,text)")
-        op.execute("DROP FUNCTION public.marsad_model_credential(text,text)")
+        op.execute("DROP FUNCTION public.basira_start_model_call(text,text,text,text,text,text)")
+        op.execute("DROP FUNCTION public.basira_model_credential(text,text)")
     op.drop_column("project_scans", "enrichment_started_at")
     for name in reversed(TABLES):
         op.drop_table(name)

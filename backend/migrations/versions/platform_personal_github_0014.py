@@ -19,11 +19,11 @@ def upgrade():
             op.execute(f"ALTER TABLE {name} ENABLE ROW LEVEL SECURITY")
             op.execute(f"ALTER TABLE {name} FORCE ROW LEVEL SECURITY")
             op.execute(f"""CREATE POLICY personal_owner ON {name}
-                        USING (user_id = current_setting('marsad.owner_user_id', true))
-                        WITH CHECK (user_id = current_setting('marsad.owner_user_id', true))""")
+                        USING (user_id = current_setting('basira.owner_user_id', true))
+                        WITH CHECK (user_id = current_setting('basira.owner_user_id', true))""")
             op.execute(text(f"""DO $$ BEGIN
-                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'marsad_app') THEN
-                    GRANT SELECT, INSERT, UPDATE, DELETE ON {name} TO marsad_app;
+                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'basira_app') THEN
+                    GRANT SELECT, INSERT, UPDATE, DELETE ON {name} TO basira_app;
                 END IF;
             END $$"""))
 

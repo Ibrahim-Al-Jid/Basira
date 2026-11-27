@@ -33,7 +33,7 @@ def upgrade():
     op.create_index("ix_review_activity_timeline", "finding_review_activity",
                     ["org_id", "project_id", "fingerprint", "created_at"])
     if op.get_context().dialect.name == "postgresql":
-        clause = "org_id = current_setting('marsad.org_id', true) AND project_id = current_setting('marsad.project_id', true)"
+        clause = "org_id = current_setting('basira.org_id', true) AND project_id = current_setting('basira.project_id', true)"
         for table in ("finding_reviews", "finding_review_activity"):
             op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
             op.execute(f"ALTER TABLE {table} FORCE ROW LEVEL SECURITY")

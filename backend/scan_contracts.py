@@ -18,7 +18,7 @@ Digest = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
 ModelConnection = Literal["openrouter-default"]
 
 PROFILE = "offline-artifact"
-TOOL_PROTOCOL_VERSION = "marsad-tool-1"
+TOOL_PROTOCOL_VERSION = "basira-tool-1"
 RAW_RETENTION_MINUTES = 15
 ALL_INPUTS = DEFAULT_INPUTS
 ANALYZER_INPUTS = {
@@ -84,12 +84,12 @@ class ToolManifest(ToolPin):
     mode: Literal["offline"] = "offline"
     status: Literal["available", "disabled"] = "available"
     reason: Literal["adapter_unavailable", "not_enabled", "shadow_only"] | None = None
-    contract: Literal["marsad-tool-2"] = "marsad-tool-2"
+    contract: Literal["basira-tool-2"] = "basira-tool-2"
     approval: Literal["approved", "shadow"] = "approved"
     runner: Literal["builtin", "isolated_cli", "unregistered"] = "builtin"
     network: Literal[False] = False
     license: str
-    maintainer: str = "Marsad"
+    maintainer: str = "Basira"
     source_url: str | None = None
     readiness_check: Literal["module-import", "bundle-version-and-cache", "shadow-fixture"] = "module-import"
     capabilities: list[str] = Field(default_factory=list)
@@ -163,7 +163,7 @@ class GitHubSnapshotRef(BaseModel):
 
 class TargetProfile(BaseModel):
     mode: Literal["zip", "github", "website"]
-    contract: Literal["marsad-intake-1"] = "marsad-intake-1"
+    contract: Literal["basira-intake-1"] = "basira-intake-1"
     text_files: int | None = None
     skipped_files: int | None = None
     expanded_text_sha256: Digest | None = None

@@ -1,4 +1,4 @@
-"""Marsad's same-origin HTTP API and React frontend."""
+"""Basira's same-origin HTTP API and React frontend."""
 import asyncio
 import base64
 from contextlib import closing, contextmanager
@@ -31,10 +31,10 @@ from .taxonomy import public as taxonomy_public
 from .platform_db import personal_projects_enabled
 
 ROOT = Path(__file__).resolve().parents[1]
-COOKIE = "marsad_session"
+COOKIE = "basira_session"
 SESSION_SECONDS = 30 * 86400
 LEGACY_GRACE_SECONDS = 7 * 86400
-app = FastAPI(title="Marsad Agent Lab", version="2.3")
+app = FastAPI(title="Basira Agent Lab", version="2.3")
 
 
 class RunStream(StreamingResponse):
@@ -108,7 +108,7 @@ async def protect_requests(request, call_next):
 
 @contextmanager
 def database():
-    path = Path(os.environ.get("MARSAD_DB_PATH", ROOT / "data" / "marsad.sqlite3"))
+    path = Path(os.environ.get("BASIRA_DB_PATH", ROOT / "data" / "basira.sqlite3"))
     path.parent.mkdir(parents=True, exist_ok=True)
     with closing(sqlite3.connect(path, timeout=5)) as db, db:
         db.row_factory = sqlite3.Row
@@ -250,7 +250,7 @@ async def run(body: Run, request: Request):
             try:
                 async with asyncio.timeout(300):
                     if body.profile == "extended":
-                        filename = redact_label(source.name) or ("marsad-sample.html" if source.kind == "sample" else "source.html")
+                        filename = redact_label(source.name) or ("basira-sample.html" if source.kind == "sample" else "source.html")
                         payload = {"kind": "html", "name": filename, "policy": {},
                                    "content": base64.b64encode(body.source.encode("utf-8")).decode("ascii")}
                         answer = await asyncio.to_thread(scan_payload, payload)
@@ -336,11 +336,11 @@ def report_html(report, lang):
     parts = [
         f'<!doctype html><html lang="{lang}" dir="{t("rtl","ltr")}"><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
-        f'<title>{title} | Marsad</title><style>'
+        f'<title>{title} | Basira</title><style>'
         'body{font:16px/1.65 system-ui,sans-serif;color:#17252c;max-width:52rem;margin:3rem auto;padding:0 1.5rem}'
         'h1,h2,h3{line-height:1.3}small{color:#54646d}pre{direction:ltr;text-align:left;white-space:pre-wrap;'
         'overflow-wrap:anywhere;background:#edf3f4;padding:1rem}article{border-top:1px solid #b4c2c4;break-inside:avoid}'
-        '</style><main><small>MARSAD</small>'
+        '</style><main><small>BASIRA</small>'
         f'<h1>{title}</h1><p>{t("التاريخ","Date")} <bdi>{esc(report["created_at"])}</bdi><br>'
         f'{t("المصدر","Source")} <bdi>{esc(source_label)}</bdi><br>'
         f'{t("الموديل","Model")} <bdi>{esc(model_label)}</bdi><br>'
@@ -407,10 +407,10 @@ def download(report_id: str, request: Request, lang: Literal["en", "ar"] = "en",
         return pdf_download(report, lang)
     if format == "json":
         return JSONResponse(report.model_dump(mode="json"), headers={
-            "Content-Disposition": f'attachment; filename="marsad-{report_id}.json"',
+            "Content-Disposition": f'attachment; filename="basira-{report_id}.json"',
         })
     return HTMLResponse(report_html(report.model_dump(mode="json"), lang), headers={
-        "Content-Disposition": f'attachment; filename="marsad-{report_id}-{lang}.html"',
+        "Content-Disposition": f'attachment; filename="basira-{report_id}-{lang}.html"',
         "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
     })
 

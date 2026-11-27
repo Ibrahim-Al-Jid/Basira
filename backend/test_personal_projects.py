@@ -21,9 +21,9 @@ API = "/api/platform"
 @pytest.fixture
 def personal_clients(tmp_path, monkeypatch):
     url = "sqlite:///" + (tmp_path / "personal.sqlite3").as_posix()
-    monkeypatch.setenv("MARSAD_PLATFORM_DATABASE_URL", url)
-    monkeypatch.setenv("MARSAD_DB_PATH", str(tmp_path / "lab.sqlite3"))
-    for flag in ("MARSAD_PERSONAL_PROJECTS", "MARSAD_PASSWORD_AUTH_ENABLED", "MARSAD_PASSWORD_SELF_SIGNUP"):
+    monkeypatch.setenv("BASIRA_PLATFORM_DATABASE_URL", url)
+    monkeypatch.setenv("BASIRA_DB_PATH", str(tmp_path / "lab.sqlite3"))
+    for flag in ("BASIRA_PERSONAL_PROJECTS", "BASIRA_PASSWORD_AUTH_ENABLED", "BASIRA_PASSWORD_SELF_SIGNUP"):
         monkeypatch.setenv(flag, "1")
     engine = database_engine(url)
     Base.metadata.create_all(engine)
@@ -114,9 +114,9 @@ def test_account_catalog_and_scan_use_only_the_owners_saved_credential(personal_
     paid = "fixture/paid"
     vault = tmp_path / "vault.key"
     vault.write_bytes(urlsafe_b64encode(bytes(32)))
-    monkeypatch.setenv("MARSAD_MODEL_MASTER_KEY_FILE", str(vault))
-    monkeypatch.setenv("MARSAD_GATEWAY_URL", "http://gateway.example")
-    monkeypatch.setenv("MARSAD_GATEWAY_TOKEN", "fixture-token")
+    monkeypatch.setenv("BASIRA_MODEL_MASTER_KEY_FILE", str(vault))
+    monkeypatch.setenv("BASIRA_GATEWAY_URL", "http://gateway.example")
+    monkeypatch.setenv("BASIRA_GATEWAY_TOKEN", "fixture-token")
     monkeypatch.setattr(model_gateway, "provider_models", lambda supplied: [
         {"id": free, "name": "Free model", "pricing": {"prompt": "0", "completion": "0"}},
         {"id": paid, "name": "Paid model", "pricing": {"prompt": "0", "completion": "0", "request": "0.1"}},
@@ -166,7 +166,7 @@ def test_account_catalog_and_scan_use_only_the_owners_saved_credential(personal_
 
 def test_backfill_quarantines_shared_and_ownerless_projects(tmp_path, monkeypatch):
     url = "sqlite:///" + (tmp_path / "migration.sqlite3").as_posix()
-    monkeypatch.setenv("MARSAD_PLATFORM_MIGRATION_URL", url)
+    monkeypatch.setenv("BASIRA_PLATFORM_MIGRATION_URL", url)
     root = Path(__file__).resolve().parents[1]
     config = Config(root / "alembic.ini")
     config.set_main_option("script_location", str(root / "backend" / "migrations"))

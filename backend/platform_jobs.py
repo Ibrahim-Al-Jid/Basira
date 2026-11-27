@@ -16,8 +16,8 @@ from .contracts import Report
 from .model_gateway import enrich
 from .offline_worker import scan_payload, write_json
 
-broker = os.environ.get("MARSAD_REDIS_URL", "redis://127.0.0.1:6379/0")
-celery_app = Celery("marsad", broker=broker)
+broker = os.environ.get("BASIRA_REDIS_URL", "redis://127.0.0.1:6379/0")
+celery_app = Celery("basira", broker=broker)
 celery_app.conf.update(task_serializer="json", accept_content=["json"], worker_prefetch_multiplier=1,
                        task_acks_late=True, task_reject_on_worker_lost=True, task_ignore_result=True,
                        broker_connection_retry_on_startup=True, task_time_limit=80,
@@ -31,9 +31,9 @@ def analyzed(row):
     payload = {"kind": row["input_meta"]["kind"], "name": row["input_meta"]["name"],
                "content": base64.b64encode(row["raw"]).decode("ascii"), "policy": row["policy"],
                **identity}
-    spool_dir = os.environ.get("MARSAD_ANALYSIS_SPOOL")
+    spool_dir = os.environ.get("BASIRA_ANALYSIS_SPOOL")
     if not spool_dir:
-        if os.environ.get("MARSAD_ALLOW_INLINE_ANALYSIS") == "1":
+        if os.environ.get("BASIRA_ALLOW_INLINE_ANALYSIS") == "1":
             return scan_payload(payload)
         raise RuntimeError("Offline analysis worker is required")
     spool = Path(spool_dir)
@@ -72,7 +72,7 @@ def execute_scan(org_id, project_id, scan_id):
                 return
         connection = None
         if row["input_meta"].get("model_connection") and data["findings"]:
-            if os.environ.get("MARSAD_GATEWAY_URL") and os.environ.get("MARSAD_GATEWAY_TOKEN"):
+            if os.environ.get("BASIRA_GATEWAY_URL") and os.environ.get("BASIRA_GATEWAY_TOKEN"):
                 connection = store.reserve_model_connection(org_id, project_id, scan_id, row["lease"])
             if connection:
                 enrich(data, connection, org_id=org_id, project_id=project_id, scan_id=scan_id,
@@ -100,7 +100,7 @@ def execute_scan(org_id, project_id, scan_id):
     store.finish(org_id, project_id, scan_id, row["lease"], report=report)
 
 
-@celery_app.task(name="marsad.scan")
+@celery_app.task(name="basira.scan")
 def scan_task(org_id, project_id, scan_id):
     execute_scan(org_id, project_id, scan_id)
 

@@ -13,7 +13,7 @@ def upgrade():
     op.add_column("project_scans", sa.Column("analysis_checkpoint", sa.JSON(none_as_null=True)))
     if op.get_context().dialect.name == "postgresql":
         op.execute("""
-            CREATE FUNCTION public.marsad_clear_analysis_checkpoint() RETURNS trigger
+            CREATE FUNCTION public.basira_clear_analysis_checkpoint() RETURNS trigger
             LANGUAGE plpgsql SET search_path = pg_catalog AS $cleanup$
             BEGIN
                 IF NEW.raw IS NULL OR NEW.state IN ('completed', 'partial', 'failed', 'cancelled') THEN
@@ -24,14 +24,14 @@ def upgrade():
             $cleanup$
         """)
         op.execute("""
-            CREATE TRIGGER marsad_clear_analysis_checkpoint
+            CREATE TRIGGER basira_clear_analysis_checkpoint
             BEFORE UPDATE OF state, raw, analysis_checkpoint ON public.project_scans FOR EACH ROW
-            EXECUTE FUNCTION public.marsad_clear_analysis_checkpoint()
+            EXECUTE FUNCTION public.basira_clear_analysis_checkpoint()
         """)
 
 
 def downgrade():
     if op.get_context().dialect.name == "postgresql":
-        op.execute("DROP TRIGGER marsad_clear_analysis_checkpoint ON public.project_scans")
-        op.execute("DROP FUNCTION public.marsad_clear_analysis_checkpoint()")
+        op.execute("DROP TRIGGER basira_clear_analysis_checkpoint ON public.project_scans")
+        op.execute("DROP FUNCTION public.basira_clear_analysis_checkpoint()")
     op.drop_column("project_scans", "analysis_checkpoint")

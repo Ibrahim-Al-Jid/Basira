@@ -25,7 +25,7 @@ GROUPS = {
 TOOLS = [
     {"type": "function", "function": {"name": "search_code", "description": "Regex search over the file under review. Returns matching line numbers and lines.",
      "parameters": {"type": "object", "properties": {"pattern": {"type": "string"}}, "required": ["pattern"]}}},
-    {"type": "function", "function": {"name": "static_review", "description": "Run Marsad's deterministic checks on the file under review and return rule IDs.",
+    {"type": "function", "function": {"name": "static_review", "description": "Run Basira's deterministic checks on the file under review and return rule IDs.",
      "parameters": {"type": "object", "properties": {}}}},
 ]
 

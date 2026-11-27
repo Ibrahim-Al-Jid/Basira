@@ -71,7 +71,7 @@ def zip_headers(key):
 
 
 def test_review_memory_only_reuses_scoped_categories_from_the_same_snapshot(personal_clients, monkeypatch):
-    monkeypatch.setenv("MARSAD_ALLOW_INLINE_ANALYSIS", "1")
+    monkeypatch.setenv("BASIRA_ALLOW_INLINE_ANALYSIS", "1")
     owner, other = personal_clients
     path, project_id = new_project(owner)
     other_path, other_project_id = new_project(other)
@@ -110,7 +110,7 @@ def test_review_memory_only_reuses_scoped_categories_from_the_same_snapshot(pers
 
 def test_zip_intake_retries_profile_and_rejections(personal_clients, monkeypatch):
     owner, other = personal_clients
-    monkeypatch.setenv("MARSAD_ALLOW_INLINE_ANALYSIS", "1")
+    monkeypatch.setenv("BASIRA_ALLOW_INLINE_ANALYSIS", "1")
     path, project_id = new_project(owner)
     sample = BytesIO(b64decode(repository_submission()["content"]))
     with ZipFile(sample, "a") as archive:
@@ -152,24 +152,24 @@ def test_zip_intake_retries_profile_and_rejections(personal_clients, monkeypatch
     assert owner.post(zip_route, content=archive.getvalue(),
                       headers=zip_headers("link-entry-key")).status_code == 422
     assert owner.post(zip_route, content=raw[:-12], headers=zip_headers("truncated-zip-key")).status_code == 422
-    monkeypatch.setenv("MARSAD_INTAKE_STORAGE_REQUIRED", "1")
-    monkeypatch.delenv("MARSAD_INTAKE_S3_BUCKET", raising=False)
+    monkeypatch.setenv("BASIRA_INTAKE_STORAGE_REQUIRED", "1")
+    monkeypatch.delenv("BASIRA_INTAKE_S3_BUCKET", raising=False)
     assert owner.post(zip_route, content=raw, headers=zip_headers("storage-down-key")).status_code == 503
 
 
 def test_personal_github_oauth_rechecks_selected_repo_and_pins_commit(personal_clients, monkeypatch):
     owner, other = personal_clients
-    monkeypatch.setenv("MARSAD_ALLOW_INLINE_ANALYSIS", "1")
-    monkeypatch.setenv("MARSAD_GITHUB_CLIENT_ID", "Iv1.Fixture")
-    monkeypatch.setenv("MARSAD_GITHUB_CLIENT_SECRET", "fixture-client-secret")
-    monkeypatch.setenv("MARSAD_GITHUB_CREDENTIAL_KEY", Fernet.generate_key().decode())
-    monkeypatch.setenv("MARSAD_GITHUB_CALLBACK_URL", BASE + personal_github.CALLBACK_PATH)
-    monkeypatch.setenv("MARSAD_GITHUB_APP_SLUG", "marsad-fixture")
+    monkeypatch.setenv("BASIRA_ALLOW_INLINE_ANALYSIS", "1")
+    monkeypatch.setenv("BASIRA_GITHUB_CLIENT_ID", "Iv1.Fixture")
+    monkeypatch.setenv("BASIRA_GITHUB_CLIENT_SECRET", "fixture-client-secret")
+    monkeypatch.setenv("BASIRA_GITHUB_CREDENTIAL_KEY", Fernet.generate_key().decode())
+    monkeypatch.setenv("BASIRA_GITHUB_CALLBACK_URL", BASE + personal_github.CALLBACK_PATH)
+    monkeypatch.setenv("BASIRA_GITHUB_APP_SLUG", "basira-fixture")
     path, project_id = new_project(owner)
     provider = API + "/github"
     assert owner.get(provider + "/setup").json() == {
         "callback_url": BASE + personal_github.CALLBACK_PATH,
-        "install_url": "https://github.com/apps/marsad-fixture/installations/new",
+        "install_url": "https://github.com/apps/basira-fixture/installations/new",
     }
     raw = b64decode(repository_submission()["content"])
     seen = []
@@ -287,7 +287,7 @@ def test_local_github_manifest_wizard_uses_one_time_state_and_saves_configuratio
 
     def convert(code):
         received.append(code)
-        return "Iv1.Fixture", "marsad-fixture", "test-app-config-value"
+        return "Iv1.Fixture", "basira-fixture", "test-app-config-value"
 
     def open_wizard(url):
         def exercise():
@@ -314,7 +314,7 @@ def test_local_github_manifest_wizard_uses_one_time_state_and_saves_configuratio
     assert manifest_data["callback_urls"] == [callback] and manifest_data["public"] is False
     assert manifest_data["hook_attributes"]["active"] is False
     assert manifest_data["default_permissions"] == {"contents": "read"}
-    assert "https://github.com/apps/marsad-fixture/installations/new" in done
+    assert "https://github.com/apps/basira-fixture/installations/new" in done
     assert "test-app-config-value" not in done
     saved = json.loads(path.read_text(encoding="utf-8"))
     assert saved["callback_url"] == callback and saved["client_id"] == "Iv1.Fixture"
@@ -346,10 +346,10 @@ class StaticResponse(BytesIO):
 
 def test_website_intake_exact_approval_and_passive_report(personal_clients, monkeypatch):
     owner, other = personal_clients
-    monkeypatch.setenv("MARSAD_ALLOW_INLINE_ANALYSIS", "1")
+    monkeypatch.setenv("BASIRA_ALLOW_INLINE_ANALYSIS", "1")
     path, project_id = new_project(owner)
     _, unapproved_project = new_project(other)
-    monkeypatch.setenv("MARSAD_APPROVED_WEBSITE_PAGES", json.dumps({project_id: [PAGE]}))
+    monkeypatch.setenv("BASIRA_APPROVED_WEBSITE_PAGES", json.dumps({project_id: [PAGE]}))
     requests = []
 
     class FixtureConnection:
@@ -452,7 +452,7 @@ def test_website_capture_uses_pinned_socket_with_verified_tls(tmp_path, monkeypa
 def test_website_capture_is_limited_to_three_approved_pages_on_same_origin(monkeypatch):
     paths = [PAGE, "https://other.test/outside", "https://example.test/docs",
              "https://example.test/about", "https://example.test/help"]
-    monkeypatch.setenv("MARSAD_APPROVED_WEBSITE_PAGES", json.dumps({"project": paths}))
+    monkeypatch.setenv("BASIRA_APPROVED_WEBSITE_PAGES", json.dumps({"project": paths}))
     calls = []
 
     def capture(url):

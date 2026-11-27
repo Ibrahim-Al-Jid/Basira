@@ -25,7 +25,7 @@ def reviewed(version, **extra):
     ("semgrep", "1.186.0"), ("unregistered-scanner", "1"), ("gitleaks", "0"),
 ])
 def test_offline_worker_rejects_tools_outside_approved_plan(monkeypatch, tool_id, version):
-    monkeypatch.setenv("MARSAD_SOURCE_ADAPTERS", "gitleaks")
+    monkeypatch.setenv("BASIRA_SOURCE_ADAPTERS", "gitleaks")
     pins = scan_contracts.analyzer_plan("config")
     result = scan_payload({
         "kind": "config", "name": "review.json", "content": "eyJmaWxlcyI6eyJhLnR4dCI6InNhZmUifX0=",
@@ -37,7 +37,7 @@ def test_offline_worker_rejects_tools_outside_approved_plan(monkeypatch, tool_id
 
 
 def test_analyzer_registry_keeps_shadow_and_offline_decisions(monkeypatch):
-    monkeypatch.setenv("MARSAD_SOURCE_ADAPTERS", "gitleaks,semgrep")
+    monkeypatch.setenv("BASIRA_SOURCE_ADAPTERS", "gitleaks,semgrep")
     pins = scan_contracts.analyzer_plan("config")
     decisions = {row.id: row for row in scan_contracts.resolve_analyzers("config", pinned=pins, external=False)}
     assert decisions["gitleaks"].reason == "offline_runner_required"
@@ -194,9 +194,9 @@ def test_missing_eligible_adapter_is_skipped_without_changing_the_catalog(platfo
 def test_model_requires_reviewed_connection_and_can_be_disabled_before_reservation(platform, monkeypatch):
     owner, stranger, ctx = platform
     path = root(ctx)
-    monkeypatch.setenv("MARSAD_OPERATOR_MODEL_ORGS", ctx.org_id)
-    monkeypatch.setenv("MARSAD_PROJECT_MODEL_ENABLED", "1")
-    monkeypatch.setenv("MARSAD_OPENROUTER_MODEL", "approved/defensive")
+    monkeypatch.setenv("BASIRA_OPERATOR_MODEL_ORGS", ctx.org_id)
+    monkeypatch.setenv("BASIRA_PROJECT_MODEL_ENABLED", "1")
+    monkeypatch.setenv("BASIRA_OPENROUTER_MODEL", "approved/defensive")
     from . import model_connections
     monkeypatch.setattr(model_connections, "connection_is_ready", lambda connection: connection is not None)
     choose = {"allowed_kinds": ["html"], "model_connection": "openrouter-default"}
@@ -227,9 +227,9 @@ def test_disabling_scan_actor_revokes_provider_budget(platform, monkeypatch):
     from .platform_db import User, utc_now
 
     owner, _, ctx = platform
-    monkeypatch.setenv("MARSAD_OPERATOR_MODEL_ORGS", ctx.org_id)
-    monkeypatch.setenv("MARSAD_PROJECT_MODEL_ENABLED", "1")
-    monkeypatch.setenv("MARSAD_OPENROUTER_MODEL", "approved/defensive")
+    monkeypatch.setenv("BASIRA_OPERATOR_MODEL_ORGS", ctx.org_id)
+    monkeypatch.setenv("BASIRA_PROJECT_MODEL_ENABLED", "1")
+    monkeypatch.setenv("BASIRA_OPENROUTER_MODEL", "approved/defensive")
     assert owner.put(root(ctx) + "/policy", json={
         "allowed_kinds": ["html"], "model_connection": "openrouter-default",
     }).status_code == 200
@@ -244,11 +244,11 @@ def test_disabling_scan_actor_revokes_provider_budget(platform, monkeypatch):
 def test_worker_records_model_when_authorized_and_preserves_evidence(platform, monkeypatch):
     owner, _, ctx = platform
     path = root(ctx)
-    monkeypatch.setenv("MARSAD_OPERATOR_MODEL_ORGS", ctx.org_id)
-    monkeypatch.setenv("MARSAD_PROJECT_MODEL_ENABLED", "1")
-    monkeypatch.setenv("MARSAD_OPENROUTER_MODEL", "approved/defensive")
-    monkeypatch.setenv("MARSAD_GATEWAY_URL", "http://gateway.test")
-    monkeypatch.setenv("MARSAD_GATEWAY_TOKEN", "internal-fixture-token")
+    monkeypatch.setenv("BASIRA_OPERATOR_MODEL_ORGS", ctx.org_id)
+    monkeypatch.setenv("BASIRA_PROJECT_MODEL_ENABLED", "1")
+    monkeypatch.setenv("BASIRA_OPENROUTER_MODEL", "approved/defensive")
+    monkeypatch.setenv("BASIRA_GATEWAY_URL", "http://gateway.test")
+    monkeypatch.setenv("BASIRA_GATEWAY_TOKEN", "internal-fixture-token")
     assert owner.put(path + "/policy", json={
         "allowed_kinds": ["html"], "model_connection": "openrouter-default",
     }).status_code == 200
