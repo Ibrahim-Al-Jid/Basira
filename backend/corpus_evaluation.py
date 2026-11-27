@@ -21,10 +21,10 @@ from . import model_gateway as gateway
 from . import source_adapters as adapters
 from .artifact_review import RULESET_VERSION, catalog
 from .offline_worker import scan_payload
-from .phase6_evaluation import percentile
-from .phase9_contracts import analyzer_plan
+from .synthetic_evaluation import percentile
+from .scan_contracts import analyzer_plan
 
-MANIFEST = Path("tests/fixtures/phase12/manifest.json")
+MANIFEST = Path("tests/fixtures/reference-corpus/manifest.json")
 FIXTURE_GATEWAY = "https://fixture-gateway.invalid/priority"
 CONNECTION = {"model": "fixture/ordering", "generation": "operator"}
 IDS = dict(org_id="a" * 32, project_id="b" * 32, scan_id="c" * 32, lease="d" * 32)
@@ -141,9 +141,9 @@ def fixture_enrichment(report, behavior="valid"):
         return provider_response(json, behavior, req)
 
     with TestClient(gateway.app) as client, ExitStack() as stack:
-        stack.enter_context(patch.dict(os.environ, {"MARSAD_GATEWAY_TOKEN": "phase12-fixture-only"}))
+        stack.enter_context(patch.dict(os.environ, {"MARSAD_GATEWAY_TOKEN": "fixture-only"}))
         stack.enter_context(patch.object(gateway, "gateway_config", return_value=(
-            FIXTURE_GATEWAY.removesuffix("/priority"), {"Authorization": "Bearer phase12-fixture-only"},
+            FIXTURE_GATEWAY.removesuffix("/priority"), {"Authorization": "Bearer fixture-only"},
         )))
         stack.enter_context(patch.object(gateway, "operator_enabled", return_value=CONNECTION["model"]))
         stack.enter_context(patch.object(gateway, "start_model_call", return_value=None if behavior == "revoked" else (b"",)))

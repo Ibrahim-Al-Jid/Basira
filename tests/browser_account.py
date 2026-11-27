@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from playwright.sync_api import expect, sync_playwright
 
-from browser_phase6 import ORIGIN
+from browser_release import ORIGIN
 
 API = ORIGIN + "/api/platform"
 FORBIDDEN_COPY = re.compile(
@@ -15,7 +15,7 @@ FORBIDDEN_COPY = re.compile(
 
 
 def register(context):
-    email = f"phase10-{uuid4().hex[:16]}@example.test"
+    email = f"account-{uuid4().hex[:16]}@example.test"
     response = context.request.post(API + "/auth/password/register", data={
         "email": email, "password": token_urlsafe(28),
         "first_name": "Workspace", "last_name": "Member",
@@ -102,9 +102,9 @@ def main():
         member = browser.new_context(locale="en-US")
         register(owner)
         register(member)
-        org = owner.request.post(API + "/organizations", data={"name": "Phase 10 team"}).json()["id"]
+        org = owner.request.post(API + "/organizations", data={"name": "Account team"}).json()["id"]
         org_api = f"{API}/organizations/{org}"
-        project = owner.request.post(org_api + "/projects", data={"name": "Phase 10 project"}).json()["id"]
+        project = owner.request.post(org_api + "/projects", data={"name": "Account project"}).json()["id"]
         project_api = f"{API}/projects/{project}"
         page = owner.new_page()
         errors = []
@@ -153,7 +153,7 @@ def main():
         assert owner.request.get(project_api + "/scan-profile").status == 401
         assert not errors, errors
         browser.close()
-    print("Phase 10 browser flow passed for account, layouts, credential UI, invitations, access and logout.")
+    print("Account browser flow passed for account, layouts, credential UI, invitations, access and logout.")
 
 
 if __name__ == "__main__":

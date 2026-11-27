@@ -23,7 +23,7 @@ import sqlalchemy as sa
 from . import platform_runtime as store
 from .artifact_review import MAX_ARTIFACT, InputError, redact_label
 from .identity import MANAGERS, ROLE_ACTIONS, project_access, require_membership, require_project, require_user
-from .phase9_contracts import DEFAULT_INPUTS, Identifier, ModelConnection
+from .scan_contracts import DEFAULT_INPUTS, Identifier, ModelConnection
 from .platform_db import Base, bind_project, platform_session
 
 router = APIRouter(prefix="/api/platform", tags=["GitHub source"])

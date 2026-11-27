@@ -89,8 +89,8 @@ def test_project_job_delivery_report_recovery_and_scope(platform):
     after = owner.get(root + "/scans/" + scan_id, params={"after": 1}).json()
     assert after["state"] == "completed", after
     assert after["attempt"] == 2
-    assert [row["kind"] for row in after["events"]] == ["running", "running", "completed"]
-    assert [row["sequence"] for row in after["events"]] == [2, 3, 4]
+    assert [row["kind"] for row in after["events"]] == ["running", "running", *["agent_done"] * 5, "completed"]
+    assert [row["sequence"] for row in after["events"]] == list(range(2, 10))
     report = owner.get(root + "/reports/" + scan_id).json()
     assert len(report["coverage"]) == 100
     assert {step["role"] for step in report["steps"] if step["status"] == "done"} == {

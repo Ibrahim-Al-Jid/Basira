@@ -8,8 +8,8 @@ from urllib.parse import urlsplit
 
 from playwright.sync_api import expect, sync_playwright
 
-from browser_phase6 import ORIGIN, open_report_section
-from browser_phase10 import API, FORBIDDEN_COPY, register
+from browser_release import ORIGIN, open_report_section
+from browser_account import API, FORBIDDEN_COPY, register
 
 QA_PROJECT = "marsad12-qa"
 LEGACY_FIXTURE = '''
@@ -44,10 +44,10 @@ print(json.dumps({"cookie": COOKIE, "token": token, "report_id": report_id}))
 def seed_legacy():
     parsed = urlsplit(ORIGIN)
     if parsed.scheme != "http" or parsed.hostname != "127.0.0.1" or parsed.port != 8776:
-        raise RuntimeError("Phase 12 fixture seeding requires the isolated HTTP origin on port 8776.")
-    container = os.environ.get("MARSAD_PHASE12_QA_CONTAINER", "")
+        raise RuntimeError("Fixture seeding requires the isolated HTTP origin on port 8776.")
+    container = os.environ.get("MARSAD_QA_CONTAINER", "")
     if container != f"{QA_PROJECT}-app-1":
-        raise RuntimeError("Set MARSAD_PHASE12_QA_CONTAINER to the disposable Phase 12 app.")
+        raise RuntimeError("Set MARSAD_QA_CONTAINER to the disposable app.")
     docker = ["docker", "--context", os.environ.get("MARSAD_TEST_DOCKER_CONTEXT", "desktop-linux")]
     labels = json.loads(subprocess.check_output(
         [*docker, "inspect", "--format", "{{json .Config.Labels}}", container], text=True
@@ -102,9 +102,9 @@ def legacy_report(browser, fixture, artifacts):
         assert completed.suggested_filename.endswith(f"-{language}.pdf")
         assert Path(completed.path()).read_bytes().startswith(b"%PDF-")
         if artifacts:
-            completed.save_as(artifacts / f"phase12-legacy-{language}.pdf")
+            completed.save_as(artifacts / f"legacy-report-{language}.pdf")
     if artifacts:
-        (artifacts / "phase12-legacy.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        (artifacts / "legacy-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     stranger = browser.new_context()
     try:
         assert stranger.request.get(endpoint).status == 404
@@ -157,7 +157,7 @@ def authenticated_workspace(browser):
     expect(menu).to_be_focused()
     expect(page.locator(".site-mobile-menu")).to_have_attribute("aria-expanded", "false")
 
-    fake_key = "phase12-raw-credential-fixture"
+    fake_key = "raw-credential-fixture"
     removed = request.post(ORIGIN + "/api/models", data={"key": fake_key})
     rejected = request.post(ORIGIN + "/api/run", data={"source": "<p>Fixture</p>", "key": fake_key, "model": "fixture/demo"})
     assert removed.status in {404, 405} and rejected.status == 422
@@ -225,11 +225,11 @@ def main():
         browser = testing.chromium.launch()
         legacy_report(browser, fixture, artifacts)
         authenticated_workspace(browser)
-        if os.environ.get("MARSAD_PHASE12_CHECK_RANKING") == "1":
+        if os.environ.get("MARSAD_QA_CHECK_RANKING") == "1":
             model_priority(browser)
             print("Accepted UI model ranking and deterministic fallback verified with a local fixture.")
         browser.close()
-    print("Phase 12 verified schema-v1 PDF/JSON, AR/EN responsive routes, keyboard, GitHub fallback, and credential boundaries.")
+    print("Verified schema-v1 PDF/JSON, AR/EN responsive routes, keyboard, GitHub fallback, and credential boundaries.")
 
 
 if __name__ == "__main__":

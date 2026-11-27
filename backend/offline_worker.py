@@ -17,7 +17,7 @@ from .artifact_review import (
 )
 from .checks import openapi_contract, zap_passive
 from .contracts import AgentExecution
-from .phase9_contracts import ALL_INPUTS, ROLE_TOOLS, json_digest
+from .scan_contracts import ALL_INPUTS, ROLE_TOOLS, json_digest
 from .rules import RULES
 from .source_adapters import SOURCE_TOOLS
 

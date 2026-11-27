@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 
 from .platform_db import Base, bind_job_project, bind_project_context, personal_projects_enabled, platform_session
 from .contracts import Report, history_item
-from .phase9_contracts import (
+from .scan_contracts import (
     DEFAULT_INPUTS, PROFILE, RAW_RETENTION_MINUTES, Asset, FindingObservation, ScanProvenance,
     ScopeVersion, SourceSnapshot, analyzer_plan, json_digest,
 )
@@ -502,9 +502,29 @@ def save_analysis_checkpoint(org_id, project_id, scan_id, lease, analysis):
             "version": ANALYSIS_CHECKPOINT_VERSION, "binding": checkpoint_binding(row),
             "analysis_sha256": json_digest(result), "analysis": result,
         }
+        cursor = row["cursor"]
+        for role, detail in agent_activity(result):
+            cursor = record(db, {**row, "cursor": cursor}, "agent_done", detail)
         db.execute(scans.update().where(scope(scans, org_id, project_id), scans.c.id == scan_id)
-                   .values(analysis_checkpoint=checkpoint))
+                   .values(analysis_checkpoint=checkpoint, cursor=cursor))
         return result
+
+
+def agent_activity(result):
+    """One (role, detail) pair per finished agent stage: `role|milliseconds|tool,tool`."""
+    started, rows = {}, []
+    tools = {}
+    for run in result.get("task_runs", []):
+        tools.setdefault(run["agent"], []).append(run["tool"])
+    for step in result.get("steps", []):
+        moment = datetime.fromisoformat(step["occurred_at"])
+        if step["status"] == "start":
+            started[step["role"]] = moment
+        elif step["status"] == "done" and step["role"] in started:
+            millis = max(0, round((moment - started[step["role"]]).total_seconds() * 1000))
+            names = ",".join(dict.fromkeys(tools.get(step["role"], [])))
+            rows.append((step["role"], f"{step['role']}|{millis}|{names}"[:350]))
+    return rows
 
 
 def close_scan(db, row, state, detail, report=None):
