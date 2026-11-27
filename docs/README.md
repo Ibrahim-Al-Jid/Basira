@@ -13,6 +13,7 @@ One topic, one file. If two files say different things, the one in this table wi
 | The 100 checks (and the HTML/HAR and config extensions) | [checks/README.md](checks/README.md), [checks/web-extra.md](checks/web-extra.md), [checks/config-extra.md](checks/config-extra.md) |
 | Vulnerability taxonomy (generated) | [taxonomy.md](taxonomy.md) |
 | Release acceptance | [RELEASE.md](RELEASE.md) |
+| Quality gates: precision, recall, regression baseline, flaky-test policy | [QUALITY.md](QUALITY.md) |
 | Research: competitors and benchmarks | [research/competitors.md](research/competitors.md), [research/benchmarks.md](research/benchmarks.md), [research/detection-experiment.md](research/detection-experiment.md) |
 
 Rules: phase work is recorded in `PLAN.md`, not in new files. Generated files carry a header saying so. Many existing files are still written in Arabic; merging `ARCHITECTURE`, `PLATFORM` and `WORKSPACE` into fewer topic files is tracked in P18 of the plan.
