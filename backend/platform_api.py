@@ -273,6 +273,13 @@ def reports(project_id: str, request: Request):
         return History(reports=[HistoryItem.model_validate(value) for value in rows])
 
 
+@router.get("/dashboard")
+def project_dashboard(project_id: str, request: Request):
+    from . import dashboard
+
+    return JSONResponse(dashboard.read(project(request, project_id, "read")), headers={"Cache-Control": "no-store"})
+
+
 @router.get("/reports/{report_id}", response_model=Report)
 def report_detail(project_id: str, report_id: str, request: Request):
     return load(project(request, project_id, "read"), report_id)

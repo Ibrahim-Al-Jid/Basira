@@ -8,6 +8,7 @@ import { DirectoryLink, ProjectDirectory } from "./ProjectDirectory";
 import { PersonalDirectory, PersonalGitHub, PersonalProjectManagement } from "./PersonalWorkspace";
 import AgentLanes from "./AgentLanes";
 import ReplayPanel from "./ReplayPanel";
+import DashboardView from "./DashboardView";
 import "./platform.css";
 import "./scan-source.css";
 
@@ -860,6 +861,7 @@ function Dashboard({ location, navigate, user, lang, invitationRevision, persona
     </header>
     {error && <p className="workspace-error" role="alert">{error} <button className="btn" onClick={() => setRetry((value) => value + 1)}>{t("إعادة المحاولة", "Retry")}</button></p>}
     {loading && <p role="status">{t("بنحمّل المشاريع…", "Loading projects…")}</p>}
+    {!loading && inOverview && !error && project && <DashboardView key={project.id} path={path} projectId={project.id} t={t} lang={lang} reportLink={reportLink} />}
     {!loading && inOverview && !error && <section className="card project-panel workspace-activity" aria-labelledby="overview-activity">
       <div className="directory-heading">
         <div>

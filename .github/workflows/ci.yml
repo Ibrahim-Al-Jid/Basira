@@ -31,7 +31,7 @@ jobs:
         run: npm ci && npm run build
         working-directory: frontend
       - name: Replay timing unit tests
-        run: node --test frontend/src/replay.test.mjs
+        run: node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs
       - name: Backend tests (includes self-security tests)
         run: python -m pytest backend -q
       - name: Quality gate (corpus and DVWA, fails on a drop in precision or recall or a rise in false positives)
