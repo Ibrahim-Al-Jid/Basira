@@ -50,7 +50,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\ops\start-local.ps1
 
 Open the [local sign-in](http://127.0.0.1:8765/signin) and choose "Create account" on a fresh install. Accounts and projects are stored in PostgreSQL on the machine that runs it. See the [platform guide](docs/PLATFORM.md) for manual setup and sign-in troubleshooting.
 
-**Lab only**, in an isolated dev environment. Run these from the `sentinel` folder before starting anything else on port 8765:
+**Lab only**, in an isolated dev environment. Run these from the repo root before starting anything else on port 8765:
 
 ```powershell
 python -m venv .venv
@@ -71,16 +71,4 @@ Open the [lab](http://127.0.0.1:8765/demo), choose an HTML file, paste markup, o
 
 ## Documentation
 
-Most project documents are written in Arabic.
-
-| Document | Covers |
-|---|---|
-| [Implementation plan](work/plan.md) | Status of phases 1 to 12 with dependencies and acceptance criteria |
-| [Architecture](docs/ARCHITECTURE.md) | Role responsibilities and limits, tools, memory types, technologies, research sources |
-| [ERD](docs/ERD.md) | PostgreSQL schema as built and as targeted, relations, constraints, indexes, migrations |
-| [Checks catalog](docs/CHECKS.md) | The 100 rules, when they apply, and references |
-| [Platform guide](docs/PLATFORM.md) | Local accounts and OIDC, PostgreSQL and Redis, supported inputs, memory |
-| [Release acceptance](docs/RELEASE.md) | Verification, evaluation, comparison limits, provider test result |
-| [Project reference](docs/PROJECT.md) | Run paths, storage, acceptance log |
-| [Workspace](docs/WORKSPACE.md) | Scan and report journeys, themes, tests |
-| [Product expansion](docs/PRODUCT-EXPANSION.md) | Product journey, D01 to D18 classification, agent value evaluation plan |
+Start at the [documentation index](docs/README.md). The plan and phase status are in [work/plan.md](work/plan.md), and the [vulnerability taxonomy](docs/taxonomy.md) shows what Marsad covers and what it does not yet.

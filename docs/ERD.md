@@ -33,7 +33,7 @@ erDiagram
 
 ## نموذج النسخة السابقة
 
-المختبر المجهول يستخدم SQLite لتخزين `sessions(owner)` و`reports(id, owner, created_at, model, finding_count, report_json)` و`report_index(id, summary_json)`. قاعدة PostgreSQL تخص المشاريع. المخطط المنفذ أدناه يغطي [Phase 4](../work/plan.md#phase-4) لحد [Phase 10](../work/plan.md#phase-10)، وبعده النموذج المنطقي للتوسعات.
+المختبر المجهول يستخدم SQLite لتخزين `sessions(owner)` و`reports(id, owner, created_at, model, finding_count, report_json)` و`report_index(id, summary_json)`. قاعدة PostgreSQL تخص المشاريع. المخطط المنفذ أدناه يغطي [Phase 4](../work/plan.md) لحد [Phase 10](../work/plan.md)، وبعده النموذج المنطقي للتوسعات.
 
 ## مخطط PostgreSQL المنفذ
 
