@@ -2,7 +2,7 @@ import React from "react";
 import {
   Activity, ArrowDownRight, ArrowLeft, ArrowRight, AudioLines, Boxes,
   Braces, Check, Cloud, Code2, FileCheck2, FileSearch, GitBranch, Globe2,
-  Layers3, ScanLine, ShieldCheck, SlidersHorizontal, Workflow,
+  Languages, Layers3, Moon, ScanLine, ShieldCheck, SlidersHorizontal, Sun, Workflow,
 } from "lucide-react";
 import "./landing.css";
 
@@ -27,6 +27,18 @@ const content = {
     inputs: "مدخلات التحليل", reviewing: "تحليل الأدلة", output: "التقرير",
     inputFile: "ملف المشروع", reportFile: "الأدلة والتغطية", ready: "جاهز للعرض",
     coverage: "مجالات الفحص",
+    proofTag: "المبدأ", proofTitle: "تقرير كل سطر فيه مصدره.",
+    proof: [
+      ["الدليل قبل الحكم", "كل نتيجة مربوطة بملف وسطر وقاعدة، وتقدر تفتح المصدر وتتأكد بنفسك."],
+      ["عربي وإنجليزي من نفس الحقائق", "نفس البيانات بتطلع في تقريرين، من غير فرق في الأرقام أو الترتيب."],
+      ["من غير مزوّد موديل", "الفحوصات المحلية شغالة لوحدها، والموديل اختياري ومحدود الطلبات."],
+    ],
+    limits: "التغطية بتتكتب صريحة: اللي اتفحص واللي لأ. النتيجة النضيفة مش إثبات إن المشروع آمن.",
+    tagline: "مراجعة أمنية للمشاريع، من الملف إلى تقرير مبني على الدليل.",
+    howItWorks: "كيف بيشتغل",
+    footerNav: "روابط الصفحة",
+    toLight: "الوضع الفاتح", toDark: "الوضع الغامق",
+    switchLanguage: "English", switchLanguageLabel: "التبديل إلى الإنجليزية",
     workflowTag: "طريقة العمل", workflowTitle: "من الملف إلى قرار واضح.",
     workflow: [
       ["اختار المصدر", "ارفع HTML، لقطة من الكود بصيغة ZIP، ملف HAR أو إعدادات JSON."],
@@ -44,6 +56,18 @@ const content = {
     inputs: "Scan input", reviewing: "Evidence analysis", output: "Report",
     inputFile: "Project artifact", reportFile: "Evidence and coverage", ready: "Ready to review",
     coverage: "Coverage domains",
+    proofTag: "The principle", proofTitle: "A report where every line has its source.",
+    proof: [
+      ["Evidence before the verdict", "Every finding is tied to a file, a line and the check that applied, so you can open the source and check it yourself."],
+      ["Arabic and English from the same facts", "The same data produces both reports, with no difference in the numbers or the order."],
+      ["No model provider needed", "The local checks run on their own; a model is optional and its requests are capped."],
+    ],
+    limits: "Coverage is stated plainly: what was checked and what was not. A clean result is not proof the project is safe.",
+    tagline: "Project security review, from a file to a report built on evidence.",
+    howItWorks: "How it works",
+    footerNav: "Page links",
+    toLight: "Light theme", toDark: "Dark theme",
+    switchLanguage: "ع", switchLanguageLabel: "Switch to Arabic",
     workflowTag: "How it works", workflowTitle: "From a file to a clear decision.",
     workflow: [
       ["Choose a source", "Upload HTML, a ZIP snapshot of your code, a HAR capture, or a JSON configuration."],
@@ -127,7 +151,70 @@ function CoverageDomains({ copy, language, personal }) {
   );
 }
 
-export function Landing({ follow, lang, theme, authenticated, personal }) {
+const proofIcons = [ShieldCheck, Languages, ScanLine];
+
+function Proof({ copy, personal }) {
+  return (
+    <section className="landing-proof" aria-labelledby="landing-proof-title">
+      <div className="landing-inner">
+        <div className="landing-section-head">
+          {!personal && <p className="landing-eyebrow"><span aria-hidden="true" />{copy.proofTag}</p>}
+          <h2 id="landing-proof-title">{copy.proofTitle}</h2>
+        </div>
+        <ul className="landing-proof-grid">
+          {copy.proof.map(([title, detail], index) => {
+            const Icon = proofIcons[index];
+            return (
+              <li key={title}>
+                <span className="landing-proof-icon" aria-hidden="true"><Icon size={22} /></span>
+                <h3>{title}</h3>
+                <p>{detail}</p>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="landing-limits">{copy.limits}</p>
+      </div>
+    </section>
+  );
+}
+
+function LandingFooter({ copy, language, start, authenticated, follow, preferences }) {
+  const jump = (event) => {
+    event.preventDefault();
+    document.getElementById("workflow")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  return (
+    <footer className="landing-footer">
+      <div className="landing-inner landing-footer-inner">
+        <div className="landing-footer-brand">
+          <span className="landing-footer-mark" aria-hidden="true"><i /><i /><i /></span>
+          <div>
+            <strong dir="ltr">BASIRA</strong>
+            <p>{copy.tagline}</p>
+          </div>
+        </div>
+        <nav className="landing-footer-links" aria-label={copy.footerNav}>
+          <a href="#workflow" onClick={jump}>{copy.howItWorks}</a>
+          <a href={start} onClick={(event) => follow(event, start)}>{authenticated ? (language ? "Open projects" : "افتح مشاريعك") : copy.start}</a>
+        </nav>
+        {preferences && <div className="landing-footer-controls">
+          <button type="button" className="landing-control" aria-pressed={preferences.theme === "dark"}
+            aria-label={preferences.theme === "dark" ? copy.toLight : copy.toDark}
+            onClick={() => preferences.setTheme(preferences.theme === "dark" ? "light" : "dark")}>
+            {preferences.theme === "dark" ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+          </button>
+          <button type="button" className="landing-control landing-control-word" aria-label={copy.switchLanguageLabel}
+            onClick={() => preferences.setLang(language ? "ar" : "en")}>
+            {copy.switchLanguage}
+          </button>
+        </div>}
+      </div>
+    </footer>
+  );
+}
+
+export function Landing({ follow, lang, theme, authenticated, personal, preferences }) {
   const language = lang === "en" ? 1 : 0;
   const copy = language ? content.en : content.ar;
   const workflow = personal ? [
@@ -154,6 +241,7 @@ export function Landing({ follow, lang, theme, authenticated, personal }) {
         <PipelinePreview copy={copy} />
       </section>
       <CoverageDomains copy={copy} language={language} personal={personal} />
+      <Proof copy={copy} personal={personal} />
       <section className="landing-inner landing-workflow" id="workflow" aria-labelledby="landing-workflow-title">
         <div className="landing-section-head">
           {!personal && <p className="landing-eyebrow"><span aria-hidden="true" />{copy.workflowTag}</p>}
@@ -171,6 +259,7 @@ export function Landing({ follow, lang, theme, authenticated, personal }) {
           })}
         </ol>
       </section>
+      <LandingFooter copy={copy} language={language} start={start} authenticated={authenticated} follow={follow} preferences={preferences} />
     </div>
   );
 }
