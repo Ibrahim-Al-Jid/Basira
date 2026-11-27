@@ -29,7 +29,7 @@ def printable(value, limit=450):
     """Keep PDF typography stable with escaped control characters and bounded fields."""
     value = " ".join(str(value or "").split())
     cmap = characters()
-    return "".join(char if ord(char) in cmap else "?" for char in value if category(char) != "Cf")[:limit]
+    return "".join(char if ord(char) in cmap else "?" for char in value if category(char) not in ("Cc", "Cf"))[:limit]
 
 
 class ReportDocument(FPDF):

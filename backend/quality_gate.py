@@ -23,6 +23,9 @@ from pathlib import Path
 from . import corpus_evaluation, detection_experiment
 
 BASELINE = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "quality-baseline.json"
+RECORDED_MODEL_RUNS = {
+    "dvwa_model_single_recorded": Path(__file__).resolve().parents[1] / "docs" / "research" / "detection-runs" / "2026-11-27-single-findings.json",
+}
 EPSILON = 1e-9
 HIGHER_IS_BETTER = ("recall", "precision")
 LOWER_IS_BETTER = ("false_positive_rate",)
@@ -53,6 +56,14 @@ def measure_dvwa():
     manifest = detection_experiment.load_manifest(Path(__file__).resolve().parents[1] / detection_experiment.MANIFEST)
     found, _elapsed, _count = detection_experiment.run_static(manifest, detection_experiment.fetch_sources(manifest))
     return dvwa_metrics(manifest, found)
+
+
+def measure_recorded_model_runs():
+    """Scores recorded model findings against the pinned manifest. Offline: no provider call, no download, so the model
+    configurations are held to a number in CI without spending requests. A new run is recorded by adding its findings file."""
+    manifest = detection_experiment.load_manifest(Path(__file__).resolve().parents[1] / detection_experiment.MANIFEST)
+    return {name: dvwa_metrics(manifest, {path: set(ids) for path, ids in json.loads(file.read_text(encoding="utf-8")).items()})
+            for name, file in RECORDED_MODEL_RUNS.items()}
 
 
 def regressions(name, current, baseline):
@@ -91,7 +102,7 @@ def main():
     parser.add_argument("--network", action="store_true", help="also measure DVWA (downloads the pinned files)")
     parser.add_argument("--print", action="store_true", dest="show", help="print measurements, do not compare")
     args = parser.parse_args()
-    measurements = {"reference_corpus": corpus_metrics()}
+    measurements = {"reference_corpus": corpus_metrics(), **measure_recorded_model_runs()}
     if args.network:
         measurements["dvwa_static"] = measure_dvwa()
     if args.show:
