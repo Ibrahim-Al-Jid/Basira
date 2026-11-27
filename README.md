@@ -22,7 +22,7 @@ Pick a project and an evidence source, follow the scan as it runs, and open a re
 ## Highlights
 
 - **Five LangGraph agent roles.** A coordinator routes the work, then planning, analysis, verification, and reporting roles run it, with parallel branches that merge before verification.
-- **100 defensive checks.** A documented catalog of rules. The lab runs the ones that apply to HTML; projects also accept ZIP archives, HAR captures, and JSON snapshots.
+- **114 defensive checks.** A documented catalog of rules. The lab runs the ones that apply to HTML; projects also accept ZIP archives, HAR captures, and JSON snapshots.
 - **Reports people can use.** Findings come with redacted evidence, line numbers, severity, and a fix. Export to HTML (Arabic or English), JSON, and PDF.
 - **Model-optional by design.** Optional model enrichment is configured per account. If the provider fails, Basira completes the scan with local analysis instead of failing.
 - **Bilingual UI.** Arabic and English, RTL and LTR, dark and light themes.
@@ -58,7 +58,7 @@ npm start
 
 Open http://127.0.0.1:8765/demo, choose an HTML file, paste markup, or use the built-in sample. Set `PORT` to change the port. Run the tests with `npm test`.
 
-Verified on 27 November 2026 on Linux with Python 3.13 and Node 22, following exactly the commands above: the build succeeds, the app starts, `/`, `/demo` and `GET /api/taxonomy` return 200, and `npm test` gives 284 passed, 1 skipped. The lab keeps reports in SQLite; accounts and projects need option 2.
+Verified on 27 November 2026 on Linux with Python 3.13 and Node 22, following exactly the commands above: the build succeeds, the app starts, `/`, `/demo` and `GET /api/taxonomy` return 200, and `npm test` gave 284 passed, 1 skipped at that time (the backend suite has grown since; CI on main is the current record). The lab keeps reports in SQLite; accounts and projects need option 2.
 
 ### 2. Docker Compose (accounts, projects, background jobs)
 
@@ -81,7 +81,7 @@ Verification status: the Docker image build and these Compose commands have not 
 ## Status
 
 - Five LangGraph roles are implemented. The server analyzes HTML locally in the lab and stores reports in SQLite under the browser session name.
-- The release catalog has 100 defensive checks. The extended lab runs the rules that apply to HTML. Projects also accept ZIP, HAR, and JSON snapshots, and add scan comparison, comments, finding statuses, and PDF (Arabic and English) export.
+- The release catalog has 114 defensive checks. The extended lab runs the rules that apply to HTML. Projects also accept ZIP, HAR, and JSON snapshots, and add scan comparison, comments, finding statuses, and PDF (Arabic and English) export.
 - Optional enrichment through Account → Model connection. The scan continues with local analysis if the provider is down.
 - Detection quality is measured against a reference sample, and the project states plainly that there is no real-world data yet to measure general accuracy or model cost.
 

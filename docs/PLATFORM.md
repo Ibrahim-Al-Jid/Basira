@@ -80,7 +80,7 @@ docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file 
 
 1. انسخ `ops/platform.env.example` إلى `.env`، وحط قيم عشوائية مختلفة لـ`BASIRA_DB_PASSWORD` و`BASIRA_DISPATCH_PASSWORD` و`BASIRA_MIGRATION_PASSWORD`. استخدم حروف وأرقام فقط لكلمات المرور دي لأنها جزء من رابط اتصال PostgreSQL. لو المختبر الحالي شغال على 8765، اختار 8775 مثلًا في `BASIRA_PORT`، وعدّل منفذ الـcallback بنفس القيمة.
 2. في مزوّد الهوية بتاعك سجّل عميل OIDC يقدر يستخدم Authorization Code مع PKCE S256. سجّل عنوان callback المطابق حرفيًا، واملأ `BASIRA_OIDC_ISSUER` و`BASIRA_OIDC_CLIENT_ID` و`BASIRA_OIDC_CLIENT_SECRET`. حط سر عشوائي ٣٢ حرفًا على الأقل في `BASIRA_OIDC_STATE_SECRET`. الـHTTP للـloopback المحلي، واستخدم HTTPS في التشغيل المستضاف.
-3. من مجلد `sentinel` شغّل `docker compose up --build -d`. خدمة `migrate` بتشغّل Alembic قبل التطبيق والعامل. استخدم `docker compose ps -a` للتحقق، وافتح `http://127.0.0.1:<port>/projects`.
+3. من جذر المستودع شغّل `docker compose up --build -d`. خدمة `migrate` بتشغّل Alembic قبل التطبيق والعامل. استخدم `docker compose ps -a` للتحقق، وافتح `http://127.0.0.1:<port>/projects`.
 4. سجّل الدخول، وأنشئ مؤسسة ومشروع، وبعدها حدّد أنواع الملفات في سياسة المشروع. سلطات Owner وAdmin وAnalyst وViewer في [التصميم المعماري](ARCHITECTURE.md). المالك يشارك دعوة خاصة من إدارة وصول المشروع، والمستلم يقبلها من الحساب. Analyst وViewer يحتاجوا Grant صريح من قائمة أعضاء المؤسسة.
 
 قاعدة المشاريع تستخدم اتصال التطبيق `basira_app` بدون superuser أو BYPASSRLS. ترحيل المخطط له عنوان اتصال منفصل. موزّع المهام يتصل بحساب `basira_dispatch` بصلاحيات على الـoutbox فقط. المكوّن اللي بيحلّل الملفات معزول بشبكة `none` وبيقرأ من مساحة وسيطة للطلبات والردود. عامل Celery عنده وصول لـRedis وPostgreSQL وبيتعامل مع معرفات المهام، ومحاولته لها مهلة Lease. [PostgreSQL Row Security](https://www.postgresql.org/docs/current/ddl-rowsecurity.html) · [Celery Tasks](https://docs.celeryq.dev/en/stable/userguide/tasks.html)
@@ -93,7 +93,7 @@ docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file 
 docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file .env.local --profile model up -d --build
 ```
 
-بعد التشغيل، المالك أو المدير يفتح «الحساب ← اتصال الموديل»، يختار المؤسسة ويدخل مفتاح OpenRouter ومعرّف الموديل، ثم يسمح للمشروع في نفس المكان. التخزين مشفر بمفتاح خاص ببوابة الموديل. تفاصيل النسخ الاحتياطي والإعداد المشغّل القديم في دليل Phase 10.
+بعد التشغيل، المالك أو المدير يفتح «الحساب ← اتصال الموديل»، يختار المؤسسة ويدخل مفتاح OpenRouter ومعرّف الموديل، ثم يسمح للمشروع في نفس المكان. التخزين مشفر بمفتاح خاص ببوابة الموديل. تفاصيل النسخ الاحتياطي والإعداد المشغّل القديم في سجلات المشروع في git (الدليل القديم اتشال من المستودع).
 
 ## المدخلات وتغطية الفحص
 
