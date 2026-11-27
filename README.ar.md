@@ -14,6 +14,23 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\ops\start-local.ps1
 
 افتح [تسجيل الدخول المحلي](http://127.0.0.1:8765/signin) واختار «إنشاء حساب» للتثبيت الجديد. بيانات الحسابات والمشاريع بتتخزّن في PostgreSQL على الجهاز اللي شغّلته عليه. تفاصيل التشغيل اليدوي وتشخيص مشاكل الدخول في [دليل تشغيل المنصة](docs/PLATFORM.md).
 
+### التشغيل على Windows مع Connect GitHub
+
+مرة واحدة لكل جهاز: ثبّت Docker Desktop وGit واعمل clone للريبو.
+
+1. شغّل Docker Desktop واستنى لحد ما يجهز.
+2. من جذر الريبو في PowerShell شغّل السكريبت مرة واحدة ومعاه المعرّفات العامة للـGitHub App. بيعمل `.env.local` بكلمات سر عشوائية، وبيولّد مفتاح التشفير وسطر الكول باك لوحده، وبيطلب الـClient Secret بإدخال مخفي:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\ops\start-local.ps1 -GitHubClientId <client id> -GitHubAppSlug <app slug>
+```
+
+3. افتح http://127.0.0.1:8765/signin واعمل الحساب المحلي ودوس Connect GitHub.
+
+كل تشغيل بعد كده: شغّل Docker Desktop ونفّذ `.\ops\start-local.ps1` وافتح نفس العنوان. للإيقاف: `docker compose -p basira-local down` (البيانات بتفضل).
+
+الـGitHub App بيعمله مالك المشروع مرة واحدة، بالكول باك `http://127.0.0.1:8765/api/platform/github/callback` (127.0.0.1 مش localhost) وصلاحية Contents للقراءة فقط. السكريبت بيملا الأسطر الفاضية بس في `.env.local`، وبيقف برسالة واضحة لو مفتاح التشفير غلط، وبيحذّر لو أسطر GitHub ناقصة. من غيرها التطبيق بيشتغل لكن Connect GitHub مش هيشتغل. لم يتم التحقق منه كاملًا لأن Docker مش متاح في بيئة المراجعة.
+
 لتشغيل المختبر فقط في بيئة تطوير مستقلة، استخدم الأوامر دي من جذر المستودع قبل تشغيل خدمة تانية على المنفذ 8765:
 
 ```powershell
