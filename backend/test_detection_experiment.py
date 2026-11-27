@@ -17,3 +17,9 @@ def test_score_counts_hits_and_flagged_clean_files():
     result = score(manifest, {vulnerable["path"]: {vulnerable["subdomain"]}, clean["path"]: {"D08.1"}})
     assert result["found"] == 1 and result["clean_files_flagged"] == 1
     assert score(manifest, {})["detection_rate"] == 0
+
+
+def test_parse_findings_accepts_wrapped_json_and_rejects_garbage():
+    from .detection_agents import parse_findings
+    assert parse_findings('text {"findings":[{"subdomain":"D04.1"}]} end') == [{"subdomain": "D04.1"}]
+    assert parse_findings("no json") == [] and parse_findings('{"findings": 3}') == []

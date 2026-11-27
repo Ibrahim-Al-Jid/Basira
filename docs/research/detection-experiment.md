@@ -13,9 +13,9 @@ Labeling limit: one reader. A second reader must confirm the labels before any h
 | Id | Configuration | Status |
 |---|---|---|
 | C1 | Static checks only (Marsad's 100 deterministic checks, real ZIP path) | run |
-| C2 | One agent, no tools | not run |
-| C3 | Several agents, no tools | not run |
-| C4 | Several agents with tools | not run |
+| C2 | One agent, no tools | run |
+| C3 | Several agents, no tools | code written, run incomplete (daily request cap) |
+| C4 | Several agents with tools | code written, not run |
 
 C2 to C4 use one free OpenRouter model, `nvidia/nemotron-3-ultra-550b-a55b:free`, with identical prompts and limits.
 
@@ -27,7 +27,9 @@ A vulnerability is found when a finding on its file maps through the taxonomy to
 
 C1, run 27 November 2026: 0 of 13 vulnerabilities found (0%), 0 findings in total, 0 of 13 clean files flagged, 0.02 s. This is expected: the 100 checks inspect HTML, headers, manifests and configuration, not PHP application code. It confirms the gap that [taxonomy](../taxonomy.md) lists for injection, XSS and access control, and is the baseline the agent configurations must beat.
 
-C2 to C4: not run yet.
+C2, one agent without tools, run 27 November 2026 with `nvidia/nemotron-3-ultra-550b-a55b:free` (temperature 0, 3000 token limit): 8 of 13 vulnerabilities found (61.5%), 5 of 13 clean `impossible.php` files flagged. 26 requests, no errors, cost 0. Raw findings and the request log are in `detection-runs/`. Caveats: one run, one model, one reader for labels, so no confidence interval; some flags on `impossible.php` may be real residual issues rather than errors, which the single labeler has not reviewed. Runtime per case was tens of seconds because the model reasons before answering; no clean total was recorded because the run was resumed in pieces.
+
+C3 and C4: the code exists (`backend/detection_agents.py`; three specialist agents plus a verification agent, with `search_code` and `static_review` tools in C4) but there is no result. The free tier allows 50 requests per day; the C2 run used 26 and failed retries of the C3 run used the rest. C3 completed 6 of 26 cases and its partial data is not reported. To finish: run `python -m backend.detection_experiment --config team` and `--config team-tools` with `OPENROUTER_API_KEY` set on a day with a fresh quota (about 130 and 200 requests are needed, so the free quota is not enough in one day; the options are several days, or the user deciding to add credits, which is not authorized).
 
 ## Other systems
 
