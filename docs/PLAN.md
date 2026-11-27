@@ -30,7 +30,7 @@ Analysis modes:
 
 ## 2. Current position
 
-Phases P01 to P08 are built; this plan has 24 phases (P01 to P24). **Work is in P09** (live experience and report model), then P10 (visual redesign and dashboard).
+Phases P01 to P08 are built; this plan has 24 phases (P01 to P24). P09 has its model lane in place; **work is in P10** (redesign), then P20 and P19. See the order of work below.
 
 Verified on 27 November 2026:
 - Python 3.13: 251 backend tests pass, 1 skipped.
@@ -59,7 +59,7 @@ Status: **done** (built, tests exist, acceptance re-run or re-checked on 27 Nove
 | P07 | Tools, agents and memory | Pinned tool registry, offline execution, five-stage graph, model gateway and advisor, checkpoints, scan memory | partial |
 | P08 | Product journey | Personal projects workspace, ownership migration, project pages | done |
 | P09 | Live experience and report model | Per-agent live view, frozen report model, report and PDF parity tests | open (current) |
-| P10 | Visual redesign and dashboard | New design system across every page, project dashboard, accessibility | open |
+| P10 | Redesign: UI/UX, fewer steps, automation | Design system, single-screen Scan flow, live view, decision-first report, dashboard, landing; 10 actions to 3 | open (current) |
 | P11 | Recheck and history | Fixed, Still present, New, Changed, Inconclusive, Needs review | open |
 | P12 | Remediation | Repair plans, approval, optional sandbox patch draft | open |
 | P13 | Help and report assistant | Static contextual help, then the cited read-only report assistant (committed) | open |
@@ -75,7 +75,7 @@ Status: **done** (built, tests exist, acceptance re-run or re-checked on 27 Nove
 | P24 | Thesis and defense package | Problem statement, related work (from `research/competitors.md`), architecture, evaluation chapter with limits, ethics and authorization rules for scanning, a small usability check with real users, slides, demo script, prepared answers to likely questions | open |
 | P18 | Hardening and release | Isolation and recovery acceptance, Docker verified, legacy removal, release manifest, rename | open |
 
-Order of work, by value for the graduation demo: P09 (live view, in-flight events, presenter pace), P20 (replay and budget check), P21 (provider settings), P19 (source-code checks, the biggest measured gap), P17 and P23 (measured evaluation with precision), P10 (redesign and dashboard), P11, P13, P16, P15, P22, P07 gaps, P12, P24, P18. P14 follows decision A and ships before P17 if approved, so evaluation covers it.
+Order of work, set by the agent as the expert (owner delegated sequencing, 27 Nov 2026): P21 (provider settings, done), P09 model lane (done), P10 redesign slices a to f (current, the owner is waiting for it), then P20 (replay and budget check), P19 (source-code checks, the biggest measured gap), P11, P17 and P23 (measured evaluation with precision, when the free-tier cap allows), P13, P16, P15, P22, P07 gaps, P12, P24, P18. P14 follows decision A and ships before P17 if approved, so evaluation covers it.
 
 ## 4. Phase details
 
@@ -105,11 +105,26 @@ Open items inside P07: failure and recovery acceptance (crash after checkpoint, 
 
 Done when: scan page shows each role live in a browser test, and the parity test passes in both languages.
 
-### P10 Visual redesign and dashboard
+### P10 Redesign: new UI/UX, fewer steps, more automation (now the current phase)
 
-New design system, not a recolor: tokens, type, layout, motion, applied to landing, sign-in, projects, new review, live view, report, dashboard, settings. Palette from the blueprint: Midnight Navy `#0B1220`, Cyber Teal `#19C7B5`, Electric Blue `#4385F6`, Critical Red `#EF4444`, High Orange `#F97316`, amber for Medium, green for resolved. Every state has a design: loading, empty, partial, error, permission denied. Severity always has a text label as well as color. Dashboard cards derive from owner-scoped persisted data and show period and freshness.
+The owner asked for a radical redesign: easier flows, less manual work, more automation. It moves ahead of P20 and P19 in the order of work because it changes what every later feature looks like.
 
-Done when: every route has screenshots in both languages and both themes, keyboard use passes, and each dashboard number reconciles with its source records.
+**Measured starting point (27 Nov 2026, personal mode, Arabic UI).** Counted from the scripted tour, after the account exists: New Project, type the project name, Create project, New scan, Continue to source, choose the file, Review scan, tick the permission, Submit, Open report. That is 10 user actions across 5 screens before the report opens. Target: 3 actions on one screen (drop the file, tick the permission, Start), with the project chosen automatically and the report opening when the scan ends.
+
+**Principles.** One primary action per screen. Detect, do not ask: input type from the file, project from the last one used (or an automatic "My scans" project in personal mode). Defaults that are safe. Details on demand. Every state designed: empty, loading, partial, error, no permission, stale. Arabic first, RTL native, English complete. Severity is always a word as well as a color. Honest numbers only; a figure without a real denominator is not shown.
+
+**Flows.**
+1. Start: one "Scan" screen. A large drop zone (file, paste, GitHub or approved page URL tabs). On drop: input type detected, scope summary shown inline (what will and will not be read), one consent checkbox, one Start button. The consent checkbox, idempotency key and scope check stay; only the extra screens go.
+2. Live: the five agents and the model lane as a pipeline with real events, elapsed time and what each produced; the page opens the report on completion (with a Stay option) and shows a plain error with a Retry on failure.
+3. Report: first screen is the decision, not the table: counts by severity, the three things to fix first with the reason, coverage and what was not checked. Then findings, step-by-step mode, evidence, export menu (PDF, JSON, SARIF).
+4. Dashboard: scans over time, new and fixed since the last scan (by finding fingerprint), freshness stamp on every number, each number traceable to its scan.
+5. Automation backlog, in order: auto-open report; remember last project and input type; saved scan presets; one-click replay of a stored scan (P20); recheck after a fix (P11); scan on push for a connected repository.
+
+**Design system.** Tokens first (color, type scale, spacing, radius, elevation, motion with reduced-motion respected), built on the existing dark and light themes, with the blueprint palette. Components get one definition each: button, field, card, status chip, severity chip, lane, empty state, toast. Pages are migrated one at a time so main stays shippable.
+
+**Slices, each a small PR to main.** (a) tokens and shared components; (b) single-screen Scan flow; (c) live view and auto-open; (d) decision-first report; (e) dashboard; (f) landing and sign-in. After each slice: screenshots in Arabic and English, dark and light, and a before/after action count.
+
+Done when: the 3-action flow passes the browser test in both languages, every route has screenshots in both languages and both themes, keyboard use works on the Scan, live and report screens, and each dashboard number reconciles with its scan records. Not claimed: any accessibility audit by a tool, unless one is run and recorded.
 
 ### P11 Recheck and history
 
