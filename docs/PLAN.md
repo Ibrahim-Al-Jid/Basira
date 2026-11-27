@@ -30,7 +30,7 @@ Analysis modes:
 
 ## 2. Current position
 
-Phases P01 to P08 are built; this plan has 18 phases (P01 to P18). **Work is in P09** (live experience and report model), then P10 (visual redesign and dashboard).
+Phases P01 to P08 are built; this plan has 24 phases (P01 to P24). **Work is in P09** (live experience and report model), then P10 (visual redesign and dashboard).
 
 Verified on 27 November 2026:
 - Python 3.13: 251 backend tests pass, 1 skipped.
@@ -67,12 +67,15 @@ Status: **done** (built, tests exist, acceptance re-run or re-checked on 27 Nove
 | P15 | Learning from past scans | Owner decisions and recheck outcomes feed ranking, confidence and suppression, measured before it is enabled | open |
 | P16 | Performance and data design | Latency budgets, incremental scans, caching, indexes, schema review, load tests | open |
 | P17 | Evaluation | Benchmarks, labeled corpus, four-configuration comparison with measured detection rates | open |
+| P19 | Coverage expansion and project review | Source-code analysis checks (the measured gap: 0 of 13 on DVWA PHP), starting with injection, XSS, access control and file handling in PHP, JavaScript and Python; research which classes are realistically detectable, close the cheap gaps in the 75-subdomain taxonomy, review what exists against evidence and list real improvements | open |
 | P20 | Demo reliability | Runbook ([DEMO.md](DEMO.md)), per-scan request budget check, replay of a stored scan in the live UI, presentation dashboard; graduation demo is live in front of a professor | open, runbook written |
 | P21 | Provider-agnostic model settings | Settings page: choose a preset provider (OpenRouter, OpenAI, Anthropic, Google Gemini) or add a custom OpenAI-compatible provider by base URL (https, public host only, checked against private and internal addresses, checked again at request time), paste key, list that provider's models, pick one; warning and acknowledgement before any non-free model; free default path stays OpenRouter free models; keys encrypted server-side and masked in the UI | adapters and tests done (`backend/llm_providers.py`); gateway, connection storage and settings UI open |
+| P22 | Self-security | Basira scanned by itself; scanned content treated as untrusted input to the agents (prompt-injection tests); key storage, custom-provider URL and export paths reviewed; threat model written | open |
+| P23 | Quality gates | Precision and false-positive rate measured with the detection recall; a regression gate in CI that fails when either drops; flaky-test policy; reproducible evaluation script | open |
+| P24 | Thesis and defense package | Problem statement, related work (from `research/competitors.md`), architecture, evaluation chapter with limits, ethics and authorization rules for scanning, a small usability check with real users, slides, demo script, prepared answers to likely questions | open |
 | P18 | Hardening and release | Isolation and recovery acceptance, Docker verified, legacy removal, release manifest, rename | open |
-| P19 | Coverage expansion and project review | Research which vulnerability classes can realistically be detected, close the cheap gaps in the 75-subdomain taxonomy, review what exists against evidence and list real improvements | open |
 
-Order of work: P07 gaps (checkpoint failure and isolation acceptance), P09, P10, P11, P13, P16, P15, P12, P17, P18. P14 follows decision A and ships before P17 if approved, so evaluation covers it.
+Order of work, by value for the graduation demo: P09 (live view, in-flight events, presenter pace), P20 (replay and budget check), P21 (provider settings), P19 (source-code checks, the biggest measured gap), P17 and P23 (measured evaluation with precision), P10 (redesign and dashboard), P11, P13, P16, P15, P22, P07 gaps, P12, P24, P18. P14 follows decision A and ships before P17 if approved, so evaluation covers it.
 
 ## 4. Phase details
 
@@ -147,6 +150,18 @@ Targets are set from a measured baseline, not guessed. Work: profile the scan pa
 
 Fixed test targets, same inputs for every configuration: (1) static checks only, (2) one agent with no tools, (3) multiple agents with no tools, (4) multiple agents with tools. Measure detection rate (share of labeled vulnerabilities found), false positives, duplicates, runtime and cost, and show the progression from 1 to 4. Targets: vulnerable apps and benchmarks listed in [benchmarks](research/benchmarks.md), plus at least 24 independently labeled holdout cases (12 clean, 12 positive) for the passive scope. Configurations (2) to (4) need a model provider; without one only (1) and the deterministic tool runs can be measured, and the report says so. Model: no paid spend is authorized (owner decision 27 November 2026), so agent configurations use one free OpenRouter model. Chosen from the live OpenRouter model list (`https://openrouter.ai/api/v1/models`, 13 free models on 27 November 2026): `nvidia/nemotron-3-ultra-550b-a55b:free`, the largest free model with tool calling, 1M context. The same model, prompts, temperature and token limits are used in configurations 2 to 4 and are recorded with the results. Free tiers are rate limited and the model can change or disappear, so every run stores the model ID, date and request log. Scoring unit: a labeled vulnerability is a (target file, taxonomy subdomain) pair. The 12-case reference corpus was written together with the checks, so a static score on it proves little; it stays as a regression set, and the headline numbers come from independent targets with a published vulnerability list (for example DVWA and OWASP NodeGoat source), labels mapped to taxonomy subdomains by two readers before any run.
 Published comparisons with other systems use only their own published numbers, with source and benchmark version, and are marked as not like-for-like unless the same target and scoring are used. A zero or negative result is reported as is. Nothing is published before a run.
+
+### P22 Self-security
+
+Basira reads untrusted files and sends parts of them to language models, so it is itself a target. Work: run Basira on its own repository and fix real findings; tests where scanned content contains instructions aimed at the agents (the agents must treat it as data and never change tools, scope or output format because of it); review the key store (encryption, masking, no logging), the custom-provider URL checks at request time (DNS rebinding), upload limits and export paths; write the threat model in ARCHITECTURE. Done when the tests exist, pass and are part of CI.
+
+### P23 Quality gates
+
+Detection rate alone rewards noisy tools. Each evaluation run also records precision and false-positive rate per configuration; the one-agent run already flagged 5 of 13 fixed files, so this matters. A CI gate compares the stored baseline and fails on a drop; the evaluation script reproduces every published number from pinned inputs; flaky tests are fixed or quarantined with an owner.
+
+### P24 Thesis and defense package
+
+Deliverables: problem statement and scope; related work using the 72-tool survey; architecture and data design chapters; evaluation chapter with every limit stated (one labeler, one model, free-tier runs); ethics and authorization rules (active probing only for owner-proven targets); a usability check with five real users and their results; slides; the demo script from [DEMO.md](DEMO.md); a list of likely professor questions with evidence-backed answers. Done when a person who has not seen the project can follow the chapters and reproduce the numbers.
 
 ### P18 Hardening and release
 
