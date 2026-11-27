@@ -1,0 +1,17 @@
+{
+  "version": "quality-baseline-1",
+  "measured": "2026-11-27",
+  "note": "Measured with `python -m backend.quality_gate --network --print`. Raise a number only in the change that earns it. null means undefined (no findings or no clean units).",
+  "sets": {
+    "reference_corpus": {
+      "profile": "mocked",
+      "tp": 9, "fp": 1, "fn": 1,
+      "precision": 0.9, "recall": 0.9, "false_positive_rate": null
+    },
+    "dvwa_static": {
+      "target": "DVWA 502ac150ce37c20ca6e04cab7c5ca959f315f2d0, 13 vulnerable and 13 fixed files, static checks only",
+      "tp": 0, "fp": 0, "fn": 13,
+      "precision": null, "recall": 0.0, "false_positive_rate": 0.0
+    }
+  }
+}
