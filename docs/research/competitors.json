@@ -1,0 +1,994 @@
+[
+ {
+  "category": "open-source AI pentest agent",
+  "source": "https://aipentestingtools.com/open-source/",
+  "repo": "github.com/usestrix/strix",
+  "stars": "74,375",
+  "licence": "Permissive Apache-2.0",
+  "tests": "Web apps, APIs, Code",
+  "runs_as": "SaaS Self-hosted CLI Docker",
+  "paid": "Pro $29/seat/month, pentests billed separately (pay per test)",
+  "listing": "Strix"
+ },
+ {
+  "category": "open-source AI pentest agent",
+  "source": "https://aipentestingtools.com/open-source/",
+  "repo": "github.com/KeygraphHQ/shannon",
+  "stars": "51,444",
+  "licence": "Copyleft AGPL-3.0",
+  "tests": "Web apps, APIs, Code",
+  "runs_as": "SaaS Self-hosted CLI Docker",
+  "paid": "Pro $50 per active developer/month",
+  "listing": "Shannon"
+ },
+ {
+  "category": "open-source AI pentest agent",
+  "source": "https://aipentestingtools.com/open-source/",
+  "repo": "github.com/vxcontrol/pentagi",
+  "stars": "33,688",
+  "licence": "Permissive MIT",
+  "tests": "Web apps, Networks",
+  "runs_as": "SaaS Self-hosted Docker",
+  "paid": "Yes, price not published",
+  "listing": "PentAGI"
+ },
+ {
+  "category": "open-source AI pentest agent",
+  "source": "https://aipentestingtools.com/open-source/",
+  "repo": "github.com/GreyDGL/PentestGPT",
+  "stars": "16,325",
+  "licence": "Permissive MIT",
+  "tests": "CTFs, Web apps, Networks",
+  "runs_as": "CLI Docker",
+  "paid": "—",
+  "listing": "PentestGPT"
+ },
+ {
+  "category": "open-source AI pentest agent",
+  "source": "https://aipentestingtools.com/open-source/",
+  "repo": "github.com/0x4m4/hexstrike-ai",
+  "stars": "13,440",
+  "licence": "Permissive MIT",
+  "tests": "Web apps, Networks, Cloud, CTFs",
+  "runs_as": "SaaS Self-hosted MCP",
+  "paid": "—",
+  "listing": "HexStrike AI"
+ },
+ {
+  "category": "open-source AI pentest agent",
+  "source": "https://aipentestingtools.com/open-source/",
+  "repo": "github.com/aliasrobotics/cai",
+  "stars": "9,853",
+  "licence": "Check terms see entry",
+  "tests": "Web apps, APIs, Networks, CTFs",
+  "runs_as": "CLI Library",
+  "paid": "Yes, price not published",
+  "listing": "CAI (Cybersecurity AI)"
+ },
+ {
+  "category": "open-source AI pentest agent",
+  "source": "https://aipentestingtools.com/open-source/",
+  "repo": "github.com/BitterSecurity/Decepticon",
+  "stars": "6,568",
+  "licence": "Permissive Apache-2.0",
+  "tests": "Web apps, Networks, Active Directory, Cloud",
+  "runs_as": "SaaS Self-hosted CLI Docker MCP Library",
+  "paid": "Solo $19/month",
+  "listing": "Decepticon"
+ },
+ {
+  "category": "open-source AI pentest agent",
+  "source": "https://aipentestingtools.com/open-source/",
+  "repo": "github.com/oritera/Cairn",
+  "stars": "4,945",
+  "licence": "Copyleft AGPL-3.0",
+  "tests": "Networks, CTFs",
+  "runs_as": "Docker",
+  "paid": "—",
+  "listing": "Cairn"
+ },
+ {
+  "category": "open-source AI pentest agent",
+  "source": "https://aipentestingtools.com/open-source/",
+  "repo": "github.com/samugit83/redamon",
+  "stars": "3,329",
+  "licence": "Permissive MIT",
+  "tests": "Web apps, APIs, Networks, LLM apps",
+  "runs_as": "SaaS Self-hosted Docker",
+  "paid": "—",
+  "listing": "RedAmon"
+ },
+ {
+  "category": "open-source AI pentest agent",
+  "source": "https://aipentestingtools.com/open-source/",
+  "repo": "github.com/GH05TCREW/pentestagent",
+  "stars": "3,259",
+  "licence": "Permissive MIT",
+  "tests": "Web apps, Networks",
+  "runs_as": "CLI Docker",
+  "paid": "—",
+  "listing": "PentestAgent"
+ },
+ {
+  "category": "open-source AI pentest agent",
+  "source": "https://aipentestingtools.com/open-source/",
+  "repo": "github.com/Armur-Ai/Pentest-Swarm-AI",
+  "stars": "3,153",
+  "licence": "Copyleft AGPL-3.0",
+  "tests": "Web apps, APIs, Networks, CTFs",
+  "runs_as": "CLI Docker",
+  "paid": "—",
+  "listing": "Pentest Swarm AI"
+ },
+ {
+  "category": "open-source AI pentest agent",
+  "source": "https://aipentestingtools.com/open-source/",
+  "repo": "github.com/zakirkun/guardian-cli",
+  "stars": "1,906",
+  "licence": "Check terms MIT, with added authorised-use terms",
+  "tests": "Web apps, APIs, Networks, Active Directory, Cloud, Mobile, Code, LLM apps",
+  "runs_as": "CLI",
+  "paid": "—",
+  "listing": "Guardian"
+ },
+ {
+  "category": "open-source AI pentest agent",
+  "source": "https://aipentestingtools.com/open-source/",
+  "repo": "github.com/0xSteph/pentest-ai",
+  "stars": "1,810",
+  "licence": "Permissive MIT",
+  "tests": "Web apps",
+  "runs_as": "CLI MCP",
+  "paid": "—",
+  "listing": "Pentest-AI"
+ },
+ {
+  "category": "open-source AI pentest agent",
+  "source": "https://aipentestingtools.com/open-source/",
+  "repo": "github.com/bugbasesecurity/pentest-copilot",
+  "stars": "1,553",
+  "licence": "Permissive MIT",
+  "tests": "Web apps, Networks, CTFs",
+  "runs_as": "SaaS Self-hosted Docker",
+  "paid": "Yes, price not published",
+  "listing": "Pentest Copilot"
+ },
+ {
+  "category": "open-source AI pentest agent",
+  "source": "https://aipentestingtools.com/open-source/",
+  "repo": "github.com/JoasASantos/NeuroSploit",
+  "stars": "1,507",
+  "licence": "Permissive MIT",
+  "tests": "Web apps, Code, Networks, Active Directory, Cloud, LLM apps, Mobile",
+  "runs_as": "CLI",
+  "paid": "—",
+  "listing": "NeuroSploit"
+ },
+ {
+  "category": "open-source AI pentest agent",
+  "source": "https://aipentestingtools.com/open-source/",
+  "repo": "github.com/ipa-lab/hackingBuddyGPT",
+  "stars": "1,307",
+  "licence": "Permissive MIT",
+  "tests": "Networks, Web apps, APIs, Active Directory",
+  "runs_as": "CLI Library",
+  "paid": "—",
+  "listing": "hackingBuddyGPT"
+ },
+ {
+  "category": "open-source AI pentest agent",
+  "source": "https://aipentestingtools.com/open-source/",
+  "repo": "github.com/ASCIT31/Dark-Moon",
+  "stars": "1,209",
+  "licence": "Copyleft GPL-3.0",
+  "tests": "Web apps, APIs, Networks, Active Directory, Cloud",
+  "runs_as": "SaaS Self-hosted CLI Docker",
+  "paid": "Pro EUR 149 per month (or EUR 1,788 billed annually)",
+  "listing": "DarkMoon"
+ },
+ {
+  "category": "open-source AI pentest agent",
+  "source": "https://aipentestingtools.com/open-source/",
+  "repo": "github.com/berylliumsec/nebula",
+  "stars": "1,145",
+  "licence": "Permissive BSD-2-Clause",
+  "tests": "Web apps, APIs, Networks",
+  "runs_as": "Desktop CLI",
+  "paid": "—",
+  "listing": "Nebula"
+ },
+ {
+  "category": "open-source AI pentest agent",
+  "source": "https://aipentestingtools.com/open-source/",
+  "repo": "pypi.org",
+  "stars": "—",
+  "licence": "Check terms see entry",
+  "tests": "Networks",
+  "runs_as": "",
+  "paid": "—",
+  "listing": "Villager"
+ },
+ {
+  "category": "open-source AI pentest agent",
+  "source": "https://aipentestingtools.com/open-source/",
+  "repo": "deephat.ai",
+  "stars": "—",
+  "licence": "Check terms see entry",
+  "tests": "—",
+  "runs_as": "Model",
+  "paid": "Yes, price not published",
+  "listing": "WhiteRabbitNeo (now DeepHat)"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": true,
+   "ad": false,
+   "cloud": false,
+   "llm": true
+  },
+  "runs_as": "SaaS Self-hosted",
+  "finding_check": "AI-only: separate agents re-exploit each finding; the run pauses and shows the customer the attack analysis…",
+  "price": "Typical pentest $4,000 / €3,500 / £3,000 per assessment",
+  "listing": "Aikido AI Pentest Aikido Security"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": false,
+   "ad": false,
+   "cloud": false,
+   "llm": false
+  },
+  "runs_as": "Desktop",
+  "finding_check": "Human-led: the tester gives tasks, approves or blocks tool actions per tool, and draws the conclusions",
+  "price": "Public beta: $19 / $89 / $249 per user per month (Standard / Plus / Power)",
+  "listing": "Burp AT PortSwigger"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": true,
+   "ad": false,
+   "cloud": true,
+   "llm": false
+  },
+  "runs_as": "SaaS",
+  "finding_check": "AI-only tests (Swift, Depth) or AI plus human ethical hackers (Expert); the PTaaS line adds expert human…",
+  "price": "Pentest from €3,000 per test",
+  "listing": "Ethiack Ethiack, S.A."
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": false,
+   "network": false,
+   "ad": false,
+   "cloud": false,
+   "llm": false
+  },
+  "runs_as": "SaaS Self-hosted",
+  "finding_check": "Security researchers validate every Whitebox finding before the report; researchers monitor the agents on Red…",
+  "price": "Whitebox $50 to $25,000 per pentest (about $500 per 100,000 lines of code)",
+  "listing": "Hacktron Hacktron AI Inc."
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": false,
+   "ad": false,
+   "cloud": false,
+   "llm": false
+  },
+  "runs_as": "SaaS",
+  "finding_check": "None per test: Intruder says a human in the loop is no longer needed; agents built by its CREST-certified…",
+  "price": "$3,500 per test",
+  "listing": "Intruder AI Pentesting Intruder Systems Ltd"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": true,
+   "ad": false,
+   "cloud": true,
+   "llm": false
+  },
+  "runs_as": "SaaS Self-hosted",
+  "finding_check": "None stated; a separate verifier reproduces each claim, and users can run it task by task to stay in the loop",
+  "price": "Free $0",
+  "listing": "Neo ProjectDiscovery"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": true,
+   "ad": false,
+   "cloud": false,
+   "llm": false
+  },
+  "runs_as": "Self-hosted Desktop",
+  "finding_check": "Operator-driven: Agent or Manual mode; the user can edit, retest or skip tasks and re-validate findings…",
+  "price": "Free $0",
+  "listing": "Penligent Future Share LLC"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": false,
+   "network": false,
+   "ad": false,
+   "cloud": false,
+   "llm": false
+  },
+  "runs_as": "SaaS",
+  "finding_check": "Not in the base AI Pentest; the Hybrid Pentest tier adds review, manual retest and sign-off by certified…",
+  "price": "$3,000 per application (AI Pentest, incl. 2 free retests)",
+  "listing": "Pentest-Tools.com AI Pentests (Specter) Pentest-Tools.com"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": true,
+   "ad": true,
+   "cloud": true,
+   "llm": true
+  },
+  "runs_as": "SaaS Self-hosted",
+  "finding_check": "A certified pentester can validate any finding on any plan; Plus includes 3 and Advanced 6 human-verified…",
+  "price": "Starter $20/mo",
+  "listing": "Penti Penti"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": false,
+   "network": false,
+   "ad": false,
+   "cloud": true,
+   "llm": false
+  },
+  "runs_as": "SaaS",
+  "finding_check": "None stated; testing is fully automated and needs no intervention",
+  "price": "Credit packs: Starter $399 (100 credits), Essential $1,699 (500 credits), Advanced $2,999 (1,000 credits)",
+  "listing": "PurpleRidge Security Ridge Security"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": false,
+   "ad": false,
+   "cloud": false,
+   "llm": true
+  },
+  "runs_as": "SaaS MCP",
+  "finding_check": "An AI layer triages every finding; high-severity findings on the autonomous plan are validated by certified…",
+  "price": "Autonomous Pentesting from $500/month (25 test runs/month)",
+  "listing": "Siemba Autonomous Pentesting Siemba"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": true,
+   "ad": false,
+   "cloud": true,
+   "llm": true
+  },
+  "runs_as": "SaaS",
+  "finding_check": "None in normal operation: vendor says no TurboPentest staff review customer data or code; AI agents process…",
+  "price": "$99 per pentest (Audit-Ready: 1 target, 4 agents)",
+  "listing": "TurboPentest IntegSec"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": true,
+   "ad": true,
+   "cloud": true,
+   "llm": true
+  },
+  "runs_as": "SaaS Desktop",
+  "finding_check": "Self-serve plans are agent-driven; senior human red-team review only by moving to a managed VAPT engagement",
+  "price": "Individual AI plans $20 / $49 / $150 per month",
+  "listing": "XHack AI XHACK"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": false,
+   "ad": false,
+   "cloud": false,
+   "llm": true
+  },
+  "runs_as": "SaaS Self-hosted",
+  "finding_check": "Not stated",
+  "price": "No published subscription price (demo/contact)",
+  "listing": "Ares Assail, Inc."
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": false,
+   "ad": false,
+   "cloud": false,
+   "llm": false
+  },
+  "runs_as": "SaaS",
+  "finding_check": "Every meaningful finding passes through Astra's expert validation layer; Pentest Auto includes one human…",
+  "price": "Pentest Auto $2,999/yr (1 target)",
+  "listing": "Astra Autonomous Pentest (Pentest Auto) Astra IT, Inc."
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": false,
+   "ad": false,
+   "cloud": false,
+   "llm": false
+  },
+  "runs_as": "SaaS",
+  "finding_check": "Not stated",
+  "price": "Essential $119/month (2 tests/month), Advanced $359/month (15 tests/month)",
+  "listing": "Beagle Security beaglesecurity.com"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": false,
+   "network": false,
+   "ad": false,
+   "cloud": false,
+   "llm": false
+  },
+  "runs_as": "SaaS",
+  "finding_check": "Cobalt Core pentesters approve the AI test plan before testing, approve or deny tool calls during the run…",
+  "price": "$3,500 per test, limited-time offer for web app tests started and completed by 31 Dec 2026",
+  "listing": "Cobalt Autonomous Pentest Cobalt"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": false,
+   "ad": false,
+   "cloud": false,
+   "llm": false
+  },
+  "runs_as": "SaaS",
+  "finding_check": "Every critical finding is reproduced in a sandbox and checked by a researcher before it reaches you",
+  "price": "Not published",
+  "listing": "CodeAnt AI Pentesting CodeAnt AI, Inc."
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": false,
+   "ad": false,
+   "cloud": false,
+   "llm": false
+  },
+  "runs_as": "SaaS",
+  "finding_check": "A person reviews findings before they are reported (on Starter: confirmed critical and high findings)",
+  "price": "Starter (early access): $99 per month: one target, one AI-run assessment a month, an automated retest after a fix, and human review of confirmed critical and high findings. An early-access price while the continuous service is finalised. Pilot: $3,000 for one scoped application or API assessment, with reviewed findings and one agreed retest. Adversary standing service: $1,499 per month: up to 15 registered targets",
+  "listing": "Decima Systems decima.systems"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": true,
+   "ad": false,
+   "cloud": false,
+   "llm": true
+  },
+  "runs_as": "SaaS Self-hosted",
+  "finding_check": "AI pentests run with no human in the loop; human OSCP-certified pentest reports are offered for compliance",
+  "price": "On-Demand AI-Powered Pentest $3,000 (12-month contract) on Escape's own AWS Marketplace listing",
+  "listing": "Escape AI Pentesting Escape Technologies"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": true,
+   "ad": true,
+   "cloud": false,
+   "llm": true
+  },
+  "runs_as": "SaaS Self-hosted",
+  "finding_check": "Optional expert-in-the-loop; the vendor says human experts validate the highest-risk findings and sensitive…",
+  "price": "Not published",
+  "listing": "FireCompass firecompass.com"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": false,
+   "api": false,
+   "network": false,
+   "ad": false,
+   "cloud": false,
+   "llm": false
+  },
+  "runs_as": "SaaS Desktop CLI",
+  "finding_check": "User sets a permission level per task (approve every action, auto-review, or full access); vendor says the…",
+  "price": "Free $0",
+  "listing": "HackerAI HackerAI LLC"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": true,
+   "ad": false,
+   "cloud": true,
+   "llm": true
+  },
+  "runs_as": "SaaS",
+  "finding_check": "Agents are 'overseen by humans'; Helix says a human reviews findings before the report ships",
+  "price": "Black box $3,000",
+  "listing": "Helix Cyber HelixML, Inc."
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": false,
+   "ad": false,
+   "cloud": false,
+   "llm": false
+  },
+  "runs_as": "SaaS",
+  "finding_check": "Not stated",
+  "price": "$500 max per pentest (one application and its API suite)",
+  "listing": "Invicti Agentic Pentest Invicti Security"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": false,
+   "network": false,
+   "ad": false,
+   "cloud": false,
+   "llm": false
+  },
+  "runs_as": "SaaS",
+  "finding_check": "Findings are human-reviewed ('human-reviewed, zero false positives')",
+  "price": "From €1,250 per test excluding VAT",
+  "listing": "Nova Hadrian"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": true,
+   "ad": false,
+   "cloud": false,
+   "llm": false
+  },
+  "runs_as": "SaaS Self-hosted",
+  "finding_check": "Not stated",
+  "price": "Agentic Pentest one-time: Core $500, Advanced $2,000, Elite $4,000 (30-day retest window)",
+  "listing": "Ostorlab Agentic Deep Scan (Agentic Pentest) Ostorlab"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": false,
+   "ad": false,
+   "cloud": false,
+   "llm": false
+  },
+  "runs_as": "SaaS",
+  "finding_check": "Not stated",
+  "price": "Starter $100/mo (1 test)",
+  "listing": "Penetrify Algofy s.r.o."
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": false,
+   "ad": false,
+   "cloud": false,
+   "llm": false
+  },
+  "runs_as": "SaaS CLI",
+  "finding_check": "Optional human-attested pentest: a US-based, OSCP-certified lead audits every finding and signs the report",
+  "price": "Not published",
+  "listing": "Pensar PensarAI, Inc."
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": true,
+   "ad": true,
+   "cloud": true,
+   "llm": false
+  },
+  "runs_as": "SaaS Self-hosted Docker",
+  "finding_check": "Operator chooses Autonomous or User-approve mode (approve every command) and reviews a reproducible proof for…",
+  "price": "Practitioner $300/mo (web app, API, network and AD assessments, report, retests)",
+  "listing": "Sable Vulnetic Inc."
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": false,
+   "network": true,
+   "ad": false,
+   "cloud": false,
+   "llm": false
+  },
+  "runs_as": "SaaS",
+  "finding_check": "All findings validated by Synack; report is AI-generated and human-validated",
+  "price": "From $5,085 for 1 Standard Sara Pentest (one-time or recurring monthly)",
+  "listing": "Sara Pentest Synack"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": false,
+   "network": false,
+   "ad": false,
+   "cloud": false,
+   "llm": false
+  },
+  "runs_as": "SaaS Self-hosted",
+  "finding_check": "Optional hybrid model with partner LRQA, where human testers certify results and handle edge cases",
+  "price": "Not published",
+  "listing": "Simbian AI Pentest Agent Simbian, Inc."
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": false,
+   "ad": false,
+   "cloud": false,
+   "llm": true
+  },
+  "runs_as": "SaaS",
+  "finding_check": "Autonomous Pentest: no human testers involved; Hybrid Pentest: human pentesters validate findings and sign…",
+  "price": "Autonomous Pentest $3,000 per assessment (one web app + APIs) or US$650/month on a 12-month plan",
+  "listing": "Snipe Stingrai Inc."
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": true,
+   "ad": false,
+   "cloud": false,
+   "llm": true
+  },
+  "runs_as": "SaaS",
+  "finding_check": "StealthStrike: no human validation; AI Pentest and Hybrid: a senior US-based pentester validates every finding",
+  "price": "StealthStrike (AI-only) $1,500 for a single small scope",
+  "listing": "StealthNet AI stealthnet.ai"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": false,
+   "ad": false,
+   "cloud": false,
+   "llm": false
+  },
+  "runs_as": "SaaS",
+  "finding_check": "Every engagement includes a final review by a human security expert; findings are reviewed before you see them",
+  "price": "Quote-based, usage-based",
+  "listing": "XBOW XBOW"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": true,
+   "ad": false,
+   "cloud": false,
+   "llm": false
+  },
+  "runs_as": "Self-hosted CLI Docker",
+  "finding_check": "Optional: a certified BreachLock pentester can review every finding as a final checkpoint",
+  "price": "Not published",
+  "listing": "Breach360 BreachLock"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": false,
+   "ad": false,
+   "cloud": false,
+   "llm": false
+  },
+  "runs_as": "SaaS",
+  "finding_check": "Optional: run fully autonomous or gate exploit steps for human review",
+  "price": "Not published",
+  "listing": "Bright AI Pentesting (AI PT) Bright Security"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": true,
+   "ad": true,
+   "cloud": true,
+   "llm": false
+  },
+  "runs_as": "SaaS Self-hosted Docker",
+  "finding_check": "Not stated",
+  "price": "Per asset, 12-month term: Flex $15 per asset per test",
+  "listing": "NodeZero Horizon3.ai"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": false,
+   "ad": false,
+   "cloud": false,
+   "llm": true
+  },
+  "runs_as": "SaaS Self-hosted",
+  "finding_check": "Not stated for findings; scope, guardrails and test categories can be approved before execution",
+  "price": "Not published",
+  "listing": "Novee Novee Security"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": true,
+   "ad": true,
+   "cloud": true,
+   "llm": false
+  },
+  "runs_as": "",
+  "finding_check": "Not stated",
+  "price": "No price on its own site",
+  "listing": "Pentera Pentera"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": true,
+   "ad": true,
+   "cloud": false,
+   "llm": false
+  },
+  "runs_as": "SaaS Self-hosted",
+  "finding_check": "Not stated",
+  "price": "Not published",
+  "listing": "RidgeBot Ridge Security"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": true,
+   "ad": true,
+   "cloud": false,
+   "llm": false
+  },
+  "runs_as": "Self-hosted",
+  "finding_check": "No human review of findings stated; separate validation agents reproduce each finding, and higher-impact…",
+  "price": "Not published",
+  "listing": "RidgeGen Ridge Security"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": false,
+   "ad": false,
+   "cloud": false,
+   "llm": true
+  },
+  "runs_as": "SaaS",
+  "finding_check": "Not stated",
+  "price": "4,000 credits per assessment (1 credit = $1)",
+  "listing": "Snyk Evo Continuous Offensive Security Snyk"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": false,
+   "ad": false,
+   "cloud": true,
+   "llm": false
+  },
+  "runs_as": "SaaS",
+  "finding_check": "Not stated for findings (validated by its own agents); you can choose to review each test plan before it runs",
+  "price": "Not published",
+  "listing": "Sybil RunSybil"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": true,
+   "ad": false,
+   "cloud": true,
+   "llm": true
+  },
+  "runs_as": "SaaS Self-hosted",
+  "finding_check": "Human-on-the-loop: a human pentester makes the call at every critical decision point; agents validate…",
+  "price": "Not published",
+  "listing": "Terra Platform Terra Security"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": false,
+   "ad": false,
+   "cloud": false,
+   "llm": true
+  },
+  "runs_as": "SaaS",
+  "finding_check": "Not stated",
+  "price": "Not published",
+  "listing": "Equixly equixly.com"
+ },
+ {
+  "category": "commercial agentic/automated pentest platform",
+  "source": "https://aipentestingtools.com/platforms/",
+  "tests": {
+   "web": true,
+   "api": true,
+   "network": true,
+   "ad": true,
+   "cloud": true,
+   "llm": true
+  },
+  "runs_as": "SaaS Self-hosted",
+  "finding_check": "Not stated",
+  "price": "Not published",
+  "listing": "Prancer (SwarmHack) Prancer"
+ },
+ {
+  "category": "classic open-source DAST scanner",
+  "licence": "Apache-2.0",
+  "source": "https://appsecsanta.com/dast-tools/free-dast-tools",
+  "listing": "OWASP ZAP"
+ },
+ {
+  "category": "classic open-source DAST scanner",
+  "licence": "MIT",
+  "source": "https://appsecsanta.com/dast-tools/free-dast-tools",
+  "listing": "Nuclei"
+ },
+ {
+  "category": "classic open-source DAST scanner",
+  "licence": "GPL",
+  "source": "https://appsecsanta.com/dast-tools/free-dast-tools",
+  "listing": "Nikto"
+ },
+ {
+  "category": "classic open-source DAST scanner",
+  "licence": "GPL",
+  "source": "https://appsecsanta.com/dast-tools/free-dast-tools",
+  "listing": "Wapiti"
+ },
+ {
+  "category": "classic open-source DAST scanner",
+  "licence": "",
+  "source": "https://appsecsanta.com/dast-tools/free-dast-tools",
+  "listing": "Arachni (archived)"
+ },
+ {
+  "category": "classic open-source DAST scanner",
+  "licence": "",
+  "source": "https://appsecsanta.com/dast-tools/free-dast-tools",
+  "listing": "w3af (limited maintenance)"
+ }
+]

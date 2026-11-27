@@ -27,6 +27,7 @@ from .contracts import (
 from .graph import GraphError, run_graph
 from .artifact_review import RULESET_VERSION, catalog as rule_catalog, redact_label
 from .offline_worker import scan_payload
+from .taxonomy import public as taxonomy_public
 from .platform_db import personal_projects_enabled
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -173,6 +174,11 @@ def set_session(response, token, request):
 @app.get("/api/catalog")
 def security_catalog():
     return rule_catalog()
+
+
+@app.get("/api/taxonomy")
+def vulnerability_taxonomy():
+    return taxonomy_public()
 
 
 def summaries(owner):
