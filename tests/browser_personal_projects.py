@@ -70,6 +70,10 @@ def main():
         page.wait_for_url("**/projects/*/scans/*")
         scan_id = urlsplit(page.url).path.rsplit("/", 1)[-1]
         expect(page.get_by_role("link", name="Open report", exact=True)).to_be_visible(timeout=50_000)
+        page.get_by_role("link", name="Open report", exact=True).click()
+        decision = page.locator(".reports-decision")
+        expect(decision).to_be_visible(timeout=20_000)  # decision-first block is the first thing on the report
+        expect(decision).to_contain_text("This does not mean the project is clean")
         export = owner.request.get(f"{project_api}/reports/{scan_id}/download?format=pdf&lang=ar")
         assert export.ok and export.body().startswith(b"%PDF")
 
