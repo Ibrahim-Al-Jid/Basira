@@ -7,14 +7,14 @@ down_revision = "platform_personal_0012"
 branch_labels = None
 depends_on = None
 
-SIGNATURE = "public.marsad_start_account_model_call(text,text,text,text,text,text)"
+SIGNATURE = "public.basira_start_account_model_call(text,text,text,text,text,text)"
 
 
 def upgrade():
     if op.get_context().dialect.name != "postgresql":
         return
     op.execute("""
-        CREATE FUNCTION public.marsad_start_account_model_call(
+        CREATE FUNCTION public.basira_start_account_model_call(
             target_org text, target_project text, target_scan text, target_lease text,
             target_generation text, target_model text
         ) RETURNS TABLE (ciphertext bytea, credential_namespace text)
@@ -58,8 +58,8 @@ def upgrade():
     op.execute(f"REVOKE ALL ON FUNCTION {SIGNATURE} FROM PUBLIC")
     op.execute(f"""
         DO $$ BEGIN
-            IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'marsad_model_gateway') THEN
-                GRANT EXECUTE ON FUNCTION {SIGNATURE} TO marsad_model_gateway;
+            IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'basira_model_gateway') THEN
+                GRANT EXECUTE ON FUNCTION {SIGNATURE} TO basira_model_gateway;
             END IF;
         END $$;
     """)

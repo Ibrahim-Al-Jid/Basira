@@ -20,9 +20,9 @@ def main():
         or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:/#-]{0,159}", args.decision_ref or "")
     ):
         parser.error("Supply valid --project, --owner and --decision-ref together.")
-    url = os.environ.get("MARSAD_PLATFORM_MIGRATION_URL")
+    url = os.environ.get("BASIRA_PLATFORM_MIGRATION_URL")
     if not url:
-        parser.error("Set MARSAD_PLATFORM_MIGRATION_URL to the intended administrator connection.")
+        parser.error("Set BASIRA_PLATFORM_MIGRATION_URL to the intended administrator connection.")
     engine = create_engine(url, hide_parameters=True)
     try:
         with engine.begin() as db:

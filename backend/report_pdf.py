@@ -40,8 +40,8 @@ class ReportDocument(FPDF):
         self.set_auto_page_break(True, 18)
         self.add_font("Noto", fname=FONT, variations={"": {"wght": 400}, "B": {"wght": 700}})
         self.set_text_shaping(True, direction="rtl" if self.ar else "ltr")
-        self.set_title("Marsad Security Report")
-        self.set_author("Marsad")
+        self.set_title("Basira Security Report")
+        self.set_author("Basira")
         self.set_lang(language)
 
     def translate(self, ar, en):
@@ -60,7 +60,7 @@ class ReportDocument(FPDF):
         self.set_y(-14)
         self.set_draw_color(LINE)
         self.line(self.l_margin, self.get_y(), self.w - self.r_margin, self.get_y())
-        self.write_line(f"MARSAD  /  {self.page_no()}", size=8, height=4, color=MUTED, direction="ltr")
+        self.write_line(f"BASIRA  /  {self.page_no()}", size=8, height=4, color=MUTED, direction="ltr")
 
 
 def report_pdf(report, lang):
@@ -68,7 +68,7 @@ def report_pdf(report, lang):
     t = pdf.translate
     pdf.add_page()
     pdf.set_fill_color(PAPER)
-    pdf.write_line("MARSAD", size=12, bold=True, color=ACCENT, height=7, fill=True)
+    pdf.write_line("BASIRA", size=12, bold=True, color=ACCENT, height=7, fill=True)
     pdf.write_line(t("تقرير المراجعة الأمنية", "Security review report"), size=24, bold=True, height=15, fill=True)
     pdf.ln(3)
 
@@ -125,8 +125,8 @@ def report_pdf(report, lang):
             label = t("مقروء", "Read") if item.status == "included" else t("متخطى", "Skipped")
             pdf.write_line(f"{label} · {printable(item.path, 160)}", size=9, color=MUTED)
         if len(manifest) > 8:
-            pdf.write_line(t("القائمة كاملة متاحة في مرصد وتصدير JSON.",
-                             "The complete list is available in Marsad and the JSON export."), size=9, color=MUTED)
+            pdf.write_line(t("القائمة كاملة متاحة في بصيرة وتصدير JSON.",
+                             "The complete list is available in Basira and the JSON export."), size=9, color=MUTED)
     if report.imported_evidence:
         imported = report.imported_evidence
         pdf.write_line(t(f"دليل ZAP مستورد · تنبيهات مقبولة: {imported.accepted_alerts} · مستبعدة: {imported.skipped_alerts}",
@@ -165,14 +165,14 @@ def report_pdf(report, lang):
         advice = (finding.remediation_ar if pdf.ar else None) or finding.remediation
         pdf.write_line(t("الإصلاح: ", "Fix: ") + printable(advice))
         if len(matches) > 1:
-            pdf.write_line(t("باقي المواضع موجودة في التقرير داخل مرصد.",
-                             "The full report in Marsad includes the remaining locations."), size=9, color=MUTED)
+            pdf.write_line(t("باقي المواضع موجودة في التقرير داخل بصيرة.",
+                             "The full report in Basira includes the remaining locations."), size=9, color=MUTED)
         pdf.ln(3)
     return bytes(pdf.output())
 
 
 def pdf_download(report, lang):
     return Response(report_pdf(report, lang), media_type="application/pdf", headers={
-        "Content-Disposition": f'attachment; filename="marsad-report-{lang}.pdf"',
+        "Content-Disposition": f'attachment; filename="basira-report-{lang}.pdf"',
         "Cache-Control": "no-store",
     })

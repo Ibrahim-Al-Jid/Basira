@@ -6,7 +6,7 @@ tenant_tables, ci_require_pinned_actions, ci_write_permissions,
 ci_disable_checkout_credentials, protected_branches, fixture_paths,
 production_paths, session_cookie_keys. See the relevant check for input shape.
 
-Branch policy compares complete local `.marsad/branch-protection.json` exports
+Branch policy compares complete local `.basira/branch-protection.json` exports
 with policy `protected_branches`; each maps branch names to
 `{"required_approvals": 2, "required_checks": ["verify"]}` declarations.
 The snapshot stores the observed mapping under `branches` and `complete: true`.
@@ -586,12 +586,12 @@ def check_workflow(path, documents, policy, results):
 
 
 def check_branch_protection(inputs, policy, results):
-    """Analyze .marsad/branch-protection.json with complete branch settings."""
+    """Analyze .basira/branch-protection.json with complete branch settings."""
     desired = policy.get("protected_branches")
     if not isinstance(desired, dict):
         return
     for path, text in inputs.items():
-        if tuple(PurePosixPath(path).parts[-2:]) != (".marsad", "branch-protection.json"):
+        if tuple(PurePosixPath(path).parts[-2:]) != (".basira", "branch-protection.json"):
             continue
         document = json_map(text)
         if document is None:

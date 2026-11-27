@@ -100,7 +100,7 @@ def test_extended_lab_records_rules_tools_and_subtasks(platform):
     selected = {item["id"] for item in report["tool_selection"] if item["status"] == "selected"}
     assert selected == {"html-attributes", "browser-controls", "browser-controls-extra"}
     assert {item["tool"] for item in report["task_runs"] if item["agent"] == "analysis"} == selected
-    assert all(item["contract"] == "marsad-tool-result-1" for item in report["task_runs"])
+    assert all(item["contract"] == "basira-tool-result-1" for item in report["task_runs"])
     assert {task["agent"] for task in report["task_runs"]} == {
         "orchestrator", "planning", "analysis", "validation", "reporting",
     }

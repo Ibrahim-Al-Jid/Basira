@@ -80,14 +80,14 @@ def simulate_adapters(tool, _args, directory, _report, **_options):
 
 
 def engine_setup(stack, profile, manifest):
-    stack.enter_context(patch.dict(os.environ, {"MARSAD_SOURCE_ADAPTERS": "gitleaks,osv-scanner"}))
+    stack.enter_context(patch.dict(os.environ, {"BASIRA_SOURCE_ADAPTERS": "gitleaks,osv-scanner"}))
     if profile == "mocked":
         path = Path(stack.enter_context(TemporaryDirectory()))
         archive = path / "osv-scalibr/PyPI/all.zip"
         archive.parent.mkdir(parents=True)
         archive.touch()
         (path / "database-date").write_text(manifest["osv_database_date"], encoding="ascii")
-        stack.enter_context(patch.dict(os.environ, {"MARSAD_OSV_DB_DIRECTORY": str(path)}))
+        stack.enter_context(patch.dict(os.environ, {"BASIRA_OSV_DB_DIRECTORY": str(path)}))
         stack.enter_context(patch.object(adapters, "run_cli", side_effect=simulate_adapters))
     else:
         if not all((adapters.TOOLS_DIR / tool.id).is_file() for tool in adapters.SOURCE_TOOLS):
@@ -141,7 +141,7 @@ def fixture_enrichment(report, behavior="valid"):
         return provider_response(json, behavior, req)
 
     with TestClient(gateway.app) as client, ExitStack() as stack:
-        stack.enter_context(patch.dict(os.environ, {"MARSAD_GATEWAY_TOKEN": "fixture-only"}))
+        stack.enter_context(patch.dict(os.environ, {"BASIRA_GATEWAY_TOKEN": "fixture-only"}))
         stack.enter_context(patch.object(gateway, "gateway_config", return_value=(
             FIXTURE_GATEWAY.removesuffix("/priority"), {"Authorization": "Bearer fixture-only"},
         )))

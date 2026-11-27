@@ -30,7 +30,7 @@ def upgrade():
     )
     op.create_index("ix_evidence_links_web", TABLE, ["org_id", "project_id", "web_scan"])
     if op.get_context().dialect.name == "postgresql":
-        scope = "org_id = current_setting('marsad.org_id', true) AND project_id = current_setting('marsad.project_id', true)"
+        scope = "org_id = current_setting('basira.org_id', true) AND project_id = current_setting('basira.project_id', true)"
         op.execute(f"ALTER TABLE {TABLE} ENABLE ROW LEVEL SECURITY")
         op.execute(f"ALTER TABLE {TABLE} FORCE ROW LEVEL SECURITY")
         op.execute(f"CREATE POLICY tenant_scope ON {TABLE} USING ({scope}) WITH CHECK ({scope})")

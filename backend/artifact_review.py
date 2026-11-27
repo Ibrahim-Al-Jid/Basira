@@ -24,7 +24,7 @@ MAX_ARTIFACT = 2_000_000
 MAX_EXPANDED = 8_000_000
 MAX_FILE = 1_000_000
 MAX_FILES = 200
-RULESET_VERSION = "marsad-static-2"
+RULESET_VERSION = "basira-static-2"
 DOMAINS = {"HTML": "html", "WEB": "web", "DEP": "dependencies", "INF": "infrastructure",
            "CI": "ci", "APP": "application"}
 
@@ -240,7 +240,7 @@ def tool_record(identifier, agent, tool, started, rows=()):
         outcome = "not_applicable"
     else:
         outcome = "done"
-    return {"id": identifier, "agent": agent, "tool": tool, "status": outcome, "contract": "marsad-tool-result-1",
+    return {"id": identifier, "agent": agent, "tool": tool, "status": outcome, "contract": "basira-tool-result-1",
             "checks": statuses["clear"] + statuses["matched"], "matched": statuses["matched"],
             "coverage": [row.rule for row in rows], "duration_ms": round((time.monotonic() - started) * 1000),
             "version": RULESET_VERSION if tool in ANALYZER_INPUTS else TOOL_PROTOCOL_VERSION}

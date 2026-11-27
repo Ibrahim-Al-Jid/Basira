@@ -1,4 +1,4 @@
-"""Browser acceptance against a locally built Marsad with a disposable database."""
+"""Browser acceptance against a locally built Basira with a disposable database."""
 import json
 import os
 from pathlib import Path
@@ -8,7 +8,7 @@ from playwright.sync_api import expect, sync_playwright
 
 from browser_release import open_report_section, report_locale
 
-BASE = os.environ.get("MARSAD_TEST_URL", "http://127.0.0.1:8766")
+BASE = os.environ.get("BASIRA_TEST_URL", "http://127.0.0.1:8766")
 assert urlparse(BASE).hostname == "127.0.0.1"
 SOURCE = (
     b'<script src="http://assets.example.test/a.js"></script>\r\n'

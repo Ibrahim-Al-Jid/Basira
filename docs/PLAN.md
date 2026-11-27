@@ -1,12 +1,12 @@
-# Marsad plan
+# Basira plan
 
-The single source of truth for what Marsad is, what is built, what is next, and how each piece is accepted. Everything else in the repo supports this file. Edited on 27 November 2026.
+The single source of truth for what Basira is, what is built, what is next, and how each piece is accepted. Everything else in the repo supports this file. Edited on 27 November 2026.
 
 Contents: [1 Product](#1-product) · [2 Current position](#2-current-position) · [3 Phases](#3-phases) · [4 Phase details](#4-phase-details) · [5 Architecture](#5-architecture) · [6 Agents, tools, memory](#6-agents-tools-and-memory) · [7 Contracts](#7-contracts) · [8 Acceptance](#8-acceptance) · [9 Risks](#9-risks-and-limits) · [10 Decisions](#10-decisions) · [11 Conventions](#11-conventions)
 
 ## 1. Product
 
-**Marsad (مرصد)** is a multi-agent web security review workspace. A developer gives it a project (ZIP, authorized GitHub repository, approved website pages, or captured evidence), watches named agents work on it live, and gets an evidence-linked report in Arabic or English, with repair guidance and a recheck after the fix.
+**Basira (بصيرة)** is a multi-agent web security review workspace. A developer gives it a project (ZIP, authorized GitHub repository, approved website pages, or captured evidence), watches named agents work on it live, and gets an evidence-linked report in Arabic or English, with repair guidance and a recheck after the fix.
 
 Tagline from the blueprint: Detect. Verify. Remediate. Secure.
 
@@ -68,6 +68,7 @@ Status: **done** (built, tests exist, acceptance re-run or re-checked on 27 Nove
 | P16 | Performance and data design | Latency budgets, incremental scans, caching, indexes, schema review, load tests | open |
 | P17 | Evaluation | Benchmarks, labeled corpus, four-configuration comparison with measured detection rates | open |
 | P18 | Hardening and release | Isolation and recovery acceptance, Docker verified, legacy removal, release manifest, rename | open |
+| P19 | Coverage expansion and project review | Research which vulnerability classes can realistically be detected, close the cheap gaps in the 75-subdomain taxonomy, review what exists against evidence and list real improvements | open |
 
 Order of work: P07 gaps (checkpoint failure and isolation acceptance), P09, P10, P11, P13, P16, P15, P12, P17, P18. P14 follows decision A and ships before P17 if approved, so evaluation covers it.
 
@@ -239,8 +240,8 @@ What makes this graduation-worthy, in priority order: (1) live multi-agent view 
 
 | ID | Decision | Status |
 |---|---|---|
-| A | Add the owner-verified active verification tier (P14) | open, owner |
-| B | Keep the name Marsad or rename (one switch across repo, package, UI, README, logo) | open, owner |
+| A | Add the owner-verified active verification tier (P14), opt-in, runs only for an owner-verified target | decided 27 November 2026 (owner delegated the call; built in P14) |
+| B | Rename the product from Marsad to Basira (بصيرة, insight): repo text, package, UI, docs, tests applied in one change; the GitHub repository is renamed after the change merges | decided 27 November 2026 (owner approved a rename; name chosen by the agent) |
 | F | Report assistant stays in scope (owner decision 27 November 2026), read-only and cited | decided |
 | C | One tracker, this file; blueprint and repository phase IDs retired | decided 27 November 2026 |
 | D | Initial user is the individual developer, local first | decided |
@@ -252,6 +253,6 @@ What makes this graduation-worthy, in priority order: (1) live multi-agent view 
 - IDs: phases `P01` to `P16`, gates `A1` to `A5`, decisions letters, rules keep their registry IDs (for example `WEB-05`, `INF-03`).
 - Files: Python and docs use lowercase snake_case (`scan_contracts.py`) except `README`, `PLAN`, `CHANGELOG`, `LICENSE`; docs folders use lowercase kebab-case. Names describe what a file does, never when it was written. No phase numbers in file, function or variable names.
 - Tests: `backend/test_<module>.py`; browser suites `tests/browser_<what>.py`; fixtures under `tests/fixtures/<what>/`.
-- Environment variables start with `MARSAD_`.
+- Environment variables start with `BASIRA_`.
 - Generated files say so in their header and have a freshness test.
 - Documentation language: English for new files; existing Arabic files stay Arabic until translated. The owner decides the language.

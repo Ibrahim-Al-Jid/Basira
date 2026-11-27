@@ -13,11 +13,11 @@ def upgrade():
     op.add_column("users", sa.Column("last_name", sa.String(80)))
     op.add_column("users", sa.Column("username", sa.String(30)))
     op.create_index("ux_users_username", "users", ["username"], unique=True)
-    op.execute("UPDATE users SET display_name = '' WHERE issuer = 'urn:marsad:password' AND display_name = subject")
+    op.execute("UPDATE users SET display_name = '' WHERE issuer = 'urn:basira:password' AND display_name = subject")
 
 
 def downgrade():
-    op.execute("UPDATE users SET display_name = subject WHERE issuer = 'urn:marsad:password' AND display_name = ''")
+    op.execute("UPDATE users SET display_name = subject WHERE issuer = 'urn:basira:password' AND display_name = ''")
     op.drop_index("ux_users_username", table_name="users")
     op.drop_column("users", "username")
     op.drop_column("users", "last_name")

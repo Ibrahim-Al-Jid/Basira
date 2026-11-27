@@ -176,7 +176,7 @@ def database_engine(url):
 
 
 def platform_database_url():
-    url = os.environ.get("MARSAD_PLATFORM_DATABASE_URL")
+    url = os.environ.get("BASIRA_PLATFORM_DATABASE_URL")
     if not url:
         raise PlatformUnavailable("Platform database is not configured.")
     return url
@@ -190,7 +190,7 @@ def platform_session():
 
 
 def personal_projects_enabled():
-    return os.environ.get("MARSAD_PERSONAL_PROJECTS") == "1"
+    return os.environ.get("BASIRA_PERSONAL_PROJECTS") == "1"
 
 
 def personal_namespace_id(db, user_id, *, create=False):
@@ -210,16 +210,16 @@ def personal_namespace_id(db, user_id, *, create=False):
 
 def bind_owner(db, user_id):
     if db.get_bind().dialect.name == "postgresql":
-        db.execute(text("SELECT set_config('marsad.owner_user_id', :owner, true)"), {"owner": user_id})
+        db.execute(text("SELECT set_config('basira.owner_user_id', :owner, true)"), {"owner": user_id})
 
 
 def bind_project(db, org_id, project_id, *, owner_user_id=None):
     """Bind trusted IDs for the current transaction; resetting happens on commit/rollback."""
     if db.get_bind().dialect.name == "postgresql":
-        db.execute(text("SELECT set_config('marsad.org_id', :org_id, true), "
-                        "set_config('marsad.project_id', :project_id, true), "
-                        "set_config('marsad.owner_user_id', :owner, true), "
-                        "set_config('marsad.legacy_project_access', :legacy, true)"),
+        db.execute(text("SELECT set_config('basira.org_id', :org_id, true), "
+                        "set_config('basira.project_id', :project_id, true), "
+                        "set_config('basira.owner_user_id', :owner, true), "
+                        "set_config('basira.legacy_project_access', :legacy, true)"),
                    {"org_id": org_id, "project_id": project_id, "owner": owner_user_id or "",
                     "legacy": "0" if personal_projects_enabled() else "1"})
 

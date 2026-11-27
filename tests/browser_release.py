@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from playwright.sync_api import expect, sync_playwright
 
-ORIGIN = os.environ.get("MARSAD_TEST_PLATFORM_URL", "http://127.0.0.1:8776")
+ORIGIN = os.environ.get("BASIRA_TEST_PLATFORM_URL", "http://127.0.0.1:8776")
 assert urlparse(ORIGIN).hostname == "127.0.0.1"
 
 
@@ -96,8 +96,8 @@ def main():
             })
             assert account.status == 201
         else:
-            token = os.environ["MARSAD_TEST_SESSION"]
-            context.add_cookies([{"name": "marsad_platform_session", "value": token, "url": ORIGIN}])
+            token = os.environ["BASIRA_TEST_SESSION"]
+            context.add_cookies([{"name": "basira_platform_session", "value": token, "url": ORIGIN}])
         org = user.post(ORIGIN + "/api/platform/organizations", data={"name": "Release acceptance"})
         assert org.status == 201
         response = user.post(f"{ORIGIN}/api/platform/organizations/{org.json()['id']}/projects",
@@ -154,7 +154,7 @@ def main():
         report = download(page, page.get_by_role("link", name="Download SARIF"))
         assert report["version"] == "2.1.0"
         assert report["runs"][0]["results"][0]["ruleId"] == "http-form"
-        schema = os.environ.get("MARSAD_TEST_SARIF_SCHEMA")
+        schema = os.environ.get("BASIRA_TEST_SARIF_SCHEMA")
         if schema:
             from jsonschema.validators import validator_for
             specification = json.loads(Path(schema).read_text(encoding="utf-8"))

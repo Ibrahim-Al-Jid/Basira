@@ -1,4 +1,4 @@
-# نموذج بيانات مرصد
+# نموذج بيانات بصيرة
 
 ## ملكية المشاريع الشخصية
 
@@ -27,7 +27,7 @@ erDiagram
 |---|---|
 | `project_scans.analysis_checkpoint` | عمود JSON يضاف بالترحيل `platform_checkpoints_0015`. يحمل `version` و`binding` و`analysis_sha256` ونسخة منقّحة من نتيجة التحليل الحتمي فقط. الربط يضم `trace_id` و`source_sha256` و`inventory_sha256` و`org_id` و`project_id` و`user_id` و`request_digest` و`idempotency_key` و`input_metadata` و`policy`. يُكتب تحت lease نشط، ويُقرأ فقط إذا تطابق الربط والبصمة، ويُمسح عند أي حالة نهائية أو فقدان المصدر. |
 | `project_scans.report` | يحمل حقول العقد `execution` و`agent_advisory` و`review_context` بعد اكتمال النشر. `execution` يثبت البصمات وعدد الملفات والمواضع المتحققة؛ `agent_advisory` اقتراحات مراجعة بشرية محدودة؛ `review_context` حالات تصنيف سابقة مرتبطة بـ`prior_scan_id`. لا تحمل أي منها محتوى ملف أو سرًا. |
-| `trigger marsad_clear_analysis_checkpoint` | في PostgreSQL يصفّر العمود عند تحديث الحالة إلى `completed/partial/failed/cancelled` أو عند فقدان `raw`. الحماية مكمّلة لمنطق التطبيق لا بديل عنه. |
+| `trigger basira_clear_analysis_checkpoint` | في PostgreSQL يصفّر العمود عند تحديث الحالة إلى `completed/partial/failed/cancelled` أو عند فقدان `raw`. الحماية مكمّلة لمنطق التطبيق لا بديل عنه. |
 
 علاقة الاسترجاع تمر عبر `provenance(source_sha256, scope)` و`findings(fingerprint)` و`activities(fingerprint, author_id, action, status)` داخل نطاق المالك والمشروع نفسه. المراجعة السابقة تُستخدم سياقًا فقط، ولا تُغيّر دليل النتيجة الحالية أو درجة خطورتها. [التصميم](ARCHITECTURE.md#الوكلاء-وحقائق-اللقطة--phase-16)
 

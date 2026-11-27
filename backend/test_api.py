@@ -14,7 +14,7 @@ class ApiTests(unittest.TestCase):
     def setUp(self):
         tmp = self.enterContext(TemporaryDirectory())
         self.db = Path(tmp) / "test.sqlite3"
-        self.enterContext(patch.dict(os.environ, {"MARSAD_DB_PATH": str(self.db)}))
+        self.enterContext(patch.dict(os.environ, {"BASIRA_DB_PATH": str(self.db)}))
         self.client = self.enterContext(TestClient(main.app))
         self.key = "test-key-fictional"
         self.run = {"source": "<p>demo</p>"}

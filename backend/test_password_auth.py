@@ -20,10 +20,10 @@ AUTH = "/api/platform/auth"
 @pytest.fixture
 def accounts(monkeypatch, tmp_path):
     url = "sqlite:///" + (tmp_path / "password.sqlite3").as_posix()
-    monkeypatch.setenv("MARSAD_DB_PATH", str(tmp_path / "lab.sqlite3"))
-    monkeypatch.setenv("MARSAD_PLATFORM_DATABASE_URL", url)
-    monkeypatch.setenv("MARSAD_PASSWORD_AUTH_ENABLED", "1")
-    monkeypatch.setenv("MARSAD_PASSWORD_SELF_SIGNUP", "1")
+    monkeypatch.setenv("BASIRA_DB_PATH", str(tmp_path / "lab.sqlite3"))
+    monkeypatch.setenv("BASIRA_PLATFORM_DATABASE_URL", url)
+    monkeypatch.setenv("BASIRA_PASSWORD_AUTH_ENABLED", "1")
+    monkeypatch.setenv("BASIRA_PASSWORD_SELF_SIGNUP", "1")
     engine = database_engine(url)
     Base.metadata.create_all(engine)
     with TestClient(app, base_url=BASE) as first, TestClient(app, base_url=BASE) as other:
@@ -90,7 +90,7 @@ def test_throttle_and_generic_rejection(accounts):
 def test_signup_scoped_to_local_and_disabled_user_denied(accounts, monkeypatch):
     owner, _ = accounts
     assert authenticate(owner, "register").status_code == 201
-    monkeypatch.setenv("MARSAD_PASSWORD_SELF_SIGNUP", "0")
+    monkeypatch.setenv("BASIRA_PASSWORD_SELF_SIGNUP", "0")
     assert authenticate(owner, "register", "blocked@example.test").status_code == 403
     with TestClient(app, base_url="http://public.example.test") as public:
         assert authenticate(public, "login").status_code == 403
@@ -112,7 +112,7 @@ def test_existing_local_session_denied_when_login_disabled(accounts, monkeypatch
     owner, _ = accounts
     assert authenticate(owner, "register").status_code == 201
     assert owner.get(AUTH + "/me").status_code == 200
-    monkeypatch.setenv("MARSAD_PASSWORD_AUTH_ENABLED", "0")
+    monkeypatch.setenv("BASIRA_PASSWORD_AUTH_ENABLED", "0")
     assert owner.get(AUTH + "/me").status_code == 401
     assert owner.get(AUTH + "/options").json()["password"] is False
 
@@ -158,9 +158,9 @@ def test_signup_names_and_private_profile_updates(accounts):
 
 def test_existing_password_account_survives_profile_migration(monkeypatch, tmp_path):
     url = "sqlite:///" + (tmp_path / "legacy.sqlite3").as_posix()
-    for key in ("MARSAD_PLATFORM_DATABASE_URL", "MARSAD_PLATFORM_MIGRATION_URL"):
+    for key in ("BASIRA_PLATFORM_DATABASE_URL", "BASIRA_PLATFORM_MIGRATION_URL"):
         monkeypatch.setenv(key, url)
-    monkeypatch.setenv("MARSAD_PASSWORD_AUTH_ENABLED", "1")
+    monkeypatch.setenv("BASIRA_PASSWORD_AUTH_ENABLED", "1")
     config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     command.upgrade(config, "platform_models_0008")
     engine = database_engine(url)
@@ -169,7 +169,7 @@ def test_existing_password_account_survives_profile_migration(monkeypatch, tmp_p
         with engine.begin() as conn:
             conn.execute(sa.text(
                 "INSERT INTO users (id, issuer, subject, display_name, created_at) "
-                "VALUES (:id, 'urn:marsad:password', :email, :email, '2025-01-01 10:00:00')"
+                "VALUES (:id, 'urn:basira:password', :email, :email, '2025-01-01 10:00:00')"
             ), {"id": account_id, "email": EMAIL})
             conn.execute(credentials.insert().values(user_id=account_id, password_hash=HASHER.hash(PASSWORD)))
         command.upgrade(config, "platform_profiles_0009")

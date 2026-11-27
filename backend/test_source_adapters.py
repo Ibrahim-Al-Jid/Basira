@@ -47,7 +47,7 @@ def projected_report(data):
 
 
 def test_gitleaks_fixture_merges_builtin_observation_and_keeps_provenance(monkeypatch):
-    monkeypatch.setenv("MARSAD_SOURCE_ADAPTERS", "gitleaks")
+    monkeypatch.setenv("BASIRA_SOURCE_ADAPTERS", "gitleaks")
 
     def cli(tool, args, directory, report, **options):
         assert tool is adapters.GITLEAKS
@@ -80,8 +80,8 @@ def test_gitleaks_fixture_merges_builtin_observation_and_keeps_provenance(monkey
 
 
 def test_osv_aliases_merge_and_partial_input_retains_results(monkeypatch, tmp_path):
-    monkeypatch.setenv("MARSAD_SOURCE_ADAPTERS", "osv-scanner")
-    monkeypatch.setenv("MARSAD_OSV_DB_DIRECTORY", str(tmp_path))
+    monkeypatch.setenv("BASIRA_SOURCE_ADAPTERS", "osv-scanner")
+    monkeypatch.setenv("BASIRA_OSV_DB_DIRECTORY", str(tmp_path))
     cache = tmp_path / "osv-scalibr" / "PyPI" / "all.zip"
     cache.parent.mkdir(parents=True)
     cache.touch()
@@ -115,7 +115,7 @@ def test_osv_aliases_merge_and_partial_input_retains_results(monkeypatch, tmp_pa
     (ValueError("private exception content"), "adapter_invalid_output"),
 ])
 def test_adapter_failure_keeps_local_findings(monkeypatch, failure, reason):
-    monkeypatch.setenv("MARSAD_SOURCE_ADAPTERS", "gitleaks")
+    monkeypatch.setenv("BASIRA_SOURCE_ADAPTERS", "gitleaks")
     def cli(*args, **kwargs):
         raise failure
     monkeypatch.setattr(adapters, "run_cli", cli)
@@ -129,8 +129,8 @@ def test_adapter_failure_keeps_local_findings(monkeypatch, failure, reason):
 
 
 def test_unavailable_osv_database_is_partial(monkeypatch, tmp_path):
-    monkeypatch.setenv("MARSAD_SOURCE_ADAPTERS", "osv-scanner")
-    monkeypatch.setenv("MARSAD_OSV_DB_DIRECTORY", str(tmp_path))
+    monkeypatch.setenv("BASIRA_SOURCE_ADAPTERS", "osv-scanner")
+    monkeypatch.setenv("BASIRA_OSV_DB_DIRECTORY", str(tmp_path))
     report = scan(POSITIVE)
     [osv] = [run for run in report["task_runs"] if run["tool"] == "osv-scanner"]
     assert report["status"] == "partial" and osv["reason"] == "database_unavailable"
@@ -138,8 +138,8 @@ def test_unavailable_osv_database_is_partial(monkeypatch, tmp_path):
 
 @pytest.mark.parametrize("lockfile_version", [2, 3])
 def test_osv_npm_scans_sanitized_lockfile_and_preserves_evidence_line(monkeypatch, tmp_path, lockfile_version):
-    monkeypatch.setenv("MARSAD_SOURCE_ADAPTERS", "osv-scanner")
-    monkeypatch.setenv("MARSAD_OSV_DB_DIRECTORY", str(tmp_path))
+    monkeypatch.setenv("BASIRA_SOURCE_ADAPTERS", "osv-scanner")
+    monkeypatch.setenv("BASIRA_OSV_DB_DIRECTORY", str(tmp_path))
     build_index = runpy.run_path(str(Path(__file__).parent.parent / "ops/index-npm-advisories.py"))["build_index"]
     with ZipFile(tmp_path / "official-fixture.zip", "w") as archive:
         for identifier, names in {
@@ -201,7 +201,7 @@ def test_duplicate_npm_json_keys_remain_partial_and_never_run_cli(monkeypatch):
 
 
 def test_missing_npm_database_retains_pypi_results(monkeypatch, tmp_path):
-    monkeypatch.setenv("MARSAD_OSV_DB_DIRECTORY", str(tmp_path))
+    monkeypatch.setenv("BASIRA_OSV_DB_DIRECTORY", str(tmp_path))
     cache = tmp_path / "osv-scalibr" / "PyPI" / "all.zip"
     cache.parent.mkdir(parents=True)
     cache.touch()
@@ -271,9 +271,9 @@ def test_adapter_broker_rejects_unreviewed_flags_and_paths(tmp_path, monkeypatch
             adapters.run_cli(tool, argv, tmp_path, output, timeout=1, success={0}, env=env)
 
 
-@pytest.mark.skipif(os.environ.get("MARSAD_REAL_ADAPTERS") != "1", reason="requires pinned tools and a read-only OSV snapshot")
+@pytest.mark.skipif(os.environ.get("BASIRA_REAL_ADAPTERS") != "1", reason="requires pinned tools and a read-only OSV snapshot")
 def test_actual_tools_offline_against_fixed_positive_and_negative(monkeypatch):
-    monkeypatch.setenv("MARSAD_SOURCE_ADAPTERS", "gitleaks,osv-scanner")
+    monkeypatch.setenv("BASIRA_SOURCE_ADAPTERS", "gitleaks,osv-scanner")
     positive = scan(POSITIVE)
     assert positive["status"] == "completed", [run for run in positive["task_runs"] if run["tool"] in {
         "gitleaks", "osv-scanner",

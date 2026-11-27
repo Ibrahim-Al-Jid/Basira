@@ -2,7 +2,7 @@
 services:
   app:
     environment:
-      MARSAD_PASSWORD_AUTH_ENABLED: "1"
-      MARSAD_PASSWORD_SELF_SIGNUP: "1"
+      BASIRA_PASSWORD_AUTH_ENABLED: "1"
+      BASIRA_PASSWORD_SELF_SIGNUP: "1"
     volumes:
-      - ./data:/srv/marsad/data
+      - ./data:/srv/basira/data

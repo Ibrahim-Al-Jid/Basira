@@ -32,12 +32,12 @@ def project_zip():
 
 
 def main():
-    origin = os.environ["MARSAD_QA_ORIGIN"].rstrip("/")
+    origin = os.environ["BASIRA_QA_ORIGIN"].rstrip("/")
     parsed = urlsplit(origin)
     if parsed.scheme != "http" or parsed.hostname != "127.0.0.1" or parsed.port in (None, 8765):
         raise ValueError("Use a disposable loopback instance on its own port.")
     with sync_playwright() as playwright:
-        channel = os.environ.get("MARSAD_BROWSER_CHANNEL")
+        channel = os.environ.get("BASIRA_BROWSER_CHANNEL")
         browser = playwright.chromium.launch(channel=channel)
         owner = browser.new_context(locale="en-US")
         other = browser.new_context(locale="ar-EG", viewport={"width": 390, "height": 844})

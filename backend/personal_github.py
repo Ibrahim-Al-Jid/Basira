@@ -1,4 +1,4 @@
-"""GitHub App authorization and snapshots as the signed-in Marsad account."""
+"""GitHub App authorization and snapshots as the signed-in Basira account."""
 
 import base64
 from datetime import timedelta
@@ -28,7 +28,7 @@ from .platform_runtime import now
 router = APIRouter(prefix="/api/platform/github", tags=["Personal GitHub"])
 OAUTH = "https://github.com/login/oauth"
 CALLBACK_PATH = "/api/platform/github/callback"
-CALLBACK_COOKIE = "marsad_github_callback"
+CALLBACK_COOKIE = "basira_github_callback"
 CALLBACK_TTL = 600
 MAX_PAGES = 5
 
@@ -47,10 +47,10 @@ logging.getLogger("uvicorn.access").addFilter(HideCallbackQuery())
 
 def config():
     local = local_config()
-    client_id = os.getenv("MARSAD_GITHUB_CLIENT_ID") or local.get("client_id", "")
-    secret = os.getenv("MARSAD_GITHUB_CLIENT_SECRET") or local.get("client_secret", "")
-    callback = os.getenv("MARSAD_GITHUB_CALLBACK_URL") or local.get("callback_url", "")
-    key = os.getenv("MARSAD_GITHUB_CREDENTIAL_KEY") or local.get("credential_key", "")
+    client_id = os.getenv("BASIRA_GITHUB_CLIENT_ID") or local.get("client_id", "")
+    secret = os.getenv("BASIRA_GITHUB_CLIENT_SECRET") or local.get("client_secret", "")
+    callback = os.getenv("BASIRA_GITHUB_CALLBACK_URL") or local.get("callback_url", "")
+    key = os.getenv("BASIRA_GITHUB_CREDENTIAL_KEY") or local.get("credential_key", "")
     if not client_id or not re.fullmatch(r"[A-Za-z0-9_.-]{1,100}", client_id) or not secret or not re.fullmatch(
         r"(?:https://[A-Za-z0-9.-]+(?::[0-9]+)?|http://127\.0\.0\.1:[0-9]+)" + CALLBACK_PATH, callback
     ):
@@ -90,7 +90,7 @@ def authorize(request: Request):
     user = personal_user(request)
     client_id, _, callback, cipher = settings()
     if callback != str(request.base_url).rstrip("/") + CALLBACK_PATH:
-        raise HTTPException(409, "افتح مرصد من العنوان المسجل في إعداد GitHub وحاول تاني.")
+        raise HTTPException(409, "افتح بصيرة من العنوان المسجل في إعداد GitHub وحاول تاني.")
     digest = session_digest(request)
     state, verifier = token_urlsafe(32), token_urlsafe(64)
     challenge = base64.urlsafe_b64encode(sha256(verifier.encode()).digest()).decode().rstrip("=")
@@ -280,7 +280,7 @@ def setup(request: Request):
     personal_user(request)
     configured = config()
     callback = configured[2] if configured else str(request.base_url).rstrip("/") + CALLBACK_PATH
-    slug = os.getenv("MARSAD_GITHUB_APP_SLUG") or local_config().get("slug", "")
+    slug = os.getenv("BASIRA_GITHUB_APP_SLUG") or local_config().get("slug", "")
     install = "https://github.com/apps/" + slug + "/installations/new" if re.fullmatch(r"[a-z0-9-]{1,100}", slug) else None
     return {"callback_url": callback, "install_url": install}
 

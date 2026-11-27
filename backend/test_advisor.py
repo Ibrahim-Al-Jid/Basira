@@ -44,7 +44,7 @@ def artifact_report():
 
 @pytest.fixture
 def mocked_gateway(monkeypatch):
-    monkeypatch.setenv("MARSAD_GATEWAY_TOKEN", "fixture-service-token")
+    monkeypatch.setenv("BASIRA_GATEWAY_TOKEN", "fixture-service-token")
     monkeypatch.setattr(gateway, "gateway_config", lambda: (
         GATEWAY_URL, {"Authorization": "Bearer fixture-service-token"},
     ))
@@ -100,7 +100,7 @@ def test_advisor_sends_only_allowlisted_facts_and_preserves_evidence(monkeypatch
         field: original[field] for field in ("findings", "coverage", "execution", "input_paths")
     }
     assert report["agent_advisory"] == {
-        "version": "marsad-advisor-1",
+        "version": "basira-advisor-1",
         "planning": ADVICE["planning"],
         "validation": [{"fingerprint": "1" * 64, "label": "review_evidence"}],
         "explanation": [{"fingerprint": "2" * 64, "label": "read_remediation"}],

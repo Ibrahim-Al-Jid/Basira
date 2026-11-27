@@ -50,7 +50,7 @@ def canonical_url(value):
 
 def approved_pages(project_id):
     try:
-        assignments = json.loads(os.environ.get("MARSAD_APPROVED_WEBSITE_PAGES", "{}"))
+        assignments = json.loads(os.environ.get("BASIRA_APPROVED_WEBSITE_PAGES", "{}"))
         approved = assignments.get(project_id, [])
     except (ValueError, AttributeError):
         approved = []
@@ -197,7 +197,7 @@ def end_connection(transport):
 def capture_response(conn, target, url, deadline, tls_version):
     conn.request("GET", target.path, headers={
         "Accept": "text/html, application/xhtml+xml", "Accept-Encoding": "identity",
-        "User-Agent": "Marsad-Passive-Evidence/1.0", "Connection": "close",
+        "User-Agent": "Basira-Passive-Evidence/1.0", "Connection": "close",
     })
     with conn.getresponse() as response:
         content_type = response.getheader("Content-Type", "").split(";", 1)[0].strip().lower()

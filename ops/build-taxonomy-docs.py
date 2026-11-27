@@ -19,7 +19,7 @@ def render():
              "", "Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or header capture. "
              "`active` needs authorized live probing and is not in the current scope policy. `manual` needs a person.", ""]
     for d in t.DOMAINS:
-        lines += [f"## {d['id']} {d['name']}", "", "| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Marsad checks |", "|---|---|---|---|---|---|---|"]
+        lines += [f"## {d['id']} {d['name']}", "", "| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Basira checks |", "|---|---|---|---|---|---|---|"]
         for x in d["subdomains"]:
             refs = ", ".join(x["owasp_2025"] + x["owasp_api_2023"])
             rules = ", ".join(x["rules"]) if x["rules"] else "gap"

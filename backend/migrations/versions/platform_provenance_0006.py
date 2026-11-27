@@ -20,7 +20,7 @@ def scoped():
 
 def install_expiry():
     op.execute("""
-        CREATE FUNCTION public.marsad_expire_artifacts() RETURNS integer
+        CREATE FUNCTION public.basira_expire_artifacts() RETURNS integer
         LANGUAGE SQL SECURITY DEFINER SET search_path = pg_catalog SET row_security = off
         AS $expiry$
             WITH expired AS (
@@ -52,11 +52,11 @@ def install_expiry():
             SELECT count(*)::integer FROM updated;
         $expiry$;
     """)
-    op.execute("REVOKE ALL ON FUNCTION public.marsad_expire_artifacts() FROM PUBLIC")
+    op.execute("REVOKE ALL ON FUNCTION public.basira_expire_artifacts() FROM PUBLIC")
     op.execute("""
         DO $$ BEGIN
-            IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'marsad_dispatch') THEN
-                GRANT EXECUTE ON FUNCTION public.marsad_expire_artifacts() TO marsad_dispatch;
+            IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'basira_dispatch') THEN
+                GRANT EXECUTE ON FUNCTION public.basira_expire_artifacts() TO basira_dispatch;
             END IF;
         END $$;
     """)
@@ -95,16 +95,16 @@ def upgrade():
     if op.get_context().dialect.name == "postgresql":
         op.execute("SET LOCAL row_security = off")
         op.execute("UPDATE project_scans SET source_expires_at = created_at + interval '15 minutes' WHERE raw IS NOT NULL")
-        filter_ = "org_id = current_setting('marsad.org_id', true) AND project_id = current_setting('marsad.project_id', true)"
+        filter_ = "org_id = current_setting('basira.org_id', true) AND project_id = current_setting('basira.project_id', true)"
         for name in TABLES:
             op.execute(f"ALTER TABLE {name} ENABLE ROW LEVEL SECURITY")
             op.execute(f"ALTER TABLE {name} FORCE ROW LEVEL SECURITY")
             op.execute(f"CREATE POLICY project_access ON {name} USING ({filter_}) WITH CHECK ({filter_})")
         op.execute("""
             DO $$ BEGIN
-                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'marsad_app') THEN
+                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'basira_app') THEN
                     REVOKE UPDATE, DELETE ON project_assets, project_scan_provenance,
-                    project_evidence_records FROM marsad_app;
+                    project_evidence_records FROM basira_app;
                 END IF;
             END $$;
         """)
@@ -115,7 +115,7 @@ def upgrade():
 
 def downgrade():
     if op.get_context().dialect.name == "postgresql":
-        op.execute("DROP FUNCTION public.marsad_expire_artifacts()")
+        op.execute("DROP FUNCTION public.basira_expire_artifacts()")
     for name in reversed(TABLES):
         op.drop_table(name)
     op.drop_index("ix_project_scans_source_expiry", table_name="project_scans")

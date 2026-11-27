@@ -17,7 +17,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 import zlib
 
 
-TOOLS_DIR = Path("/opt/marsad-tools")
+TOOLS_DIR = Path("/opt/basira-tools")
 MAX_REPORT_BYTES = 2_000_000
 MAX_OBSERVATIONS = 1000
 MAX_NPM_ADVISORIES = 2000
@@ -73,7 +73,7 @@ class AdapterError(Exception):
 
 
 def configured_tools():
-    selected = {name.strip() for name in os.environ.get("MARSAD_SOURCE_ADAPTERS", "").split(",")}
+    selected = {name.strip() for name in os.environ.get("BASIRA_SOURCE_ADAPTERS", "").split(",")}
     return tuple(tool for tool in SOURCE_TOOLS if tool.id in selected)
 
 
@@ -351,7 +351,7 @@ def npm_inputs(files, directory):
 
 
 def database(ecosystem="PyPI"):
-    cache = Path(os.environ.get("MARSAD_OSV_DB_DIRECTORY", "/opt/marsad-osv"))
+    cache = Path(os.environ.get("BASIRA_OSV_DB_DIRECTORY", "/opt/basira-osv"))
     archive = cache / "npm-advisories.sqlite3" if ecosystem == "npm" else cache / "osv-scalibr" / ecosystem / "all.zip"
     stamp_name = "npm-database-date" if ecosystem == "npm" else "database-date"
     try:
@@ -518,7 +518,7 @@ def review_source(tool, files):
     if not any(tool is registered for registered in SOURCE_TOOLS):
         return AdapterResult([], "error", "adapter_not_registered")
     try:
-        with TemporaryDirectory(prefix="marsad-source-") as scratch:
+        with TemporaryDirectory(prefix="basira-source-") as scratch:
             return OPERATIONS[tool](files, Path(scratch))
     except AdapterError as exc:
         return AdapterResult([], "error", str(exc))

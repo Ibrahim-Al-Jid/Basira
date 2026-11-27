@@ -10,7 +10,7 @@ Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or he
 
 ## D01 Access control and authorization
 
-| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Marsad checks |
+| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Basira checks |
 |---|---|---|---|---|---|---|
 | D01.1 | Object-level authorization (IDOR/BOLA) | 639, 284, 862, 863 | A01, API1 | ATHZ | active, manual | gap |
 | D01.2 | Function-level authorization and privilege escalation | 862, 863, 269 | A01, API5 | ATHZ | active, manual | gap |
@@ -30,7 +30,7 @@ Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or he
 
 ## D02 Authentication and identity
 
-| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Marsad checks |
+| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Basira checks |
 |---|---|---|---|---|---|---|
 | D02.1 | Credential entry and handling in forms | 598, 256, 549 | A07 | ATHN | artifact | HTML-17, HTML-18 |
 | D02.2 | Authentication over cleartext channels | 319, 523 | A07, A04 | ATHN, CRYP | capture | WEB-22 |
@@ -50,7 +50,7 @@ Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or he
 
 ## D03 Session management
 
-| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Marsad checks |
+| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Basira checks |
 |---|---|---|---|---|---|---|
 | D03.1 | Session cookie attributes | 614, 1004, 1275 | A07, A02 | SESS | capture, artifact | WEB-09, WEB-10, WEB-11, WEB-12, APP-05, APP-08 |
 | D03.2 | Session lifecycle: fixation, expiry, logout | 384, 613 | A07 | SESS | capture, active | WEB-19 |
@@ -62,7 +62,7 @@ Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or he
 
 ## D04 Injection
 
-| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Marsad checks |
+| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Basira checks |
 |---|---|---|---|---|---|---|
 | D04.1 | SQL and NoSQL injection | 89, 943 | A05 | INPV | active | gap |
 | D04.2 | OS command and code injection | 78, 77, 94, 95 | A05 | INPV | active, manual | gap |
@@ -78,7 +78,7 @@ Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or he
 
 ## D05 Client-side security
 
-| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Marsad checks |
+| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Basira checks |
 |---|---|---|---|---|---|---|
 | D05.1 | Cross-site scripting | 79 | A05 | INPV, CLNT | active, manual | gap |
 | D05.2 | Content Security Policy | 693, 1021 | A02 | CONF, CLNT | capture | WEB-02, WEB-03, WEB-04 |
@@ -102,7 +102,7 @@ Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or he
 
 ## D06 Server-side requests and HTTP handling
 
-| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Marsad checks |
+| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Basira checks |
 |---|---|---|---|---|---|---|
 | D06.1 | Server-side request forgery | 918 | A01, API7 | INPV | active | gap |
 | D06.2 | Host header and routing trust | 644 | A02 | INPV, CONF | artifact, active | APP-09 |
@@ -118,7 +118,7 @@ Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or he
 
 ## D07 Cryptography and transport security
 
-| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Marsad checks |
+| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Basira checks |
 |---|---|---|---|---|---|---|
 | D07.1 | Mixed content and cleartext submission | 319, 311 | A04 | CRYP | artifact | http-script, http-form, HTML-06, HTML-07, HTML-08, HTML-09, HTML-14 |
 | D07.2 | HSTS and HTTPS redirects | 319, 523 | A04, A02 | CRYP, CONF | capture | WEB-01, WEB-23 |
@@ -134,7 +134,7 @@ Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or he
 
 ## D08 Security misconfiguration and hardening
 
-| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Marsad checks |
+| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Basira checks |
 |---|---|---|---|---|---|---|
 | D08.1 | Hardening headers | 693, 16 | A02 | CONF | capture | WEB-06 |
 | D08.2 | Version and technology disclosure | 200, 497 | A02 | INFO | capture | WEB-21 |
@@ -150,7 +150,7 @@ Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or he
 
 ## D09 Sensitive data exposure and secrets
 
-| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Marsad checks |
+| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Basira checks |
 |---|---|---|---|---|---|---|
 | D09.1 | Hardcoded secrets and credentials | 798, 321, 259 | A02, A04 | CONF | artifact | APP-01, APP-02, APP-03, APP-06 |
 | D09.2 | Leakage through referrers and third-party requests | 200, 359 | A01, A02 | INFO | capture, artifact | WEB-07, HTML-16 |
@@ -164,7 +164,7 @@ Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or he
 
 ## D10 Software supply chain and dependencies
 
-| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Marsad checks |
+| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Basira checks |
 |---|---|---|---|---|---|---|
 | D10.1 | Known-vulnerable components | 1395, 1104 | A03 | CONF | artifact | DEP-01, DEP-02, DEP-16 |
 | D10.2 | Lockfile, version pinning and integrity | 494, 829, 1357 | A03, A08 | CONF | artifact | DEP-03, DEP-05, DEP-06, DEP-08, DEP-12, DEP-14, DEP-15 |
@@ -180,7 +180,7 @@ Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or he
 
 ## D11 Business logic and abuse
 
-| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Marsad checks |
+| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Basira checks |
 |---|---|---|---|---|---|---|
 | D11.1 | Workflow and state bypass | 841, 840 | A06, API6 | BUSL | manual | gap |
 | D11.2 | Race conditions and replay | 362, 367 | A06 | BUSL | active, manual | gap |
@@ -192,7 +192,7 @@ Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or he
 
 ## D12 File handling
 
-| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Marsad checks |
+| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Basira checks |
 |---|---|---|---|---|---|---|
 | D12.1 | Unrestricted upload | 434, 409 | A06, A05 | BUSL | active, manual | gap |
 | D12.2 | Path traversal and archive extraction | 22, 59 | A01 | ATHZ | active | gap |
@@ -204,7 +204,7 @@ Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or he
 
 ## D13 API-specific security
 
-| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Marsad checks |
+| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Basira checks |
 |---|---|---|---|---|---|---|
 | D13.1 | Content type and schema discipline | 20, 436 | A05, A02, API8 | INPV | capture | WEB-25 |
 | D13.2 | Inventory, versions and shadow endpoints | 1059 | A02, API9 | INFO | manual | gap |
@@ -218,7 +218,7 @@ Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or he
 
 ## D14 Deserialization and data integrity
 
-| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Marsad checks |
+| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Basira checks |
 |---|---|---|---|---|---|---|
 | D14.1 | Insecure deserialization | 502 | A08 | INPV | active, manual | gap |
 | D14.2 | Unsigned code, updates and data | 494, 345 | A08 | CONF | manual | gap |
@@ -228,7 +228,7 @@ Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or he
 
 ## D15 Infrastructure, containers and delivery pipelines
 
-| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Marsad checks |
+| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Basira checks |
 |---|---|---|---|---|---|---|
 | D15.1 | Container image build | 250, 1188 | A02, A03 | CONF | artifact | INF-01, INF-02, INF-16 |
 | D15.2 | Kubernetes workload hardening | 250, 266, 1188 | A02 | CONF | artifact | INF-03, INF-04, INF-05, INF-06, INF-07, INF-08, INF-11, INF-12, INF-13, INF-14, INF-15, INF-17, INF-18 |
@@ -242,7 +242,7 @@ Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or he
 
 ## D16 Logging, monitoring and exceptional conditions
 
-| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Marsad checks |
+| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Basira checks |
 |---|---|---|---|---|---|---|
 | D16.1 | Insufficient logging and alerting | 778 | A09 | ERRH | manual | gap |
 | D16.2 | Error handling and fail-open behavior | 755, 636, 209 | A10 | ERRH | active, manual | gap |
@@ -252,7 +252,7 @@ Modes: `artifact` reviews supplied files. `capture` reviews a supplied HAR or he
 
 ## D17 LLM-backed application risks
 
-| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Marsad checks |
+| ID | Subdomain | CWE | OWASP 2025 | WSTG | Modes | Basira checks |
 |---|---|---|---|---|---|---|
 | D17.1 | Prompt injection and tool abuse | 1427 | A05, A06 | INPV | manual | gap |
 | D17.2 | Unsafe handling of model output | 79, 94 | A05 | INPV | manual | gap |

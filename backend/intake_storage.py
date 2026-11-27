@@ -16,10 +16,10 @@ class StorageUnavailable(RuntimeError):
 
 @contextmanager
 def quarantine(file, size, digest):
-    bucket = os.getenv("MARSAD_INTAKE_S3_BUCKET")
+    bucket = os.getenv("BASIRA_INTAKE_S3_BUCKET")
     file.seek(0)
     if not bucket:
-        if os.getenv("MARSAD_INTAKE_STORAGE_REQUIRED") == "1":
+        if os.getenv("BASIRA_INTAKE_STORAGE_REQUIRED") == "1":
             raise StorageUnavailable()
         yield file
         return
@@ -33,7 +33,7 @@ def quarantine(file, size, digest):
     key = "quarantine/" + uuid4().hex
     checksum = base64.b64encode(bytes.fromhex(digest)).decode("ascii")
     try:
-        client = boto3.client("s3", endpoint_url=os.getenv("MARSAD_INTAKE_S3_ENDPOINT"),
+        client = boto3.client("s3", endpoint_url=os.getenv("BASIRA_INTAKE_S3_ENDPOINT"),
                               config=Config(connect_timeout=3, read_timeout=5, retries={"total_max_attempts": 2}))
         client.put_object(Bucket=bucket, Key=key, Body=file, ContentLength=size,
                           ContentType="application/zip", ChecksumSHA256=checksum)

@@ -1,6 +1,6 @@
 <div align="center">
 
-# Marsad (مرصد)
+# Basira (بصيرة)
 
 **A multi-agent security-review workspace for project files.**
 
@@ -24,7 +24,7 @@ Pick a project and an evidence source, follow the scan as it runs, and open a re
 - **Five LangGraph agent roles.** A coordinator routes the work, then planning, analysis, verification, and reporting roles run it, with parallel branches that merge before verification.
 - **100 defensive checks.** A documented catalog of rules. The lab runs the ones that apply to HTML; projects also accept ZIP archives, HAR captures, and JSON snapshots.
 - **Reports people can use.** Findings come with redacted evidence, line numbers, severity, and a fix. Export to HTML (Arabic or English), JSON, PDF, and SARIF.
-- **Model-optional by design.** Optional model enrichment is configured per account. If the provider fails, Marsad completes the scan with local analysis instead of failing.
+- **Model-optional by design.** Optional model enrichment is configured per account. If the provider fails, Basira completes the scan with local analysis instead of failing.
 - **Bilingual UI.** Arabic and English, RTL and LTR, dark and light themes.
 - **Project workspace.** Scan comparison, comments, finding statuses, and local accounts with email and password. OIDC sign-in is supported when a provider is configured.
 
@@ -71,7 +71,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\ops\start-local.ps1
 On macOS and Linux, copy `ops/platform.env.example` to `.env.local`, fill the three `*_PASSWORD` values with random letters and digits, then:
 
 ```bash
-docker compose -p marsad-local -f compose.yaml -f compose.local.yaml --env-file .env.local up -d --build
+docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file .env.local up -d --build
 ```
 
 Open the sign-in page and choose "Create account" on a fresh install. More detail is in the [platform guide](docs/PLATFORM.md).
@@ -87,4 +87,4 @@ Verification status: the Docker image build and these Compose commands have not 
 
 ## Documentation
 
-Start at the [documentation index](docs/README.md). The plan, phase status and conventions are in [docs/PLAN.md](docs/PLAN.md), and the [vulnerability taxonomy](docs/taxonomy.md) shows what Marsad covers and what it does not yet.
+Start at the [documentation index](docs/README.md). The plan, phase status and conventions are in [docs/PLAN.md](docs/PLAN.md), and the [vulnerability taxonomy](docs/taxonomy.md) shows what Basira covers and what it does not yet.

@@ -1,6 +1,6 @@
 # كتالوج ١٠٠ فحص دفاعي
 
-إصدار `marsad-static-2` فيه ١٠٠ قاعدة. تحت هنا القواعد الخمسين الأصلية، والقواعد الخمسين المضافة في [فحوصات HTML وHAR الإضافية](web-extra.md) و[فحوصات التبعيات والإعدادات الإضافية](config-extra.md). سجل المحرك الداخلي متاح عبر `GET /api/catalog`. انطباق القاعدة يعتمد على النوع والسياق والسياسة، وبعض النتائج تستدعي مراجعة بشرية. [تشغيل المشاريع](../PLATFORM.md)
+إصدار `basira-static-2` فيه ١٠٠ قاعدة. تحت هنا القواعد الخمسين الأصلية، والقواعد الخمسين المضافة في [فحوصات HTML وHAR الإضافية](web-extra.md) و[فحوصات التبعيات والإعدادات الإضافية](config-extra.md). سجل المحرك الداخلي متاح عبر `GET /api/catalog`. انطباق القاعدة يعتمد على النوع والسياق والسياسة، وبعض النتائج تستدعي مراجعة بشرية. [تشغيل المشاريع](../PLATFORM.md)
 
 ## A. إعدادات HTML والموارد الخارجية · ١٠
 
@@ -88,12 +88,12 @@
 
 ### مراجع تصنيف منتقاة
 
-| معرّف مرصد | المرجع | إمتى تستخدمه |
+| معرّف بصيرة | المرجع | إمتى تستخدمه |
 |---|---|---|
 | `http-form` وHTML-06 | [CWE-319](https://cwe.mitre.org/data/definitions/319.html) | لو مراجعة السياق أثبتت إن وجهة HTTP تنقل بيانات حساسة. |
 | WEB-09 | [CWE-614](https://cwe.mitre.org/data/definitions/614.html) | لو الرصد يخص كوكي جلسة حساسة في HTTPS وعلامة Secure غائبة. |
 | APP-01 وAPP-02 | [CWE-798](https://cwe.mitre.org/data/definitions/798.html) | لو الدليل يخص اعتمادًا مضمنًا في التطبيق. يفضل التحقق من شكل الدليل والسياق من غير تجربة سر حي. |
 
-القواعد اللي بتطبق سياسة فريق، زي إلزام lockfile أو تثبيت أداة CI، تحتفظ بمعرّف مرصد وسياسة المشروع. مدى انطباق المعيار على التطبيق يتحدد من الدليل ونطاق المراجعة.
+القواعد اللي بتطبق سياسة فريق، زي إلزام lockfile أو تثبيت أداة CI، تحتفظ بمعرّف بصيرة وسياسة المشروع. مدى انطباق المعيار على التطبيق يتحدد من الدليل ونطاق المراجعة.
 
 مراجع المتصفح والبنية وإعدادات المستودع. [W3C Subresource Integrity](https://www.w3.org/TR/sri/) · [MDN Content-Security-Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy) · [Kubernetes Pod Security Standards](https://kubernetes.io/docs/concepts/security/pod-security-standards/) · [GitHub Actions Secure Use](https://docs.github.com/en/actions/reference/security/secure-use)

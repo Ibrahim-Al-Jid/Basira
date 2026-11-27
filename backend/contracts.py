@@ -138,7 +138,7 @@ class TaskRun(BaseModel):
     agent: str
     tool: str
     status: Literal["done", "partial", "error", "not_applicable"]
-    contract: Literal["marsad-tool-result-1"] | None = Field(default=None, exclude_if=lambda value: value is None)
+    contract: Literal["basira-tool-result-1"] | None = Field(default=None, exclude_if=lambda value: value is None)
     checks: int = Field(ge=0)
     matched: int = Field(ge=0)
     coverage: list[str] = Field(default_factory=list)
@@ -174,7 +174,7 @@ class ImportedEvidence(BaseModel):
 
 
 class AgentExecution(BaseModel):
-    contract: Literal["marsad-agent-workflow-1"] = "marsad-agent-workflow-1"
+    contract: Literal["basira-agent-workflow-1"] = "basira-agent-workflow-1"
     trace_id: Identifier
     input_kind: ArtifactKind
     source_sha256: Digest
@@ -201,7 +201,7 @@ class ExplanationAdvice(BaseModel):
 
 
 class AgentAdvisory(BaseModel):
-    version: Literal["marsad-advisor-1"]
+    version: Literal["basira-advisor-1"]
     planning: list[PlanningAdvice] = Field(max_length=12)
     validation: list[ValidationAdvice] = Field(max_length=12)
     explanation: list[ExplanationAdvice] = Field(max_length=12)

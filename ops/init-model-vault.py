@@ -7,7 +7,7 @@ from stat import S_IMODE
 from tempfile import NamedTemporaryFile
 
 
-vault = Path("/srv/marsad/model-secrets")
+vault = Path("/srv/basira/model-secrets")
 key_path = vault / "master.key"
 if not key_path.exists():
     with NamedTemporaryFile(dir=vault, prefix=".master-", delete=False) as candidate:

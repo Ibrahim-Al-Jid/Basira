@@ -9,7 +9,7 @@ from backend.main import app
 
 
 def test_review_with_offline_demo_protocol(monkeypatch, tmp_path):
-    monkeypatch.setenv("MARSAD_DB_PATH", str(tmp_path / "review.db"))
+    monkeypatch.setenv("BASIRA_DB_PATH", str(tmp_path / "review.db"))
 
     async def deny_egress(self, request):
         raise AssertionError(f"Unexpected Demo request to {request.url.host}")

@@ -2,6 +2,9 @@
 
 ## 2026-11-27
 
+### Changed
+- The product is renamed from Marsad to Basira (بصيرة) in code, UI, docs, tests and fixtures; the reference-corpus manifest checksum was recomputed. Environment variables are now `BASIRA_*` and database roles `basira_*`; existing local setups must be recreated.
+
 ### Added
 - Detection experiment on DVWA (pinned commit, 13 vulnerable and 13 fixed files): static checks 0 of 13, one agent without tools 8 of 13 with 5 clean files flagged (free model, one run). Team configurations are coded but not run: free daily request cap. See `docs/research/detection-experiment.md`.
 - Vulnerability taxonomy: 17 domains, 75 subdomains, 159 problems, mapped to CWE, OWASP Top 10:2025, OWASP API Top 10 2023 and WSTG. Served at `GET /api/taxonomy`; generated reference in `docs/taxonomy.md`.
@@ -12,7 +15,7 @@
 
 ### Changed
 - One plan: `docs/PLAN.md` (product, current position, 18 phases P01 to P18, contracts, acceptance gates, decisions, naming conventions). It replaces the blueprint, the 19-phase plan and `work/plan.md`.
-- Names: files, tests, fixtures and environment variables no longer carry phase numbers (for example `phase9_contracts.py` is now `scan_contracts.py`, `browser_phase13.py` is now `browser_personal_projects.py`, `MARSAD_PHASE13_QA_ORIGIN` is now `MARSAD_QA_ORIGIN`).
+- Names: files, tests, fixtures and environment variables no longer carry phase numbers (for example `phase9_contracts.py` is now `scan_contracts.py`, `browser_phase13.py` is now `browser_personal_projects.py`, `BASIRA_PHASE13_QA_ORIGIN` is now `BASIRA_QA_ORIGIN`).
 - README run instructions rewritten with a verification status for each method.
 
 ### Fixed
