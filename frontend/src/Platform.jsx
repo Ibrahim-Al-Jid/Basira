@@ -7,6 +7,7 @@ import { ProjectAccess } from "./ProjectAccess";
 import { DirectoryLink, ProjectDirectory } from "./ProjectDirectory";
 import { PersonalDirectory, PersonalGitHub, PersonalProjectManagement } from "./PersonalWorkspace";
 import AgentLanes from "./AgentLanes";
+import ReplayPanel from "./ReplayPanel";
 import "./platform.css";
 import "./scan-source.css";
 
@@ -35,6 +36,7 @@ const states = {
   queued: ["في الانتظار", "Queued"], running: ["قيد التنفيذ", "Running"],
   completed: ["مكتمل", "Completed"], partial: ["جزئي", "Partial"],
   failed: ["فشل", "Failed"], cancelled: ["أُلغي", "Cancelled"],
+  model_skipped: ["الموديل لم يُستخدم", "Model not used"],
 };
 function eventDetail(event) {
   if (event.kind === "running") {
@@ -343,6 +345,7 @@ function ScanStatus({ projectId, scanId, lang }) {
           <button type="button" className="btn" onClick={() => { setStaying(true); try { sessionStorage.removeItem("basira:fresh:" + scanId); } catch { /* ignore */ } }}>{t("خليني هنا", "Stay here")}</button>
         </p>}
         <AgentLanes events={events} active={isActive(scan.state)} t={t} lang={lang} />
+        <ReplayPanel scan={scan} events={events} t={t} lang={lang} reportHref={scan.report_available ? reportLink(projectId, scan.id) : ""} />
         {!!events.length && <section className="workspace-management">
           <h3>{t("سجل الفحص", "Scan activity")}</h3>
           <ol className="workspace-timeline" aria-label={t("سجل الفحص", "Scan events")}>{events.filter((item) => item.kind !== "agent_done" && item.kind !== "stage_start").map((item) => <li key={item.sequence}>
