@@ -15,16 +15,16 @@ Basira takes a narrower job: review **evidence the owner supplies** (a ZIP of th
 ## Scope (built)
 
 - Intake: ZIP, GitHub App snapshot, approved website pages, HAR, ZAP and OpenAPI import.
-- 100 defensive checks in six families (HTML, web headers and cookies, dependencies, infrastructure, CI, app configuration), reported as matched, clear, not applicable, skipped or error.
+- 114 defensive checks (ruleset `basira-static-3`): 100 in six families (HTML, web headers and cookies, dependencies, infrastructure, CI, app configuration) and 14 source-code checks (`SRC-01` to `SRC-14`) for PHP, JavaScript/TypeScript and Python, reported as matched, clear, not applicable, skipped or error.
 - Five LangGraph roles: Coordinator, Planning, Analysis, Verification, Reporting.
 - Optional model enrichment, one request per scan at most (`MAX_MODEL_CALLS = 1`). The model is advisory: it cannot add, remove or rewrite findings.
 - Reports in Arabic and English with HTML, JSON, PDF and SARIF export; scan comparison, comments, finding statuses.
-- Taxonomy of 17 domains, 75 subdomains, 159 named problems, mapped to CWE, OWASP Top 10:2025, OWASP API Top 10 2023 and WSTG. 34 subdomains are backed by at least one shipped check; 41 are documented gaps.
+- Taxonomy of 17 domains, 75 subdomains, 159 named problems, mapped to CWE, OWASP Top 10:2025, OWASP API Top 10 2023 and WSTG. 44 subdomains are backed by at least one shipped check; 31 are documented gaps.
 
 ## Out of scope, stated plainly
 
 - No exploitation. No probing of systems the owner has not proven they control.
-- Injection, XSS, IDOR and SSRF are gaps for passive checks. The measured proof is in [evaluation.md](evaluation.md): 0 of 13 on DVWA PHP source. Source-code checks (P19) and owner-verified active probes (P14) are planned, not built.
+- Injection, XSS, IDOR and SSRF need more than passive pattern checks. Source-code checks (P19) now cover the simple, same-file cases for PHP, JavaScript and Python, and moved DVWA from 0 of 13 to 8 of 13 (a development score, see [evaluation.md](evaluation.md)). Cross-function and cross-file flow, NoSQL, authorization and brute-force classes are still missed. Owner-verified active probes (P14) are planned, not built.
 - No claim of better detection than any other tool. No head-to-head result exists.
 - No real-world accuracy figure. Real-world data does not exist yet.
 - Hosted or team use needs its own design (tenant access, storage, cost, support).

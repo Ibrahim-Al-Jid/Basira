@@ -28,6 +28,6 @@ OWASP Benchmark, XBOW validation benchmarks and CVE-Bench measure exploitation o
 
 ## Where Basira is weaker
 
-- Narrower: classes needing live probing are gaps (41 of 75 taxonomy subdomains have no check).
-- Detection on application source code is currently 0 of 13 on the DVWA PHP set.
+- Narrower: classes needing live probing are gaps (31 of 75 taxonomy subdomains have no check).
+- Source-code detection is new and shallow: 8 of 13 on the DVWA PHP set, a development score because the rules were written after reading those files. It misses cross-file flow and several classes.
 - No independent benchmark result and no comparison with another system. If one is added it will use that system's own published numbers with source and version, marked not like-for-like unless the same target and scoring were used.
