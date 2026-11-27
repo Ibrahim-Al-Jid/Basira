@@ -64,7 +64,7 @@
 powershell -NoProfile -ExecutionPolicy Bypass -File .\ops\start-local.ps1
 ```
 
-أول مرة السكربت بيولّد كلمات مرور عشوائية لقاعدة البيانات في `.env.local`، وبيشغّل PostgreSQL وRedis والترحيلات ونسخة التطبيق اللي فيها الحسابات. في التشغيل التالي بيستخدم نفس الملف. لو المنفذ 8765 مستخدم، اختار منفذًا مختلفًا في أول تشغيل بإضافة `-Port 8775`. لو ملف `.env.local` موجود، عدّل `BASIRA_PORT` فيه.
+أول مرة السكربت بيولّد كلمات مرور عشوائية لقاعدة البيانات في `.env.local`، وبيشغّل PostgreSQL وRedis والترحيلات ونسخة التطبيق اللي فيها الحسابات. البروفايل المحلي (`compose.local.yaml`) بيفعّل المشاريع الشخصية (`BASIRA_PERSONAL_PROJECTS=1`) لوحده، فمش لازم تكتبه في `.env.local`. في التشغيل التالي بيستخدم نفس الملف. لو المنفذ 8765 مستخدم، اختار منفذًا مختلفًا في أول تشغيل بإضافة `-Port 8775`. لو ملف `.env.local` موجود، عدّل `BASIRA_PORT` فيه.
 
 للتشغيل اليدوي، جهّز `.env.local` من `ops/platform.env.example` في جذر المشروع. حط كلمات مرور عشوائية مختلفة من حروف وأرقام في `BASIRA_DB_PASSWORD` و`BASIRA_DISPATCH_PASSWORD` و`BASIRA_MIGRATION_PASSWORD`. Git وDocker build بيستبعدوا الملف.
 
