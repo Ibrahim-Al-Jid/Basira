@@ -56,7 +56,7 @@ def main():
         project_navigation = page.get_by_role("navigation", name="Project sections")
         expect(project_navigation.get_by_role("link", name="Scan History")).to_be_visible()
         page.get_by_role("link", name="New scan", exact=True).click()
-        page.get_by_role("button", name="Continue to source").click()
+        # The project is already chosen, so the flow opens on the source step.
         expect(page.locator('input[name="kind"]')).to_have_count(3)
         expect(page.get_by_role("radio", name="GitHub", exact=False)).to_be_enabled()
         website = page.get_by_role("radio", name="Website URL", exact=False)
@@ -64,8 +64,7 @@ def main():
         website.check()
         expect(page.get_by_label("Approved page URL")).to_be_visible()
         page.get_by_role("radio", name="Project source", exact=False).check()
-        page.locator('input[type="file"]').set_input_files(project_zip())
-        page.get_by_role("button", name="Review scan").click()
+        page.locator('input[type="file"]').set_input_files(project_zip())  # choosing a file opens the review step
         page.get_by_role("checkbox", name="I have permission to review this file").check()
         page.get_by_role("button", name="Submit scan").click()
         page.wait_for_url("**/projects/*/scans/*")

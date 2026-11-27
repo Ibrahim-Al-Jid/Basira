@@ -420,8 +420,19 @@ function NewScan({ projects, project, choose, navigate, lang, personal }) {
   const requiresAddress = kind === "zap" && !profileValue?.asset_linked;
   const labels = [t("المشروع", "Project"), t("الملف", "Source"), t("المراجعة", "Review")];
 
+  const skippedProject = useRef(false);
   useEffect(() => () => request.current?.abort(), []);
   useEffect(() => { if (step > 0) heading.current?.focus(); }, [step]);
+  // Personal flow: the project is already chosen and the scope is loaded, so the first screen has nothing left to ask.
+  useEffect(() => {
+    if (!personal || step !== 0 || skippedProject.current || !access || !allowedKinds.length) return;
+    skippedProject.current = true;
+    if (!sourceKinds.includes(kind)) {
+      setKind(allowedKinds.includes("repository") ? "repository" : allowedKinds[0]);
+      setSource(null);
+    }
+    setStep(1);
+  });
   useEffect(() => {
     if (!policyPath) return;
     const controller = new AbortController();
@@ -636,11 +647,17 @@ function NewScan({ projects, project, choose, navigate, lang, personal }) {
         onDragOver={personal ? (event) => event.preventDefault() : undefined}
         onDrop={personal ? (event) => {
           event.preventDefault();
-          updateEvidence(() => setSource(event.dataTransfer.files[0] || null));
+          const dropped = event.dataTransfer.files[0] || null;
+          updateEvidence(() => setSource(dropped));
+          if (dropped) setStep(2);
         } : undefined}><UploadCloud size={25} aria-hidden="true"/>
         <span>{t("اختيار ملف", "Choose file")}</span>
         <input key={kind} name="file" type="file" accept={extensions[kind]} required={!source}
-          onChange={(event) => updateEvidence(() => setSource(event.target.files[0] || null))} />
+          onChange={(event) => {
+            const chosen = event.target.files[0] || null;
+            updateEvidence(() => setSource(chosen));
+            if (personal && chosen) setStep(2);
+          }} />
       </label>
       {source && <p dir="auto"><bdi>{source.name}</bdi> · <bdi>{number(source.size, lang)} {t("بايت", "bytes")}</bdi></p>}
       <p className="workspace-hint">{t("الحد الأقصى", "Limit")} <bdi>{number(limit / 1_000_000, lang)} {t("ميجابايت", "MB")}</bdi></p>
