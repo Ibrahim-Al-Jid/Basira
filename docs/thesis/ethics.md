@@ -25,4 +25,4 @@ DVWA is intentionally vulnerable and licensed GPL-3.0, so its files are download
 
 ## Honest reporting
 
-Weak results are published: 0 of 13 for static checks, 5 of 13 clean files flagged by the one-agent run, C3 and C4 not run. A result is not rounded up, and a missing result is not replaced with an estimate.
+Weak results are published: static checks were 0 of 13 before the source-code checks and 8 of 13 after, with the warning that it is a development score, 5 of 13 clean files flagged by the one-agent run, C3 and C4 not run. A result is not rounded up, and a missing result is not replaced with an estimate.
