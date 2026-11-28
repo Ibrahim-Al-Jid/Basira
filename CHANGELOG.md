@@ -11,6 +11,7 @@
 ### Removed
 - Header bell icon: it was a link to Scan history (the sidebar already has it), not notifications. `frontend/src/SiteHeader.jsx`.
 - Colour palette picker (the "Workspace" / "Colors" pill, the 16 palettes and the "Mix with" option), its stored preferences and its code (`DesignPicker.jsx` and its styles). Owner decision: it only changed colours. The look is fixed to the current default palette, which keeps WCAG AA (accent on canvas 6.9:1 dark, 5.7:1 light, measured; the best of the 16 differed by about 0.5 and would have changed the look). The dark/light toggle and language switch stay.
+- `frontend/src/design-pop.css` and `frontend/src/landing.css` (29 KB): not imported anywhere since the command-center frontend was merged. The build output is unchanged.
 - SARIF export, by owner decision: the download button, the `format=sarif` endpoint option, the generator in `backend/advanced_reporting.py`, its tests and every mention in the docs. Reports still export to HTML (Arabic and English), JSON and PDF.
 
 ### Added
@@ -63,6 +64,7 @@
 - Local Windows setup: `compose.local.yaml` now turns personal projects on for the app, dispatcher and worker, so Connect GitHub is available without adding `BASIRA_PERSONAL_PROJECTS=1` to `.env.local`. A generated `.env.local` carried `0`, which hid the whole Personal projects path.
 - Model connection locally: `ops/start-local.ps1 -Model` writes the four gateway settings to `.env.local` and starts the `model` compose profile; the Account page said "gateway unavailable" because nothing started the gateway or set its address and token. The unavailable state now says whether the gateway is not set up or not answering (`reason` field and UI text). Not run end to end (no Docker here).
 - Scan errors in English mode showed only "Check the form values and try again." for every 422. The UI now shows an English version of the real server reason for the common intake and GitHub errors (for example "The snapshot has no supported source files"), and the GitHub step of New scan lists the file types Basira reads (Markdown and images are not scanned; a repository with none of the supported files is rejected). Arabic mode already showed the server text.
+- Unknown browser URLs now open the app's own "Page not found" screen (HTTP 404) instead of a blank page with a raw server 404, and `/projects/<id>` and `/projects/<id>/reports/<id>` open the project and the report instead of an empty page (`backend/main.py`, `frontend/src/main.jsx`). API routes still return JSON 404. Found by a full product audit; test added in `backend/test_api.py`.
 
 ### Removed
 - `work/` folder (its content moved into `docs/PLAN.md`).

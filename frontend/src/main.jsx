@@ -158,6 +158,13 @@ function App() {
     };
   }, []);
   useEffect(() => {
+    // Share-style URLs open the matching screen instead of an empty page.
+    const report = location.pathname.match(/^\/projects\/([\w-]+)\/reports\/([\w-]+)\/?$/);
+    const project = location.pathname.match(/^\/projects\/([\w-]+)\/?$/);
+    if (report) navigate(`/reports/${report[2]}?project=${report[1]}`, { replace: true });
+    else if (project) navigate(`/projects?project=${project[1]}`, { replace: true });
+  }, [location.pathname]);
+  useEffect(() => {
     function esc(e) {
       if (e.key === "Escape") setExpanded(false);
     }
