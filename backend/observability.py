@@ -12,11 +12,16 @@ default). A bad value falls back to INFO instead of stopping the app.
 
 import logging
 import os
+import re
 import time
+import traceback
+from pathlib import Path
 from uuid import uuid4
 
 LOGGER = logging.getLogger("basira.access")
 LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR"}
+WORKER_LOGGER = logging.getLogger("basira.worker")
+REQUEST_ID = re.compile(r"[A-Za-z0-9._-]{1,64}")
 STATIC_PREFIXES = ("/assets/", "/favicon.ico", "/mark.svg", "/basira-network-globe.webp")
 
 
@@ -30,7 +35,8 @@ def install_observability(app):
 
     @app.middleware("http")
     async def access_log(request, call_next):
-        request_id = request.headers.get("x-request-id") or uuid4().hex
+        supplied = request.headers.get("x-request-id", "")
+        request_id = supplied if REQUEST_ID.fullmatch(supplied) else uuid4().hex
         started = time.perf_counter()
         try:
             response = await call_next(request)
@@ -46,3 +52,11 @@ def install_observability(app):
         return response
 
     return app
+
+
+def log_failure(event, error):
+    """Record that background work failed: the exception class and where it was raised, never its message or
+    arguments, which can carry submitted file names or values."""
+    frames = traceback.extract_tb(error.__traceback__)
+    where = f"{Path(frames[-1].filename).name}:{frames[-1].lineno}" if frames else "unknown"
+    WORKER_LOGGER.error("%s error=%s at=%s", event, type(error).__name__, where)

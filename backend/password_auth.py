@@ -101,15 +101,25 @@ def reserve_attempt(request, email, action):
             ("email", email, 6 if action == "register" else 8)]
     allowed = True
     with platform_session() as db:
-        insert = pg_insert if db.bind.dialect.name == "postgresql" else sqlite_insert
-        db.execute(limits.delete().where(limits.c.window < window - 1))
+        postgres = db.bind.dialect.name == "postgresql"
+        insert = pg_insert if postgres else sqlite_insert
+        if not postgres:
+            db.execute(limits.delete().where(limits.c.window < window - 1))
         for kind, value, limit in keys:
             digest = hashlib.sha256(value.encode()).hexdigest()
-            query = insert(limits).values(scope=f"{action}:{kind}:{digest}", window=window, attempts=1)
-            result = db.execute(query.on_conflict_do_update(
-                index_elements=[limits.c.scope, limits.c.window],
-                set_={"attempts": limits.c.attempts + 1}, where=limits.c.attempts < limit,
-            ).returning(limits.c.attempts)).scalar_one_or_none()
+            scope = f"{action}:{kind}:{digest}"
+            if postgres:
+                # The counter is definer-only: no account is known yet, so no owner policy can scope it.
+                result = db.scalar(sa.text(
+                    "SELECT public.basira_reserve_attempt("
+                    "CAST(:scope AS text), CAST(:window AS bigint), CAST(:limit AS integer))"),
+                    {"scope": scope, "window": window, "limit": limit})
+            else:
+                query = insert(limits).values(scope=scope, window=window, attempts=1)
+                result = db.execute(query.on_conflict_do_update(
+                    index_elements=[limits.c.scope, limits.c.window],
+                    set_={"attempts": limits.c.attempts + 1}, where=limits.c.attempts < limit,
+                ).returning(limits.c.attempts)).scalar_one_or_none()
             if result is None:
                 allowed = False
                 if kind == "peer":
