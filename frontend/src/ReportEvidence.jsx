@@ -130,19 +130,36 @@ export function LinkedEvidence({ reportApi, hrefFor, follow, lang, count, format
   </section>;
 }
 
-export function AgentReview({ findings, lang, count }) {
-  if (!findings?.length) return null;
+const fallbackReasons = {
+  model_unavailable: ["الموديل غير متاح", "the model was unavailable"],
+  model_error: ["الموديل رجّع خطأ", "the model returned an error"],
+  invalid_output: ["رد الموديل ما كانش صالح", "the model output was not valid"],
+  budget_steps: ["خلصت حصة الخطوات", "the step budget ran out"],
+  budget_tool_calls: ["خلصت حصة استدعاءات الأدوات", "the tool-call budget ran out"],
+  budget_tokens: ["خلصت حصة التوكنز", "the token budget ran out"],
+  budget_time: ["خلص الوقت المسموح", "the time budget ran out"],
+};
+
+export function AgentReview({ findings, run, lang, count }) {
+  const fellBack = run?.status === "fell_back";
+  if (!findings?.length && !fellBack) return null;
   const t = translate(lang);
+  const reason = fallbackReasons[run?.reason_code];
   return <section className="reports-section reports-agent-review" aria-labelledby="agent-review-title">
-    <h2 id="agent-review-title">{t("مراجعة الوكلاء", "Agent review")} <span className="reports-agent-badge">{t("تحتاج مراجعة", "Review required")}</span></h2>
-    <p>{t("دي ملاحظات من الوكلاء راجعها المدقق في نسخة المصدر. هي ادّعاءات من موديل، مش نتائج مؤكدة، ومش محسوبة في النتائج أو التغطية.",
-      "These are places the agents pointed at and the Auditor re-read in the source snapshot. They are model claims, not confirmed findings, and are not counted in the findings or coverage.")}</p>
-    <ul className="reports-agent-list">
+    <h2 id="agent-review-title">{t("مراجعة الوكلاء", "Agent review")}{findings?.length > 0 && <span className="reports-agent-badge">{t("تحتاج مراجعة", "Review required")}</span>}</h2>
+    {findings?.length > 0 && <p>{t("دي ملاحظات من الوكلاء راجعها المدقق في نسخة المصدر. هي ادّعاءات من موديل، مش نتائج مؤكدة، ومش محسوبة في النتائج أو التغطية.",
+      "These are places the agents pointed at and the Auditor re-read in the source snapshot. They are model claims, not confirmed findings, and are not counted in the findings or coverage.")}</p>}
+    {fellBack && <p className="reports-agent-note" role="status">
+      {t("مسار الوكلاء ما اكتملش، فالفحص كمّل بالقواعد بس", "The agent path did not finish, so this scan used rules only")}
+      {reason ? " (" + t(reason[0], reason[1]) + ")" : ""}.
+      {!findings?.length && " " + t("مفيش ملاحظات من الوكلاء في التقرير ده.", "There are no agent observations in this report.")}
+    </p>}
+    {findings?.length > 0 && <ul className="reports-agent-list">
       {findings.map((item) => <li key={item.fingerprint}>
         <strong dir="ltr">{item.rule}</strong>
         <span dir="ltr">{item.path}:{count(item.line)}</span>
         <code dir="ltr">{item.quote}</code>
       </li>)}
-    </ul>
+    </ul>}
   </section>;
 }
