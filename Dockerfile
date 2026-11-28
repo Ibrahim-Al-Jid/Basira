@@ -25,20 +25,26 @@ RUN chmod 0444 /osv/osv-scalibr/PyPI/all.zip \
 FROM python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90 AS runtime
 WORKDIR /srv/basira
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# pip check fails the build when the pinned requirements do not resolve together.
+RUN pip install --no-cache-dir -r requirements.txt && pip check
 COPY backend/ ./backend/
 COPY ops/init-model-vault.py ops/migrate-platform.py ./ops/
 COPY alembic.ini ./
 COPY --from=web /work/dist ./frontend/dist
 COPY --from=static-tools /tools/ /opt/basira-tools/
 COPY --from=static-tools /osv/ /opt/basira-osv/
-ENV BASIRA_DB_PATH=/srv/basira/data/basira.sqlite3
+ENV BASIRA_DB_PATH=/srv/basira/data/basira.sqlite3 \
+    PYTHONDONTWRITEBYTECODE=1
 RUN groupadd --gid 10001 basira && useradd --uid 10001 --gid 10001 --no-create-home basira \
     && mkdir -p /srv/basira/data /srv/basira/spool /srv/basira/model-secrets \
     && chown -R basira:basira /srv/basira/data /srv/basira/spool /srv/basira/model-secrets \
     && chmod 0700 /srv/basira/model-secrets
 USER basira
 EXPOSE 8000
+# Compose and Docker can now restart or route around a hung process instead of
+# a container that only looks up.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/product', timeout=3)"]
 CMD ["python", "-m", "uvicorn", "backend.main:app", "--no-access-log", "--host", "0.0.0.0", "--port", "8000"]
 
 FROM python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90 AS npm-advisories
