@@ -134,7 +134,7 @@ def main():
         page.locator('[name="password"]').fill(password)
         page.get_by_role("button", name="Sign in", exact=True).click()
         page.wait_for_url(origin + "/projects")
-        page.get_by_role("link", name="Renamed personal QA", exact=True).first.click()
+        page.get_by_role("main").get_by_role("link", name="Renamed personal QA").first.click()
         page.get_by_role("link", name="Project management", exact=True).click()
         page.get_by_role("button", name="Delete project", exact=True).click()
         page.get_by_role("checkbox", name="Hide the project", exact=False).check()

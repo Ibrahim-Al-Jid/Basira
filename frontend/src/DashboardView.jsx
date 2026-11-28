@@ -84,10 +84,12 @@ export default function DashboardView({ path, projectId, t, lang, reportLink, ac
           </div>}
           {scans.length ? <ol className="dash-bars">
             {displayedScans.map((scan, index) => <li key={scan.scan_id} title={when(scan.created_at) + ": " + num(scan.findings)}>
-              <a href={reportLink(projectId, scan.scan_id)} aria-label={t("فحص " + when(scan.created_at) + ": " + num(scan.findings) + " نتيجة", "Scan " + when(scan.created_at) + ": " + num(scan.findings) + " findings")}>
+              <a href={reportLink(projectId, scan.scan_id)}>
                 <span className="dash-bar-value">{num(scan.findings)}</span>
                 <span className="dash-bar-fill" style={{ blockSize: heights[index] + "%" }} />
                 <time dateTime={scan.created_at}>{new Date(scan.created_at).toLocaleDateString(locale, { month: "short", day: "numeric" })}</time>
+                {/* The name starts with the visible value and date (WCAG 2.5.3), then adds what they mean. */}
+                <span className="dash-bar-hint"> {t("نتيجة", "findings")}, {when(scan.created_at)}</span>
               </a></li>)}
           </ol> : <p className="command-panel-note">{t("الاتجاه هيظهر بعد أول فحص مكتمل.", "The trend appears after your first finished scan.")}</p>}
         </figure>

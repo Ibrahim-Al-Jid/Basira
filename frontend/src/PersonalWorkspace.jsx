@@ -178,14 +178,13 @@ function ProjectList({ projects, navigate, refresh, submit, busy, lang }) {
     {visible.length > 0 && <ul className="personal-project-list" aria-label={t("مشاريع الحساب", "Your projects")}>
       {visible.map((project) => {
         const updated = project.updated_at || project.created_at;
-        const nameId = "project-card-" + project.id;
         const path = api + "/projects/" + project.id;
         return <li key={project.id}>
           <DirectoryLink className="personal-project-card" to={"/projects?project=" + project.id}
-            navigate={navigate} aria-labelledby={nameId} aria-describedby={updated ? nameId + "-updated" : undefined}>
+            navigate={navigate}>
             <span className="personal-project-marker"><Folder size={20} aria-hidden="true" /></span>
-            <span><bdi id={nameId}>{project.name}</bdi>
-              {updated && <time id={nameId + "-updated"} dateTime={updated}>
+            <span><bdi>{project.name}</bdi>
+              {updated && <time dateTime={updated}>
                 {new Date(updated).toLocaleDateString(lang === "ar" ? "ar-EG" : "en", { dateStyle: "medium" })}
               </time>}
             </span>
