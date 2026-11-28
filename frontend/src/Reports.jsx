@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { ArrowDownToLine, ArrowLeft, ArrowRight, FileCheck2, FileText, Search } from "lucide-react";
 import { agents, fetchJson } from "./data";
 import { FindingReview, ReportComparison, ReportDialog, ToolRuns } from "./ReportAdvanced";
+import { modelOrderNote, suggestedPriority } from "./modelOrder";
 import { AgentReview, AgentSummary, FileManifest, ImportedEvidence, LinkedEvidence } from "./ReportEvidence";
 import "./reports.css";
 
@@ -50,7 +51,6 @@ const copy = {
     status: "الحالة",
     model: "الموديل",
     modelCalls: "استدعاءات الموديل",
-    modelOrder: "ترتيب الأولويات المقترح من الموديل",
     seconds: "ثانية",
     duration: "مدة الفحص",
     loading: "جاري تحميل التقارير…",
@@ -214,7 +214,6 @@ const copy = {
     status: "Status",
     model: "Model",
     modelCalls: "Model calls",
-    modelOrder: "Order suggested by the model",
     seconds: "s",
     duration: "Duration",
     loading: "Loading reports…",
@@ -541,7 +540,7 @@ function FindingList({ findings, coverage, imported, priority, t, lang, params, 
                 <span className="reports-count" role="status">{t.presentProgress}: {count(shown.length)} / {count(groups.length)}</span>
               </>}
           </div>
-          {suggested.size > 0 && <p className="reports-annotation">{t.modelOrder}</p>}
+          {modelOrderNote(priority, lang) && <p className="reports-annotation">{modelOrderNote(priority, lang)}</p>}
             <div className="reports-filters" id="report-filters" role="group" aria-label={t.filter}>
               <SearchFilter name="finding" value={query} update={update} title={t.searchFindings} placeholder={t.filterHint} />
               <SelectFilter t={t} title={t.severity} name="findingSeverity" value={severity} options={findings.map((entry) => entry.severity)} update={update} />
@@ -903,7 +902,7 @@ function ReportDetails({ report, t, lang, params, pathname, hash, navigate, repo
         {section === "findings" && <>
           <ImportedEvidence evidence={report.imported_evidence} lang={lang} count={count} />
           <FindingList findings={findings} coverage={report.coverage} imported={report.imported_evidence}
-            priority={report.enrichment === "model" ? report.priority : null} t={t} lang={lang}
+            priority={suggestedPriority(report)} t={t} lang={lang}
             params={params} pathname={pathname} hash={hash} navigate={navigate} />
           <AgentReview findings={report.agent_findings} run={report.agent_run} lang={lang} count={count} />
         </>}
