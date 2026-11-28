@@ -4,6 +4,8 @@ from . import platform_jobs as jobs
 from .advanced_reporting import compare
 from .contracts import Report
 from .test_platform_identity import invite_member
+from .test_personal_intake import new_project, reported, zip_headers
+from .test_personal_projects import personal_clients  # noqa: F401
 from .test_platform_runtime import artifact, platform, submit  # noqa: F401
 
 
@@ -94,3 +96,39 @@ def test_extended_lab_records_rules_tools_and_subtasks(platform):
     assert {task["agent"] for task in report["task_runs"]} == {
         "orchestrator", "planning", "analysis", "validation", "reporting",
     }
+
+
+def zip_snapshot(files):
+    import io
+    from zipfile import ZipFile
+    archive = io.BytesIO()
+    with ZipFile(archive, "w") as handle:
+        for name, text in files.items():
+            handle.writestr(name, text)
+    return archive.getvalue()
+
+
+def test_compare_two_repository_snapshots_shows_the_real_difference(personal_clients, monkeypatch):
+    monkeypatch.setenv("BASIRA_ALLOW_INLINE_ANALYSIS", "1")
+    owner, _other = personal_clients
+    path, project_id = new_project(owner)
+    before = zip_snapshot({
+        "web/a.html": '<script src="http://old.example/a.js"></script>',
+        "web/b.html": '<form action="http://example.test/"></form>',
+    })
+    after = zip_snapshot({
+        "web/a.html": '<script src="https://old.example/a.js"></script>',
+        "web/b.html": '<form action="http://example.test/"></form>',
+        "web/c.html": '<script src="http://new.example/c.js"></script>',
+    })
+    ids = []
+    for key, data in (("snapshot-1", before), ("snapshot-2", after)):
+        scan = owner.post(path + "/intake/zip", content=data, headers=zip_headers(key))
+        report, _ = reported(owner, path, project_id, scan)
+        ids.append(report["id"])
+    result = owner.get(path + "/reports/" + ids[1] + "/compare", params={"baseline": ids[0]}).json()
+    assert result["comparable"], result
+    states = {(item["path"], item["rule"], item["change"]) for item in result["changes"]}
+    assert ("web/a.html", "http-script", "resolved") in states, states
+    assert ("web/c.html", "http-script", "new") in states, states
+    assert ("web/b.html", "http-form", "unchanged") in states, states
