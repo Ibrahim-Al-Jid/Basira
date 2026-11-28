@@ -149,6 +149,36 @@ def test_sessions_are_resolved_through_definer_functions(db):
                 {"signature": "public." + signature}).scalar_one()
 
 
+def test_invitations_are_scoped_to_their_organization(db):
+    """An invitation token is a credential: no session may read another organization's rows."""
+    enabled, _ = db.connect().execute(sa.text(
+        "SELECT c.relrowsecurity, c.relforcerowsecurity FROM pg_class AS c "
+        "JOIN pg_namespace AS n ON n.oid = c.relnamespace "
+        "WHERE n.nspname = 'public' AND c.relname = 'organization_invitations'")).one()
+    assert enabled, "organization_invitations must enable row level security"
+    policies = db.connect().execute(sa.text(
+        "SELECT policyname, permissive FROM pg_policies "
+        "WHERE schemaname = 'public' AND tablename = 'organization_invitations'")).all()
+    assert ("organization_invitation_access", "PERMISSIVE") in policies
+    with db.connect() as connection:
+        if not connection.execute(sa.text("SELECT 1 FROM pg_roles WHERE rolname = 'basira_app'")).first():
+            pytest.skip("basira_app role is not provisioned")
+        granted = connection.execute(sa.text(
+            "SELECT has_table_privilege('basira_app', 'organization_invitations', 'SELECT'), "
+            "has_table_privilege('basira_app', 'organization_invitations', 'INSERT'), "
+            "has_table_privilege('basira_app', 'organization_invitations', 'UPDATE'), "
+            "has_table_privilege('basira_app', 'organization_invitations', 'DELETE')")).one()
+        assert granted == (True, True, True, False), "invitations are closed, never deleted"
+        assert connection.execute(sa.text(
+            "SELECT has_function_privilege('basira_app', "
+            "CAST(:signature AS regprocedure), 'EXECUTE')"),
+            {"signature": "public.basira_invitation_org(text)"}).scalar_one()
+        assert not connection.execute(sa.text(
+            "SELECT has_function_privilege('public', "
+            "CAST(:signature AS regprocedure), 'EXECUTE')"),
+            {"signature": "public.basira_invitation_org(text)"}).scalar_one()
+
+
 def test_checkpoint_trigger_exists(db):
     assert scalar(db, "SELECT count(*) FROM pg_trigger WHERE tgname = 'basira_clear_analysis_checkpoint'") == 1
 
