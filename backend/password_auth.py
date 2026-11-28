@@ -98,7 +98,9 @@ def reserve_attempt(request, email, action):
     window = int(utc_now().timestamp()) // WINDOW_SECONDS
     peer = request.client.host if request.client else "unknown"
     keys = [("peer", peer, 12 if action == "register" else 30),
-            ("email", email, 6 if action == "register" else 8)]
+            # Keyed by caller and email together: a key on the email alone lets anyone lock a known account out
+            # by failing logins for it from anywhere.
+            ("peer-email", f"{peer}|{email}", 6 if action == "register" else 8)]
     allowed = True
     with platform_session() as db:
         postgres = db.bind.dialect.name == "postgresql"
