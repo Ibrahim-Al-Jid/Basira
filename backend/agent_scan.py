@@ -8,10 +8,16 @@ from uuid import uuid4
 
 from . import agent_client, hunter_loop, platform_runtime as store
 from .agent_memory import agent_runs
-from .artifact_review import InputError, zip_texts
+from .artifact_review import EXTENDED_IDS, InputError, redact_label, zip_texts
+from .contracts import AgentFinding
 from .model_connections import gateway_config
 from .platform_db import bind_job_project, platform_session
 from .project_map import project_map
+from .rules import RULES
+from .scan_contracts import json_digest
+from .source_adapters import SOURCE_TOOLS
+
+KNOWN_RULES = frozenset(EXTENDED_IDS) | RULES.keys() | {tool.rule for tool in SOURCE_TOOLS}
 
 RUN_STATUS = {"ok": "completed", "disabled": "skipped", "model_error": "failed", "invalid_output": "failed"}
 
@@ -65,6 +71,22 @@ def run_hunter(row, connection, mode, *, post=None):
     digest = hashlib.sha256("\0".join(f"{path}\0{files[path]}" for path in sorted(files)).encode()).hexdigest()
     model = agent_client.gateway_model(url, headers, identity(row, connection), **({"post": post} if post else {}))
     budget = hunter_loop.Budget()
-    result = hunter_loop.hunt(model, files, project_map(files, digest), mode=mode, budget=budget)
+    result = hunter_loop.hunt(model, files, project_map(files, digest), mode=mode, budget=budget, rules=KNOWN_RULES)
     record_run(row, mode, connection["model"], result, budget)
+    return result
+
+
+def agent_findings(candidates, findings):
+    """Accepted Hunter candidates as report entries. A place the rules already reported is not repeated.
+    The quote is redacted like every label, and the fingerprint covers rule, path and line only."""
+    known = {(item.get("path"), item["line"], item["rule"]) for item in findings}
+    result = []
+    for item in candidates:
+        path = redact_label(item["path"])
+        if (path, item["line"], item["rule"]) in known:
+            continue
+        quote = " ".join(redact_label(item["quote"]).split())
+        result.append(AgentFinding(rule=item["rule"], path=path, line=item["line"], quote=quote,
+                                   fingerprint=json_digest(["agent", item["rule"], path, item["line"]])
+                                   ).model_dump(mode="json"))
     return result

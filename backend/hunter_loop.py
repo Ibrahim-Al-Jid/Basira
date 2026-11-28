@@ -6,14 +6,13 @@ arguments are validated, and candidates are re-checked against the snapshot by t
 with a fixed status code and no candidates, so the caller falls back to the deterministic result.
 Candidates are checked by backend/auditor.py before they are returned."""
 import json
-import os
 import time
 from dataclasses import dataclass
 
+from .analysis_mode import FLAG, agent_loop_enabled  # noqa: F401  (FLAG is part of this module's surface)
 from .auditor import audit_candidates
 from .detection_agents import search_lines
 
-FLAG = "BASIRA_AGENT_LOOP"
 BASE_TOOLS = frozenset({"search_code", "read_file"})
 HYBRID_TOOLS = BASE_TOOLS | {"run_rules"}
 STATUSES = ("ok", "disabled", "model_error", "invalid_output", "budget_steps", "budget_tool_calls",
@@ -48,7 +47,7 @@ class HunterResult:
 
 
 def enabled():
-    return os.environ.get(FLAG) == "1"
+    return agent_loop_enabled()
 
 
 def wrap(text):

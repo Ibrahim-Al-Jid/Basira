@@ -88,6 +88,17 @@ class Finding(BaseModel):
     advisory: AdvisoryEvidence | None = None
 
 
+class AgentFinding(BaseModel):
+    """A place the Hunter pointed at that the Auditor re-read in the snapshot. Never a rules finding."""
+    source: Literal["agent"] = "agent"
+    assessment: Literal["review_required"] = "review_required"
+    rule: str = Field(max_length=80)
+    path: str = Field(max_length=240)
+    line: int = Field(ge=1)
+    quote: str = Field(max_length=300)
+    fingerprint: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
 class RuleCoverage(BaseModel):
     rule: str
     domain: str
@@ -243,6 +254,7 @@ class Report(BaseModel):
     summary_ar: str
     summary_en: str
     findings: list[Finding]
+    agent_findings: list[AgentFinding] = Field(default_factory=list, max_length=50, exclude_if=lambda value: not value)
     coverage: list[RuleCoverage] | None = None
     steps: list[Step] = Field(default_factory=list)
     metrics: Metrics

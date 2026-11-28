@@ -282,7 +282,7 @@ def create_scan(ctx, envelope, raw, idempotency_key, *, scope_version=None, mode
     from .artifact_review import RULESET_VERSION
     from .model_connections import scan_connection
 
-    mode = resolve_mode(analysis_mode)
+    mode = resolve_mode(analysis_mode, has_model=bool(model_connection), kind=envelope["kind"])
     digest = intake_digest or scan_request_digest(envelope, raw, scope_version, model_connection, target_reference,
                                                   analysis_mode)
     ids = {"org_id": ctx.org_id, "project_id": ctx.project_id}
@@ -350,7 +350,7 @@ def create_scan(ctx, envelope, raw, idempotency_key, *, scope_version=None, mode
                 artifact["connection_source"] = "account"
         data = {
             **ids, "id": scan_id, "user_id": ctx.user_id, "state": "queued", "cursor": 0,
-            "idempotency_key": idempotency_key, "request_digest": digest, "input_meta": artifact, "raw": raw,
+            "idempotency_key": idempotency_key, "request_digest": digest, "input_meta": artifact, "raw": raw, "analysis_mode": mode["mode_effective"],
             "policy": {**policy, "version": version, "_analysis_plan": tools, "_ruleset_version": RULESET_VERSION},
             "source_expires_at": clock + timedelta(minutes=RAW_RETENTION_MINUTES),
             "created_at": clock, "updated_at": clock, "attempt": 0,

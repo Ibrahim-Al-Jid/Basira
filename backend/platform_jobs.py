@@ -104,6 +104,8 @@ def execute_scan(org_id, project_id, scan_id):
                 store.record_stage(org_id, project_id, scan_id, row["lease"], "model_skipped",
                                    MESSAGES["scan.agent_fallback"])
             hunted = hunter is not None
+            if outcome is not None and outcome.status == "ok":
+                data["agent_findings"] = agent_scan.agent_findings(outcome.candidates, data["findings"])
         if row["input_meta"].get("model_connection") and data["findings"] and not hunted:
             if os.environ.get("BASIRA_GATEWAY_URL") and os.environ.get("BASIRA_GATEWAY_TOKEN"):
                 verdict = model_budget.decide(

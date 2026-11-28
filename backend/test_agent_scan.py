@@ -108,3 +108,57 @@ def test_run_hunter_on_a_non_repository_input_fails_without_a_call(platform, mon
     monkeypatch.setenv("BASIRA_GATEWAY_TOKEN", "t")
     row = {**claimed, "input_meta": {**claimed["input_meta"], "kind": "html"}}
     assert agent_scan.run_hunter(row, CONNECTION, "hybrid", post=lambda *a, **k: 1 / 0).status == "model_error"
+
+
+def test_candidates_without_a_known_rule_are_rejected_by_the_auditor(platform, monkeypatch):
+    owner, _other, ctx = platform
+    scan = queue(owner, ctx, "agent-run-3", "hybrid")
+    claimed = store.claim(ctx.org_id, ctx.project_id, scan)
+    row = {**claimed, "raw": zipped({"app.py": "import os\nos.system(input())\n"}),
+           "input_meta": {**claimed["input_meta"], "kind": "repository"}}
+    monkeypatch.setenv("BASIRA_AGENT_LOOP", "1")
+    monkeypatch.setenv("BASIRA_GATEWAY_URL", "http://gw")
+    monkeypatch.setenv("BASIRA_GATEWAY_TOKEN", "t")
+    good = {"path": "app.py", "line": 2, "quote": "os.system(input())", "rule": "http-script"}
+    texts = iter([json.dumps({"candidates": [{**good, "rule": "made-up-rule"}, {**good, "rule": None}, good]})])
+
+    def post(url, json=None, **kwargs):
+        return httpx.Response(200, json={"content": next(texts), "usage": {"input": 1, "output": 1}},
+                              request=httpx.Request("POST", url))
+
+    result = agent_scan.run_hunter(row, CONNECTION, "hybrid", post=post)
+    assert result.status == "ok" and [item["rule"] for item in result.candidates] == ["http-script"]
+    assert sorted(item["reason"] for item in result.rejected) == ["unknown_rule", "unknown_rule"]
+
+
+def test_agent_findings_are_redacted_deduplicated_and_never_rules_findings():
+    secret = "sk-" + "a" * 24
+    candidates = [{"path": "a.py", "line": 3, "quote": f"key =   '{secret}'", "rule": "http-script"},
+                  {"path": "b.py", "line": 1, "quote": "already found", "rule": "http-script"}]
+    rules = [{"path": "b.py", "line": 1, "rule": "http-script"}]
+    [item] = agent_scan.agent_findings(candidates, rules)
+    assert secret not in json.dumps(item) and "[redacted]" in item["quote"]
+    assert item["source"] == "agent" and item["assessment"] == "review_required" and len(item["fingerprint"]) == 64
+    assert agent_scan.agent_findings(candidates, rules) == [item]
+
+
+def test_hybrid_scan_adds_agent_findings_beside_unchanged_rules_findings(platform, monkeypatch):
+    owner, _other, ctx = platform
+    plain = queue(owner, ctx, "agent-merge-0", "hybrid")
+    monkeypatch.delenv("BASIRA_AGENT_LOOP", raising=False)
+    jobs.execute_scan(ctx.org_id, ctx.project_id, plain)
+    baseline = state(ctx, plain)["report"]
+    assert "agent_findings" not in baseline
+    # The column records the mode that actually ran at creation: hybrid without the agent path ran the rules.
+    assert state(ctx, plain)["analysis_mode"] == "rules"
+
+    scan = queue(owner, ctx, "agent-merge-1", "hybrid")
+    monkeypatch.setenv("BASIRA_AGENT_LOOP", "1")
+    monkeypatch.setattr(store, "reserve_model_connection", lambda *a: CONNECTION)
+    place = {"path": "app.py", "line": 2, "quote": "os.system(input())", "rule": "http-script"}
+    monkeypatch.setattr(agent_scan, "run_hunter", lambda *a, **k: hunter_loop.HunterResult("ok", [place], []))
+    jobs.execute_scan(ctx.org_id, ctx.project_id, scan)
+    row = state(ctx, scan)
+    assert row["state"] == "completed"
+    assert row["report"]["agent_findings"][0]["path"] == "app.py"
+    assert row["report"]["findings"] == baseline["findings"]
