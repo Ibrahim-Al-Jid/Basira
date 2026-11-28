@@ -134,6 +134,7 @@ class ScanProfile(BaseModel):
     raw_retention_minutes: int = RAW_RETENTION_MINUTES
     asset_linked: bool
     enrichment_available: bool
+    agent_path_enabled: bool = False
     model_connection: ConnectionInfo | None
     tools_by_input: dict[ArtifactKind, list[ToolPin]]
 

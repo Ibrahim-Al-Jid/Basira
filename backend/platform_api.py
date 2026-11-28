@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 from . import platform_runtime as store
 from . import advanced_reporting as advanced
-from .analysis_mode import AnalysisMode, ModeUnavailable
+from .analysis_mode import AnalysisMode, ModeUnavailable, agent_loop_enabled
 from .artifact_review import EXTENDED_IDS, MAX_ARTIFACT, InputError, RULESET_VERSION, decode_payload, redact_label, safe_path
 from .contracts import History, HistoryItem, Report
 from .identity import ROLE_ACTIONS, require_project
@@ -210,7 +210,7 @@ def scan_profile(project_id: str, request: Request):
         configured_tools = {kind: tools for kind, tools in configured_tools.items() if kind == "repository"}
     return ScanProfile(scope_version=version, allowed_kinds=[kind for kind, plans in configured_tools.items() if plans],
                        max_bytes=MAX_ARTIFACT, asset_linked=bool(policy.get("base_url")),
-                       enrichment_available=can_enrich, model_connection=connection if can_enrich else None,
+                       enrichment_available=can_enrich, agent_path_enabled=agent_loop_enabled(), model_connection=connection if can_enrich else None,
                        tools_by_input=configured_tools)
 
 
