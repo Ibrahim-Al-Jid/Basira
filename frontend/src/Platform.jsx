@@ -505,7 +505,9 @@ function NewScan({ projects, project, choose, navigate, lang, personal }) {
         } : undefined}><UploadCloud size={25} aria-hidden="true"/>
         <span>{t("اختيار ملف", "Choose file")}</span>
         <input key={kind} name="file" type="file" accept={extensions[kind]} required={!source}
+          onInvalid={(event) => event.target.setCustomValidity(t("اختار ملف الأول.", "Choose a file first."))}
           onChange={(event) => {
+            event.target.setCustomValidity("");
             const chosen = event.target.files[0] || null;
             updateEvidence(() => setSource(chosen));
             if (personal && chosen) setStep(2);

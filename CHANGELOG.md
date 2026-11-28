@@ -72,6 +72,7 @@
 - Arabic header now mirrors with the sidebar: search on the right, theme, language and account controls on the left (one CSS rule in `frontend/src/command-center.css`). Checked in a browser in Arabic at 1280 and 390 px and English at 1280 px: no overflow. This branch builds on the Arabic sidebar PR (#57), merge that first.
 - A visible focus box appeared around the page title (Reports, report, scan wizard) on every page load, because the title is focused for screen readers. Non-control elements that are focused only by code (`tabindex=-1`) no longer draw a ring; buttons, links and fields keep theirs (`frontend/src/workspace.css`).
 - Unknown browser URLs now open the app's own "Page not found" screen (HTTP 404) instead of a blank page with a raw server 404, and `/projects/<id>` and `/projects/<id>/reports/<id>` open the project and the report instead of an empty page (`backend/main.py`, `frontend/src/main.jsx`). API routes still return JSON 404. Found by a full product audit; test added in `backend/test_api.py`.
+- New scan: pressing Review scan with no file chosen now says "Choose a file first." in the app language (it showed the browser's own English text in the Arabic UI). Root cause: the file field relied on the browser's built-in required message. `frontend/src/Platform.jsx`. Checked in a browser in English and Arabic.
 
 ### Removed
 - `work/` folder (its content moved into `docs/PLAN.md`).
