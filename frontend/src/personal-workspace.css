@@ -177,3 +177,12 @@
 .personal-archived-list li { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; }
 .personal-archived-list time { color: var(--muted); font-size: .85rem; }
 .project-hint { margin: .25rem 0 0; font-size: .85rem; color: var(--muted); max-inline-size: 60ch; }
+
+/* In-context add: a compact "+" beside each project in the sidebar starts a scan in that project. */
+.personal-links .personal-nav-group li { display: flex; gap: .25rem; align-items: center; }
+.personal-links .personal-nav-group li > a:first-child { flex: 1 1 auto; inline-size: auto; min-inline-size: 0; }
+.personal-links .personal-nav-group li > .personal-nav-add {
+  flex: 0 0 2.75rem; inline-size: 2.75rem; justify-content: center; padding: 0;
+  border: 1px solid var(--line);
+}
+.personal-links .personal-nav-add:hover, .personal-links .personal-nav-add:focus-visible { color: var(--ink); border-color: var(--accent); }
