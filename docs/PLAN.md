@@ -72,8 +72,8 @@ A future addition may be started early only if Release 1 is complete, or if it b
 
 Phases P01 to P08 are built; this plan has 24 phases (P01 to P24). P09 has its live view and model lane in place; P10 slices a to f and P20 are merged, and the design question is closed (28 November 2026: keep the current look, no new design); open: the automatic default project (scan flow is 4 actions, target 3), then future additions. Release 1 scope is defined above; everything else is a future addition. Section 3b lists every merged pull request, which is where the evidence for a status lives.
 
-Verified on 28 November 2026 at commit `62b0d27`, Linux, Python 3.13.18, Node 22.23.5:
-- Backend suite: `python -m pytest backend -q` gave 434 passed, 18 skipped, 8 subtests in 20.9 s. The frontend build ran first, as `backend/test_api.py` serves `frontend/dist`.
+Verified on 28 November 2026 at commit `192fddf`, Linux, Python 3.13.18, Node 22.23.5:
+- Backend suite: `python -m pytest backend -q` gave 443 passed, 19 skipped, 8 subtests in 20.9 s. The frontend build ran first, as `backend/test_api.py` serves `frontend/dist`.
 - Frontend: `npm --prefix frontend ci` and `npm run build` succeed; `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs` gave 8 pass.
 - App start: `/`, `/demo`, `/signin`, `/projects`, `GET /api/taxonomy` and `GET /api/product` returned 200.
 - Documentation set: [SETUP](SETUP.md), [CONFIGURATION](CONFIGURATION.md), [API](API.md) and [TROUBLESHOOTING](TROUBLESHOOTING.md) added, with the commands they contain checked in the same run.
@@ -245,6 +245,9 @@ Every change reaches `main` through a pull request (see [two-account-flow](two-a
 | #138 | Agent memory tables: `analysis_mode`, `project_maps`, `scan_agent_runs`, `scan_agent_steps` | P09 |
 | #139 | Docs: the restore check is invoked with `sh` | docs |
 | #120 | Entry page: real WebGL planet and below-the-fold sections | P10 |
+| #140 | Docs follow-up: run modes, analysis_mode, figures | docs |
+| #141 | Guard anonymous lab runs with per-IP and concurrency limits | P18 |
+| #142 | CI: run the workspace browser suite on every pull request | P18 |
 
 Order of work, set by the agent as the expert (27 Nov 2026): P21 (provider settings, done), P09 model lane (done), P10 redesign slices a to f (merged), then P20 (replay and budget check, merged), P19 (source-code checks, the biggest measured gap), P11, P17 and P23 (measured evaluation with precision, when the free-tier cap allows), P13, P16, P15, P22, P07 gaps, P12, P24, P18. P14 follows decision A and ships before P17 if approved, so evaluation covers it.
 
