@@ -1,6 +1,6 @@
 # Basira plan
 
-The single source of truth for what Basira is, what is built, what is next, and how each piece is accepted. Everything else in the repo supports this file. Edited on 27 November 2026 (P18 checklist results added).
+The single source of truth for what Basira is, what is built, what is next, and how each piece is accepted. Everything else in the repo supports this file. Edited on 28 November 2026 (pull-request list, documentation set and the settled design decision added).
 
 Contents: [1 Product](#1-product) · [2 Current position](#2-current-position) · [3 Phases](#3-phases) · [4 Phase details](#4-phase-details) · [5 Architecture](#5-architecture) · [6 Agents, tools, memory](#6-agents-tools-and-memory) · [7 Contracts](#7-contracts) · [8 Acceptance](#8-acceptance) · [9 Risks](#9-risks-and-limits) · [10 Decisions](#10-decisions) · [11 Conventions](#11-conventions)
 
@@ -70,10 +70,14 @@ A future addition may be started early only if Release 1 is complete, or if it b
 
 ## 2. Current position
 
-Phases P01 to P08 are built; this plan has 24 phases (P01 to P24). P09 has its model lane in place; P10 slices a to f and P20 are merged; open: the automatic default project (scan flow is 4 actions, target 3), then future additions. Release 1 scope is defined above; everything else is a future addition.
+Phases P01 to P08 are built; this plan has 24 phases (P01 to P24). P09 has its live view and model lane in place; P10 slices a to f and P20 are merged, and the design question is closed (28 November 2026: keep the current look, no new design); open: the automatic default project (scan flow is 4 actions, target 3), then future additions. Release 1 scope is defined above; everything else is a future addition. Section 3b lists every merged pull request, which is where the evidence for a status lives.
 
-Verified on 27 November 2026:
-- Python 3.13: 251 backend tests passed, 1 skipped at the time of this entry. Later runs are recorded in CI and in `docs/RELEASE.md`.
+Verified on 28 November 2026 at commit `b71e08a` (main after PR #53), Linux, Python 3.13.18, Node 22.23.5:
+- Backend suite: `python -m pytest backend -q` gave 407 passed, 2 skipped, 8 subtests in 20.9 s. The frontend build ran first, as `backend/test_api.py` serves `frontend/dist`.
+- Frontend: `npm --prefix frontend ci` and `npm run build` succeed; `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs` gave 8 pass.
+- App start: `/`, `/demo`, `/signin`, `/projects`, `GET /api/taxonomy` and `GET /api/product` returned 200.
+- Documentation set: [SETUP](SETUP.md), [CONFIGURATION](CONFIGURATION.md), [API](API.md) and [TROUBLESHOOTING](TROUBLESHOOTING.md) added, with the commands they contain checked in the same run.
+- Earlier records: the 27 November numbers (251 tests at that time), the real-stack browser acceptance and the P18 checklist are in `docs/RELEASE.md`. CI on main is the current record for every run after this entry.
 - Real stack without containers (PostgreSQL 17, Redis 7.2, API, dispatcher, Celery worker, Chromium): personal-projects browser acceptance passed in Arabic and English, covering ZIP scan, report, PDF export and cross-account isolation.
 - Local lab starts with `npm start`; UI, `/demo` and `/api/taxonomy` respond.
 - Not run: Docker image build and Compose, `tests/container_smoke.py`, the other browser suites, real model provider calls, S3 intake. The P18 checklist results are in `docs/RELEASE.md` under "Release 1 checklist".
@@ -98,8 +102,8 @@ Status: **done** (built, tests exist, acceptance re-run or re-checked on 27 Nove
 | P06 | Intake | ZIP, GitHub App, approved website pages, HAR, ZAP and OpenAPI import, quarantine lifecycle | done |
 | P07 | Tools, agents and memory | Pinned tool registry, offline execution, five-stage graph, model gateway and advisor, checkpoints, scan memory | partial |
 | P08 | Product journey | Personal projects workspace, ownership migration, project pages | done |
-| P09 | Live experience and report model | Per-agent live view, frozen report model, report and PDF parity tests | in progress: slice (a) tokens done |
-| P10 | Redesign: UI/UX, fewer steps, automation | Design system, single-screen Scan flow, live view, decision-first report, dashboard, landing; 10 actions to 3 | partial: slices a to f merged (Pop, decision report, live view, dashboard, landing and sign-in); open: automatic default project (4 actions measured, target 3) |
+| P09 | Live experience and report model | Per-agent live view, frozen report model, report and PDF parity tests | partial: live view, model lane, agent start events and auto-open report built (PRs #17, #18, #39); open: per-tool progress, a slow-scan confirmation, frozen-model parity test |
+| P10 | Redesign: UI/UX, fewer steps, automation | Design system, single-screen Scan flow, live view, decision-first report, dashboard, landing; 10 actions to 3 | partial: slices a to f merged (PRs #25, #31, #32, #33, #38, #39, #41), teammate frontend merged (#48), owner settled the look on 28 November 2026: keep the current look, no new design; open: automatic default project (4 actions measured, target 3) |
 | P11 | Recheck and history | Fixed, Still present, New, Changed, Inconclusive, Needs review | future (after Release 1) (open) |
 | P12 | Remediation | Repair plans, approval, optional sandbox patch draft | future (after Release 1) (open) |
 | P13 | Help and report assistant | Static contextual help, then the cited read-only report assistant (committed) | future (after Release 1) (open) |
@@ -113,7 +117,63 @@ Status: **done** (built, tests exist, acceptance re-run or re-checked on 27 Nove
 | P22 | Self-security | Basira scanned by itself; scanned content treated as untrusted input to the agents (prompt-injection tests); key storage, custom-provider URL and export paths reviewed; threat model written | in progress: 56 offline tests for prompt injection, SSRF, DNS rebinding and key handling pass (`backend/test_self_security.py`), threat model table in ARCHITECTURE; upload limits and HTML/JSON export paths covered by 29 more tests (`backend/test_upload_and_export.py`); self-scan with the built-in checks before P19: 166 text files, 0 findings; with the P19 source checks: 185 text files, 3 findings (CI-01, actions not pinned to a commit), fixed by pinning, now 0; model-supplied regex in `search_code` now runs in a child process with a 2 s limit (the shape check alone let `(a|aa)+$` run past 20 s); hostile text in the PDF export tested (no active PDF objects; the test found that NUL passed through `printable`, fixed); self-scan with external tools run on 27 Nov 2026: gitleaks 0 leaks in git history, pip-audit 0 known vulnerabilities, semgrep 2 and bandit 10 medium findings, all reviewed by hand and none exploitable (details in ARCHITECTURE); SARIF export was rejected by the owner on 27 Nov 2026 and is out of scope; open: add the external tools to CI |
 | P23 | Quality gates | Precision and false-positive rate measured with the detection recall; a regression gate in CI that fails when either drops; flaky-test policy; reproducible evaluation script | in progress: `python -m backend.quality_gate` records precision, recall and false-positive rate for the reference corpus and DVWA against `tests/fixtures/quality-baseline.json` and exits 1 on a drop; policy in [QUALITY.md](QUALITY.md); CI runs it (not yet seen on GitHub); the model configuration C2 is gated from its recorded run, scored offline: 8 of 13 found, precision 0.25, 5 of 13 clean files flagged (development score), so the gate holds the scoring and the recorded file; open: gates for C3 and C4 once they have a recorded run |
 | P24 | Thesis and defense package | Problem statement, related work (from `research/competitors.md`), architecture, evaluation chapter with limits, ethics and authorization rules for scanning, a small usability check with real users, slides, demo script, prepared answers to likely questions | partial: eight files in [thesis](thesis/README.md) (chapters, slides outline, 18 prepared answers); open: usability check with five real users, evaluation chapter update when C3 and C4 run, the slide deck file |
-| P18 | Hardening and release | Isolation and recovery acceptance, Docker verified, legacy removal, release manifest, rename | open |
+| P18 | Hardening and release | Isolation and recovery acceptance, Docker verified, legacy removal, release manifest, rename | partial: release checklist run and recorded in [RELEASE](RELEASE.md) (#40), Windows local setup verified by script review (#44); open: Docker and Compose verified on a real host, `tests/container_smoke.py`, legacy removal, merging the Arabic docs, release manifest |
+
+### 3b. Merged pull requests
+
+Every change reaches `main` through a pull request (see [two-account-flow](two-account-flow.md)). Merged numbers are listed so a status above can be traced to its evidence. Open numbers are work in progress and are not evidence.
+
+| PR | Change | Phase |
+|---|---|---|
+| #1 | Personal project intake and GitHub setup | P06, P08 |
+| #2 | Phase 15 evaluation and checks updates | P15 |
+| #3 | Offline tool execution and Phase 15 coverage (contributor account) | P07 |
+| #4 | Phase 16 verified workflow | P07 |
+| #5 | English README, Arabic kept as `README.ar.md` | docs |
+| #6 | Taxonomy, consolidated docs, research, fix | P04, docs |
+| #7 | Archive material removed, verified run methods, CHANGELOG | docs |
+| #8, #10 | Single plan and consistent names (re-landed as #10 after the revert in #9) | docs |
+| #11 | Detection experiment, team configurations coded | P17 |
+| #12, #13 | Rename Marsad to Basira, demo runbook | P18 |
+| #14 | Plan review: self-security, quality gates, thesis package | docs |
+| #15 | Presenter mode | P10 |
+| #16 | Provider-agnostic model settings | P21 |
+| #17 | Live model stage on the scan page | P09 |
+| #18 | Redesign plan, report opens after a scan | P10 |
+| #19 | Self-security tests and threat model | P22 |
+| #20 | Quality gate for precision, recall and false positives | P23 |
+| #21 | CI: backend tests and quality gate | P23 |
+| #22 | Thesis and defense package, README verification | P24 |
+| #23 | Upload and export self-security tests | P22 |
+| #24 | Source-code security checks | P19 |
+| #25 | Shorter personal scan flow | P10 |
+| #26 | Release 1 scope and future additions | docs |
+| #27 | UI labels: 114 rules, source-code domain | docs |
+| #28 | Same-line findings counted separately | P19 |
+| #29 | How each future addition would be built | docs |
+| #30 | Dedup fix in RELEASE and thesis | docs |
+| #31, #32 | Design tokens and the Pop design language | P10 |
+| #33 | Decision-first report | P10 |
+| #34 | Pin CI actions, time-limit model-supplied regex | P22 |
+| #35 | Model request budget check, replay of a stored scan | P20 |
+| #36 | SARIF export removed (owner decision) | P02 |
+| #37 | PDF hostile-content test, self-scan, recorded model gate | P22, P23 |
+| #38 | Dashboard with change since last scan and presentation mode | P10 |
+| #39 | Live agent view | P10 |
+| #40 | Release 1 checklist and documentation audit | P18 |
+| #41 | Landing and sign-in | P10 |
+| #42 | PLAN status matches merged state | docs |
+| #43 | Personal projects enabled in the local Windows profile | P08 |
+| #44 | Local setup: GitHub key and callback generated, fail-fast checks, Windows README | P18 |
+| #45 | `-Model` switch and clearer gateway unavailable state | P21 |
+| #46 | Project management: search, rename, delete, restore | P08 |
+| #47 | Clearer scan errors in English, supported file types | P10 |
+| #48 | Teammate frontend integrated onto main | P10 |
+| #49 | Snapshot comparison shows resolved and new for multi-file projects | P02 |
+| #50 | In-context add scan buttons | P10 |
+| #51 | Two-account pull request flow documented | docs |
+| #52 | Blank pages on unknown and project or report URLs fixed | P10 |
+| #53 | Two unused stylesheets removed (29 KB) | P10 |
 
 Order of work, set by the agent as the expert (27 Nov 2026): P21 (provider settings, done), P09 model lane (done), P10 redesign slices a to f (merged), then P20 (replay and budget check, merged), P19 (source-code checks, the biggest measured gap), P11, P17 and P23 (measured evaluation with precision, when the free-tier cap allows), P13, P16, P15, P22, P07 gaps, P12, P24, P18. P14 follows decision A and ships before P17 if approved, so evaluation covers it.
 
@@ -147,7 +207,7 @@ Open items inside P07: failure and recovery acceptance (crash after checkpoint, 
 
 Done when: scan page shows each role live in a browser test, and the parity test passes in both languages.
 
-### P10 Redesign: new UI/UX, fewer steps, more automation (slices a to f merged; automatic default project open)
+### P10 Redesign: new UI/UX, fewer steps, more automation (slices a to f merged; design settled; automatic default project open)
 
 The owner asked for a radical redesign: easier flows, less manual work, more automation. It moves ahead of P20 and P19 in the order of work because it changes what every later feature looks like.
 
@@ -164,7 +224,7 @@ The owner asked for a radical redesign: easier flows, less manual work, more aut
 
 **Design system.** Tokens first (color, type scale, spacing, radius, elevation, motion with reduced-motion respected), built on the existing dark and light themes, with the blueprint palette. Components get one definition each: button, field, card, status chip, severity chip, lane, empty state, toast. Pages are migrated one at a time so main stays shippable.
 
-**Design direction (chosen by the owner, 27 Nov 2026): "Pop".** Chosen from four animated concepts (Aurora, Pop, Signal, Cobalt) after the first navy/teal tokens and ten grey layouts were rejected. Rules: 60/30/10 colour (cream canvas 60%, ink indigo for type, lines and shadows 30%, accents tomato, lemon, mint, lilac and sky 10%); type: Cairo Black for headings, IBM Plex Sans Arabic (Arabic) and Inter (English) for body; 3 px ink borders, offset shadows, round shapes, springy motion (bounce, wobble, float, marquee), all of it off under `prefers-reduced-motion`. Dark theme keeps the same accents on deep indigo. Tokens are in `frontend/src/workspace.css`; shapes and motion in `frontend/src/design-pop.css`, loaded last. **Slice (a) status:** applied to landing, workspace shell, projects, scan flow, report and settings as a style layer. The structural changes (live view, decision-first report, dashboard, one-screen scan) are slices c to f and will be built in this style. Contrast: body text pairs were chosen from the ink on cream pair; white or ink text on tomato and lemon tiles was not formally measured, and no automated accessibility audit was run.
+**Design direction (recorded 27 Nov 2026, superseded 28 Nov 2026): "Pop".** The owner then chose to keep the current look instead (see "Teammate integration" below); this paragraph is history and describes no shipped screen. Chosen from four animated concepts (Aurora, Pop, Signal, Cobalt) after the first navy/teal tokens and ten grey layouts were rejected. Rules: 60/30/10 colour (cream canvas 60%, ink indigo for type, lines and shadows 30%, accents tomato, lemon, mint, lilac and sky 10%); type: Cairo Black for headings, IBM Plex Sans Arabic (Arabic) and Inter (English) for body; 3 px ink borders, offset shadows, round shapes, springy motion (bounce, wobble, float, marquee), all of it off under `prefers-reduced-motion`. Dark theme keeps the same accents on deep indigo. Tokens are in `frontend/src/workspace.css`; shapes and motion in `frontend/src/design-pop.css`, loaded last. **Slice (a) status:** applied to landing, workspace shell, projects, scan flow, report and settings as a style layer. The structural changes (live view, decision-first report, dashboard, one-screen scan) are slices c to f and will be built in this style. Contrast: body text pairs were chosen from the ink on cream pair; white or ink text on tomato and lemon tiles was not formally measured, and no automated accessibility audit was run.
 
 **Slice (d) status (27 Nov 2026).** The report now opens with a Decision block: the headline ("N fixes before handover" or "No findings in what was checked"), the top three fixes by severity with file and line, rules run out of rules in coverage with a link to what was not checked, and a standing caution that no findings is not proof of a clean project. Counts come from the stored report only. Checked in a real browser (personal projects acceptance); Arabic checked visually; the other Playwright suites were not re-run.
 
@@ -335,6 +395,10 @@ What makes this graduation-worthy, in priority order: (1) live multi-agent view 
 | C | One tracker, this file; blueprint and repository phase IDs retired | decided 27 November 2026 |
 | D | Initial user is the individual developer, local first | decided |
 | E | Patch drafting stays behind a flag until gates A3 and A4 pass | decided |
+| G | Keep the current look (the teammate command-center frontend); no new design language. Recorded 28 November 2026; the Pop work stays in history and `design-pop.css` is deleted | decided 28 November 2026 (recorded in PR #53) |
+| H | Remove the header colour palette picker and the notification bell; the look is fixed to the default palette, with the dark/light and language toggles kept | decided 28 November 2026 (recorded in PR #56, open at the time of this entry) |
+| I | Every change lands through a pull request reviewed by a second account; authorship and review stay on separate accounts | decided 28 November 2026 ([two-account-flow](two-account-flow.md), PR #51) |
+| J | No paid model spend; model configurations use one free OpenRouter model | decided 27 November 2026 |
 
 ## 11. Conventions
 
