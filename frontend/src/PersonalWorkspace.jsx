@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useRef, useState } from "react";
-import { ArrowUpRight, Bug, CheckCircle2, ChevronLeft, ChevronRight, FileCheck2, Folder, FolderPlus, GitBranch, Grid2X2, History, LogOut, Menu, Pencil, RefreshCw, RotateCcw, ScanLine, Search, Settings, SlidersHorizontal, Trash2, Workflow } from "lucide-react";
+import { ArrowUpRight, Bug, CheckCircle2, ChevronLeft, ChevronRight, FileCheck2, Folder, FolderPlus, GitBranch, Grid2X2, History, LogOut, Menu, Pencil, Plus, RefreshCw, RotateCcw, ScanLine, Search, Settings, SlidersHorizontal, Trash2, Workflow } from "lucide-react";
 import { post } from "./data";
 import { action, api, errorText, json, translate } from "./platformClient";
 import { DirectoryLink } from "./ProjectDirectory";
@@ -94,6 +94,10 @@ export function PersonalSidebar({ location, navigate, follow, lang, revision, on
             <DirectoryLink to={"/projects?project=" + project.id} navigate={navigate}
               aria-current={project.id === projectId ? "location" : undefined}>
               <Folder size={16} aria-hidden="true" /><bdi>{project.name}</bdi>
+            </DirectoryLink>
+            <DirectoryLink className="personal-nav-add" to={"/new-scan?project=" + encodeURIComponent(project.id)} navigate={navigate}
+              aria-label={t("فحص جديد في " + project.name, "New scan in " + project.name)}>
+              <Plus size={14} aria-hidden="true" />
             </DirectoryLink>
           </li>)}
         </ul>
@@ -216,6 +220,10 @@ function ProjectList({ projects, navigate, refresh, submit, busy, lang }) {
               <button className="btn" type="button" disabled={busy} onClick={() => setDeleting(null)}>{t("رجوع", "Cancel")}</button>
             </div>
           </form> : <div className="workspace-actions personal-project-actions">
+            <DirectoryLink className="btn primary" to={"/new-scan?project=" + encodeURIComponent(project.id)} navigate={navigate}
+              aria-label={t("فحص جديد في " + project.name, "New scan in " + project.name)}>
+              <Plus size={14} aria-hidden="true" />{t("فحص جديد", "Add scan")}
+            </DirectoryLink>
             <button className="btn" type="button" disabled={busy} onClick={() => { setDeleting(null); setEditing(project.id); }}>
               <Pencil size={14} aria-hidden="true" />{t("تعديل الاسم", "Rename")}
             </button>
