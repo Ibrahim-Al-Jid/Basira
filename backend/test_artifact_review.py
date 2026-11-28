@@ -160,6 +160,8 @@ def test_config_bundle_envelope_still_works():
     answer = scan("config", "bundle.json", json.dumps(bundle).encode())
     assert "error" not in answer
     assert answer["result"]["status"] == "completed"
+
+
 def test_snapshot_with_only_unsupported_language_is_partial_not_complete():
     archive = io.BytesIO()
     with ZipFile(archive, "w") as bundle:
@@ -181,3 +183,22 @@ def test_snapshot_with_a_supported_language_still_reports_clear_rules():
     report = scan("repository", "service.zip", archive.getvalue())["result"]
     rows = {row["rule"]: row for row in report["coverage"]}
     assert rows["SRC-01"]["status"] == "clear"
+
+
+def test_har_without_complete_header_declaration_reports_skipped_rules_as_partial():
+    body = "<html><head></head><body></body></html>"
+    capture = {"log": {"entries": [{
+        "request": {"url": "https://site.example/"},
+        "response": {"status": 200, "content": {"mimeType": "text/html", "text": body, "size": len(body)},
+                     "headers": [{"name": "Content-Type", "value": "text/html"}]},
+    }]}}
+    answer = scan("har", "capture.har", json.dumps(capture).encode(), policy={"base_url": "https://site.example"})
+    report = answer["result"]
+    rows = {row["rule"]: row for row in report["coverage"]}
+    assert rows["WEB-01"]["status"] == "skipped"
+    assert rows["WEB-01"]["reason"] == "har_headers_incomplete"
+    assert report["status"] == "partial"
+    assert "could not run" in report["summary_en"]
+    declared = scan("har", "capture.har", json.dumps(capture).encode(),
+                    policy={"base_url": "https://site.example", "har_headers_complete": True})
+    assert {row["rule"]: row for row in declared["result"]["coverage"]}["WEB-01"]["status"] != "skipped"

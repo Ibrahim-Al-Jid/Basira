@@ -6,6 +6,7 @@ from pathlib import PurePosixPath
 import re
 from urllib.parse import SplitResult
 
+from .markers import Incomplete, missing
 from .web import (
     Document, HTML_MIME, TOKEN, header_map, parsed_url, points_to_http, policy_strings,
     private_cache_shared, resolve_url, split_quoted, supported_digest, url_origin,
@@ -113,7 +114,7 @@ class ExtraDocument(Document):
 
 
 def record(results, rule, path, line, evidence=None, *, contextual=False):
-    if results[rule] is None:
+    if results[rule] is None or isinstance(results[rule], Incomplete):
         results[rule] = []
     if evidence is not None:
         severity, title, title_ar, remediation, remediation_ar = SPEC[rule]
@@ -311,12 +312,20 @@ def has_measurement(capture, name):
     return capture.complete or singleton(capture.headers, name) is not None
 
 
+def unmeasured(results, capture, rule):
+    """A rule whose evidence needs a complete capture; the scan reports it as skipped."""
+    if results[rule] is None:
+        results[rule] = missing(capture.complete)
+
+
 def compare_header(results, capture, rule, header, expected, fact, *, structured=False):
     if has_measurement(capture, header):
         value = singleton(capture.headers, header)
         if structured and value is not None:
             value = structured_value(value)
         assess(results, capture, rule, value not in expected, fact)
+    else:
+        unmeasured(results, capture, rule)
 
 
 def assess(results, capture, rule, failed, fact, *, contextual=False):
@@ -410,7 +419,10 @@ def valid_directory(value):
 def service_worker_check(results, capture, configured):
     expected = configured.get(capture.url.path)
     name = "service-worker-allowed"
-    if not valid_directory(expected) or not has_measurement(capture, name):
+    if not valid_directory(expected):
+        return
+    if not has_measurement(capture, name):
+        unmeasured(results, capture, "WEB-24")
         return
     value = singleton(capture.headers, name)
     if value is None and not capture.headers.get(name):
@@ -460,11 +472,14 @@ def har_checks(results, har, policy):
             if wildcard is not None:
                 assess(results, capture, "WEB-18", bool(wildcard),
                        f"Permissions-Policy contains unrestricted {', '.join(sorted(wildcard))}.", contextual=True)
-        if https and 200 <= capture.status < 400 and path in logout_paths and capture.complete:
-            tokens = {part.strip() for field in headers.get("clear-site-data", []) for part in field.split(",")}
-            missing = '"*"' not in tokens and not {'"cache"', '"cookies"'} <= tokens
-            assess(results, capture, "WEB-19", missing,
-                   "Configured logout response lacks the required quoted cache and cookies directives.", contextual=True)
+        if https and 200 <= capture.status < 400 and path in logout_paths:
+            if capture.complete:
+                tokens = {part.strip() for field in headers.get("clear-site-data", []) for part in field.split(",")}
+                absent = '"*"' not in tokens and not {'"cache"', '"cookies"'} <= tokens
+                assess(results, capture, "WEB-19", absent,
+                       "Configured logout response lacks the required quoted cache and cookies directives.", contextual=True)
+            else:
+                unmeasured(results, capture, "WEB-19")
         if capture.representation and path in downloads and has_measurement(capture, "content-disposition"):
             disposition = singleton(headers, "content-disposition") or ""
             assess(results, capture, "WEB-20", disposition.split(";", 1)[0].strip().lower() != "attachment",
@@ -474,6 +489,8 @@ def har_checks(results, har, policy):
             if versions or capture.complete:
                 assess(results, capture, "WEB-21", any(PRODUCT_VERSION.search(field) for field in versions),
                        "Server metadata includes an explicit software version.")
+            else:
+                unmeasured(results, capture, "WEB-21")
         if headers.get("www-authenticate"):
             basic = any(re.match(r"^basic(?:\s|$)", part.strip(), flags=re.I)
                         for value in headers["www-authenticate"] for part in split_quoted(value, ","))

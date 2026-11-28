@@ -109,7 +109,7 @@ docker compose -p basira-local -f compose.yaml --env-file .env.local --profile m
 
 الملف المرسل قبل الفك بحد أقصى ٢ ميجابايت. التقرير يحافظ على تغطية القواعد المئة. لقطة المصدر أو الإعدادات ممكن تضيف نتائج من Gitleaks وOSV-Scanner حسب نوع الملف والمحوّل المفعّل. لو أداة فشلت، تظهر حالتها والنتائج اللي ثبتت من الأدوات اللي اشتغلت. بعض الحالات ذات السياق تُعرض كمطلوبة للمراجعة. عنوان الهدف في السياسة للربط وتفسير اللقطة. التحليل بياخد الملف اللي قدمته.
 
-خيارات السياسة في واجهة المشاريع بتقبل JSON. أبرزها `har_headers_complete`، و`managed_hosts`، و`require_csp`، و`require_frame_protection`، و`session_cookie_names`، و`private_paths`، و`registry_allowlist`، و`application`، و`repository_complete`، و`snapshot_complete`، و`protected_branches`. اسمح باختبارات الغياب لما اللقطة تتضمن كل البيانات المطلوبة. فحوصات التبعيات تدعم npm package-lock v2/v3 وملفات OSV المقدمة، وTerraform المدعوم هو إعدادات JSON الثابتة.
+خيارات السياسة في واجهة المشاريع بتقبل JSON. أبرزها `har_headers_complete`، و`managed_hosts`، و`require_csp`، و`require_frame_protection`، و`session_cookie_names`، و`private_paths`، و`registry_allowlist`، و`application`، و`repository_complete`، و`snapshot_complete`، و`protected_branches`. اسمح باختبارات الغياب لما اللقطة تتضمن كل البيانات المطلوبة: من غير `har_headers_complete: true` الفحوصات اللي بتقيس غياب رأس بتتسجل `skipped` والفحص يبقى `partial`. فحوصات التبعيات تدعم npm package-lock v2/v3 وملفات OSV المقدمة، وTerraform المدعوم هو إعدادات JSON الثابتة.
 
 ## حالات التشغيل والذاكرة
 

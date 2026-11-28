@@ -9,6 +9,7 @@ import re
 from urllib.parse import urljoin, urlsplit
 
 from ..rules import CDNS
+from .markers import Incomplete, missing
 
 
 HTML_IDS = tuple(f"HTML-{i:02}" for i in range(4, 11))
@@ -161,7 +162,7 @@ def policy_strings(policy, key):
 
 
 def record(results, rule, path, line, evidence=None, *, contextual=False):
-    if results[rule] is None:
+    if results[rule] is None or isinstance(results[rule], Incomplete):
         results[rule] = []
     if evidence is not None:
         severity, title, title_ar, remediation, remediation_ar = RULE_TEXT[rule]
@@ -395,6 +396,12 @@ def private_cache_shared(values):
     return bool(len(ages) == 1 and ages[0] and re.fullmatch(r"0*[1-9]\d*", ages[0], flags=re.ASCII))
 
 
+def unmeasured(results, rule, marker):
+    """A rule whose evidence needs a complete capture; the scan reports it as skipped."""
+    if results[rule] is None:
+        results[rule] = marker
+
+
 def har_checks(results, har, policy):
     log = har.get("log") if isinstance(har, dict) else None
     entries = log.get("entries") if isinstance(log, dict) else None
@@ -435,10 +442,16 @@ def har_checks(results, har, policy):
             evidence = f"HAR response #{ordinal}: {fact}" if failed else None
             record(results, rule, "capture.har", 1, evidence, contextual=contextual)
 
-        if https and final and url.hostname in managed_hosts and (complete or headers["strict-transport-security"]):
-            assess("WEB-01", bad_hsts(headers["strict-transport-security"]), "HSTS is absent or max-age is zero.")
-        if html and final and policy.get("require_csp") is True and (policies or (complete and meta is not None)):
-            assess("WEB-02", not policies, "No enforcing CSP in the full header capture or valid head meta.")
+        if https and final and url.hostname in managed_hosts:
+            if complete or headers["strict-transport-security"]:
+                assess("WEB-01", bad_hsts(headers["strict-transport-security"]), "HSTS is absent or max-age is zero.")
+            else:
+                unmeasured(results, "WEB-01", missing(complete))
+        if html and final and policy.get("require_csp") is True:
+            if policies or (complete and meta is not None):
+                assess("WEB-02", not policies, "No enforcing CSP in the full header capture or valid head meta.")
+            else:
+                unmeasured(results, "WEB-02", missing(complete))
         if html and final and policies:
             inline = []
             for override in ("script-src-elem", "script-src-attr"):
@@ -449,25 +462,41 @@ def har_checks(results, har, policy):
             if inline and (complete and meta is not None or len(inline) == 2 and not unblocked):
                 assess("WEB-03", bool(unblocked),
                        f"Effective enforcing CSP permits unsafe-inline via {', '.join(unblocked)}.", contextual=True)
+            elif inline:
+                unmeasured(results, "WEB-03", missing(complete))
             sources = [script_sources(p) for p in policies]
             if any(source is not None for source in sources):
                 allowed = all(permits_eval(source) for source in sources)
                 if not allowed or (complete and meta is not None):
                     assess("WEB-04", allowed, "Effective enforcing CSP permits unsafe-eval.", contextual=True)
-        if html and final and complete and policy.get("require_frame_protection") is True:
-            assess("WEB-05", not has_frame_protection(csp, headers["x-frame-options"]),
-                   "No restrictive frame-ancestors or applicable X-Frame-Options.")
-        if final and url.hostname in managed_hosts and complete:
-            assess("WEB-06", [v.lower() for v in headers["x-content-type-options"]] != ["nosniff"],
-                   "X-Content-Type-Options does not supply a single nosniff value.")
-        if html and final and complete and headers["referrer-policy"]:
-            valid = [value.strip().lower() for field in headers["referrer-policy"] for value in field.split(",")
-                     if value.strip().lower() in REFERRER_POLICIES]
-            if valid:
-                assess("WEB-07", valid[-1] == "unsafe-url", "Effective Referrer-Policy header is unsafe-url.")
-        if final and complete and url.path in private_paths:
-            assess("WEB-08", private_cache_shared(headers["cache-control"]),
-                   "A configured private route explicitly allows shared caching.", contextual=True)
+                else:
+                    unmeasured(results, "WEB-04", missing(complete))
+        if html and final and policy.get("require_frame_protection") is True:
+            if complete:
+                assess("WEB-05", not has_frame_protection(csp, headers["x-frame-options"]),
+                       "No restrictive frame-ancestors or applicable X-Frame-Options.")
+            else:
+                unmeasured(results, "WEB-05", missing(complete))
+        if final and url.hostname in managed_hosts:
+            if complete:
+                assess("WEB-06", [v.lower() for v in headers["x-content-type-options"]] != ["nosniff"],
+                       "X-Content-Type-Options does not supply a single nosniff value.")
+            else:
+                unmeasured(results, "WEB-06", missing(complete))
+        if html and final:
+            if complete and headers["referrer-policy"]:
+                valid = [value.strip().lower() for field in headers["referrer-policy"] for value in field.split(",")
+                         if value.strip().lower() in REFERRER_POLICIES]
+                if valid:
+                    assess("WEB-07", valid[-1] == "unsafe-url", "Effective Referrer-Policy header is unsafe-url.")
+            elif not complete:
+                unmeasured(results, "WEB-07", missing(complete))
+        if final and url.path in private_paths:
+            if complete:
+                assess("WEB-08", private_cache_shared(headers["cache-control"]),
+                       "A configured private route explicitly allows shared caching.", contextual=True)
+            else:
+                unmeasured(results, "WEB-08", missing(complete))
         for value in headers["set-cookie"]:
             cookie, *attributes = value.split(";")
             name, separator, _ = cookie.strip().partition("=")

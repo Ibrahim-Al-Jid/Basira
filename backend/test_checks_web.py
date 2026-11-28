@@ -112,11 +112,13 @@ def test_safe_web_configuration_csp_intersection_and_header_precedence():
 
 def test_incomplete_capture_never_claims_missing_headers_or_meta():
     policy = dict(BASE_POLICY, har_headers_complete=False)
-    missing = har_check(har_entry([], body=None), policy=policy)
-    assert all(missing[rule] is None for rule in web.WEB_IDS)
+    unmeasured = har_check(har_entry([], body=None), policy=policy)
+    gated = {"WEB-01", "WEB-02", "WEB-05", "WEB-06", "WEB-07", "WEB-08"}
+    assert all(unmeasured[rule].reason == "har_headers_incomplete" for rule in gated)
+    assert all(unmeasured[rule] is None for rule in set(web.WEB_IDS) - gated)
     incomplete_body = har_entry([], body="<html>")
     incomplete_body["response"]["content"]["size"] = 500
-    assert har_check(incomplete_body)["WEB-02"] is None
+    assert har_check(incomplete_body)["WEB-02"].reason == "response_content_unreadable"
     external = har_entry([], url="https://third-party.example")
     assert all(har_check(external)[rule] is None for rule in web.WEB_IDS)
 

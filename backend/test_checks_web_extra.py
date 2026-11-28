@@ -135,7 +135,9 @@ def test_all_har_extra_rules_distinguish_clear_from_unavailable():
     assert all(empty[rule] is None for rule in web_extra.WEB_IDS)
     partial = har(har_entry("/logout", []), har_entry("/uploads/shared", []), har_entry("/api/data", []),
                   policy={**policy, "har_headers_complete": False})
-    assert all(partial[rule] is None for rule in web_extra.WEB_IDS)
+    assert all(partial[rule] is None or partial[rule].reason == "har_headers_incomplete"
+               for rule in web_extra.WEB_IDS)
+    assert any(partial[rule] is not None for rule in web_extra.WEB_IDS)
 
 
 def test_cors_requires_distinct_cacheable_origin_evidence():

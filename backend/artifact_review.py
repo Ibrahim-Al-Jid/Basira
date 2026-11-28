@@ -14,6 +14,7 @@ import unicodedata
 from zipfile import BadZipFile, ZIP_DEFLATED, ZIP_STORED, ZipFile
 import zlib
 
+from .checks.markers import Incomplete
 from .checks import openapi_contract, zap_passive
 from .checks.source_code import OTHER_CODE_SUFFIXES, language
 from .contracts import Finding, RuleCoverage
@@ -401,9 +402,12 @@ def review_prepared(prepared, policy, *, kind=None, external=False):
             for rule_id in expected:
                 domain = DOMAINS[rule_id.split("-")[0]]
                 hits = results[rule_id]
-                status = "not_applicable" if hits is None else "matched" if hits else "clear"
-                adapter_coverage.append(RuleCoverage(rule=rule_id, domain=domain,
-                                                     status=status, match_count=len(hits or [])))
+                if isinstance(hits, Incomplete):
+                    status, reason, hits = "skipped", hits.reason, None
+                else:
+                    status, reason = "not_applicable" if hits is None else "matched" if hits else "clear", None
+                adapter_coverage.append(RuleCoverage(rule=rule_id, domain=domain, status=status,
+                                                     match_count=len(hits or []), reason=reason))
                 for item in hits or []:
                     if len(findings) + len(adapter_findings) >= 5000:
                         raise InputError("عدد مواضع الأدلة تجاوز الحد. قسّم اللقطة إلى ملفات أصغر.")
@@ -509,6 +513,12 @@ def review_prepared(prepared, policy, *, kind=None, external=False):
                            " code in another language, which the checks do not parse.")
             summary_ar += (f" {unsupported} قاعدة تحتاج ملفات PHP أو JavaScript أو Python: اللقطة فيها كود"
                            " بلغة تانية والفحوصات مش بتقراها.")
+        incomplete = sum(row.reason == "har_headers_incomplete" for row in coverage)
+        if incomplete:
+            summary_en += (f" {incomplete} rule(s) need a complete header capture: set har_headers_complete"
+                           " after checking the export includes response headers.")
+            summary_ar += (f" {incomplete} قاعدة تحتاج لقطة رؤوس كاملة: عيّن har_headers_complete"
+                           " بعد التأكد إن التصدير شامل رؤوس الاستجابة.")
     return {
         "summary_ar": summary_ar,
         "summary_en": summary_en,
