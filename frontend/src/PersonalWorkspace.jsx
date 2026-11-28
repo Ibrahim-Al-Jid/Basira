@@ -6,6 +6,12 @@ import { DirectoryLink } from "./ProjectDirectory";
 import { WorkspaceBrand } from "./SiteHeader";
 import "./personal-workspace.css";
 
+// Only link to GitHub over https, whatever the API returns.
+function safeGithubUrl(value) {
+  try { const url = new URL(value); return url.protocol === "https:" && url.hostname === "github.com" ? url.href : ""; }
+  catch { return ""; }
+}
+
 export function PersonalSidebar({ location, navigate, follow, lang, revision, onLogout }) {
   const t = translate(lang);
   const [projects, setProjects] = useState([]);
@@ -392,7 +398,7 @@ export function PersonalGitHub({ lang }) {
             disabled={busy} onClick={changeConnection}>
             {connected ? t("افصل GitHub", "Disconnect GitHub") : t("اربط GitHub", "Connect GitHub")}
           </button>}
-          {view.connect_available && setup?.install_url && <a className="btn" href={setup.install_url}
+          {view.connect_available && safeGithubUrl(setup?.install_url) && <a className="btn" href={safeGithubUrl(setup.install_url)}
             target="_blank" rel="noreferrer">{t("اختار المستودعات على GitHub", "Select repositories on GitHub")}
             <ArrowUpRight size={16} aria-hidden="true" /></a>}
           {view.connected && <a className="btn" href="https://github.com/settings/apps/authorizations">
@@ -427,7 +433,7 @@ export function PersonalGitHub({ lang }) {
         {visible.map((repo) => <li key={repo.installation_id + "/" + repo.repository_id}>
           <Folder size={19} aria-hidden="true" />
           <div className="github-repository-name">
-            <a href={"https://github.com/" + repo.repository} target="_blank" rel="noreferrer">
+            <a href={"https://github.com/" + String(repo.repository).split("/").map(encodeURIComponent).join("/")} target="_blank" rel="noreferrer">
               <bdi>{repo.repository}</bdi><ArrowUpRight size={14} aria-hidden="true" />
             </a>
             {repo.default_branch && <small><GitBranch size={13} aria-hidden="true" />
