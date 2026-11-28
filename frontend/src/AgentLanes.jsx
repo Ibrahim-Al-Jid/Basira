@@ -2,11 +2,11 @@ import React from "react";
 import "./agent-lanes.css";
 
 export const ROLES = [
-  ["orchestrator", "المنسّق", "Coordinator", "يحدد نوع المدخل ويوجّهه", "Identifies the input and routes it"],
-  ["planning", "التخطيط", "Planning", "يجهّز الملفات ويثبّت القواعد", "Prepares files and pins the rules"],
-  ["analysis", "التحليل", "Analysis", "يشغّل الفحوصات الدفاعية", "Runs the defensive checks"],
-  ["validation", "التحقق", "Verification", "يطابق الأدلة مع التغطية", "Checks evidence against coverage"],
-  ["reporting", "التقرير", "Reporting", "يجمّع التقرير النهائي", "Assembles the final report"],
+  ["orchestrator", "المايسترو", "Maestro", "يحدد نوع المدخل ويوجّهه", "Identifies the input and routes it"],
+  ["planning", "الكشّاف", "Scout", "يجهّز الملفات ويثبّت القواعد", "Prepares files and pins the rules"],
+  ["analysis", "الصيّاد", "Hunter", "يشغّل الفحوصات الدفاعية", "Runs the defensive checks"],
+  ["validation", "المدقّق", "Auditor", "يطابق الأدلة مع التغطية", "Checks evidence against coverage"],
+  ["reporting", "الكاتب", "Scribe", "يجمّع التقرير النهائي", "Assembles the final report"],
 ];
 const STATE = {
   done: ["تم", "Done"], running: ["شغّال", "Running"], waiting: ["منتظر", "Waiting"], skipped: ["لم يُنفَّذ", "Not run"],

@@ -9,15 +9,15 @@ This chapter summarizes [ARCHITECTURE.md](../ARCHITECTURE.md), [ERD.md](../ERD.m
 
 ## The five roles
 
-The execution path is a deterministic contract of five LangGraph nodes: orchestrator, planning, analysis, validation, reporting. Each node is limited to the tools its role allows and records name, duration and role in `task_runs`.
+The execution path is a deterministic contract of five LangGraph nodes: Maestro (`orchestrator`), Scout (`planning`), Hunter (`analysis`), Auditor (`validation`), Scribe (`reporting`). The identifiers in parentheses are stored in data and never change; see [agent system design](../ARCHITECTURE-agents.md). Each node is limited to the tools its role allows and records name, duration and role in `task_runs`.
 
 | Role | What it does | Model's part |
 |---|---|---|
-| Coordinator | chooses one path or two parallel branches from item counts and the previous scan | its decision is used only if valid |
-| Planning | orders rule groups into one or two analysis branches | its order is used only if complete |
-| Analysis | extracts properties locally and matches rules from the catalog | may suggest; compared against local facts |
-| Verification | confirms each matching finding from the catalog, keeps every location | none |
-| Reporting | builds both language summaries from a local template | may reorder fix priorities if it covers all matches |
+| Maestro | chooses one path or two parallel branches from item counts and the previous scan | its decision is used only if valid |
+| Scout | orders rule groups into one or two analysis branches | its order is used only if complete |
+| Hunter | extracts properties locally and matches rules from the catalog | may suggest; compared against local facts |
+| Auditor | confirms each matching finding from the catalog, keeps every location | none |
+| Scribe | builds both language summaries from a local template | may reorder fix priorities if it covers all matches |
 
 Design rule: **the model is advisory.** The server accepts a model reply whole or rejects it whole; on failure the scan completes with local analysis. The model gets rule IDs, counts, reference labels and allowed tool names, never file paths, content, secrets or account IDs.
 

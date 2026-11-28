@@ -435,7 +435,7 @@ function App() {
             </dd>
             <dt>{t("ذاكرة التشغيلات السابقة", "Run history")}</dt>
             <dd>
-              {t("تُحفظ التقارير في قاعدة SQLite. المنسّق يستقبل إحصاءات محدودة من فحص               سابق لنفس الجلسة عند توفرها.", "SQLite stores reports. The orchestrator can use limited statistics from a prior scan in the same session.")}
+              {t("تُحفظ التقارير في قاعدة SQLite. المايسترو يستقبل إحصاءات محدودة من فحص               سابق لنفس الجلسة عند توفرها.", "SQLite stores reports. The orchestrator can use limited statistics from a prior scan in the same session.")}
             </dd>
             <dt>{t("ذاكرة القواعد", "Rule catalog")}</dt>
             <dd>

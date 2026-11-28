@@ -23,7 +23,7 @@ const dialogCopy = {
 };
 
 const englishDetails = {
-  orchestrator: ["Review scope and memory summary", "Chooses the review route and hands off to planning.", "Routing decision", "LangGraph"],
+  orchestrator: ["Review scope and memory summary", "Chooses the review route and hands off to the Scout.", "Routing decision", "LangGraph"],
   planning: ["Routing instructions and available rules", "Assigns the review to the appropriate analysis branches.", "A scoped scan plan", "Rule catalog"],
   analysis: ["Scan plan and the results of checking element attributes", "Reviews findings from the local checks within its branch.", "Matching rule IDs for the branch", "Local HTML checker"],
   validation: ["HTML evidence and analysis branch results", "Verifies each match against its rule and local evidence.", "Verified observations", "Evidence matching"],
