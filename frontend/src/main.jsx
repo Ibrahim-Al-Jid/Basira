@@ -36,25 +36,67 @@ import { Agent, Modal } from "./Dialogs";
 import { emptySource, SourcePicker, sourceError } from "./Source";
 import { Reports } from "./Reports";
 import { Platform, usePlatformSession } from "./Platform";
-import { Landing } from "./Landing";
+import { Landing, OverviewSidebar } from "./Landing";
 import { SiteHeader, readPreference, savePreference } from "./SiteHeader";
+import { applyPalette, DesignPicker, validDesign } from "./DesignPicker";
 import { PersonalSidebar } from "./PersonalWorkspace";
 import { action } from "./platformClient";
 import "./style.css";
 import "./workspace.css";
-import "./design-pop.css";
+import "./design-variants.css";
+import "./security-overview.css";
+import "./command-center.css";
+import "./command-light.css";
+
+const rippleControls = ".btn, .launch, .square, .site-icon, .command-search, .overview-primary, .reports-button, .signin-control, .signin-submit, .signin-secondary, .overview-chart-filters button, .report-language a";
+
+function listenForButtonRipples() {
+  const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  function ripple(event) {
+    if (motion.matches || (event.type === "pointerdown" ? !event.isPrimary || event.button !== 0 : event.detail !== 0)) return;
+    const control = event.target instanceof Element ? event.target.closest(rippleControls) : null;
+    if (!control || control.matches(':disabled, [aria-disabled="true"]')) return;
+
+    const bounds = control.getBoundingClientRect();
+    const x = event.type === "pointerdown" ? event.clientX - bounds.left : bounds.width / 2;
+    const y = event.type === "pointerdown" ? event.clientY - bounds.top : bounds.height / 2;
+    const wave = document.createElement("i");
+    wave.className = "button-ripple";
+    wave.setAttribute("aria-hidden", "true");
+    wave.style.setProperty("--ripple-x", x + "px");
+    wave.style.setProperty("--ripple-y", y + "px");
+    wave.style.setProperty("--ripple-radius", Math.hypot(Math.max(x, bounds.width - x), Math.max(y, bounds.height - y)) + "px");
+    wave.addEventListener("animationend", () => wave.remove(), { once: true });
+    wave.addEventListener("animationcancel", () => wave.remove(), { once: true });
+    control.querySelector(":scope > .button-ripple")?.remove();
+    control.append(wave);
+  }
+
+  document.addEventListener("pointerdown", ripple, true);
+  document.addEventListener("click", ripple, true);
+  return () => {
+    document.removeEventListener("pointerdown", ripple, true);
+    document.removeEventListener("click", ripple, true);
+  };
+}
 
 function currentLocation() {
   return { pathname: window.location.pathname, search: window.location.search, hash: window.location.hash };
 }
 
 function App() {
+  useEffect(listenForButtonRipples, []);
   const [location, setLocation] = useState(currentLocation);
   const [lang, setLang] = useState(() => {
     const browserLanguage = (navigator.languages?.[0] || navigator.language || "").split("-")[0].toLowerCase();
     return readPreference("language", browserLanguage === "ar" ? "ar" : "en") === "ar" ? "ar" : "en";
   });
-  const [theme, setTheme] = useState(() => readPreference("theme", "dark") === "light" ? "light" : "dark");
+  const [theme, setTheme] = useState(() => readPreference("reference-theme", "dark") === "light" ? "light" : "dark");
+  const preferences = { lang, setLang, theme, setTheme };
+  const [design, setDesign] = useState(() => validDesign(readPreference("reference-design", "original")));
+  const [mix, setMix] = useState(() => validDesign(readPreference("reference-mix", "auto"), "auto"));
+  const designPicker = <DesignPicker lang={lang} design={design} mix={mix} onChange={setDesign} onMix={setMix} />;
   const landingPage = location.pathname === "/";
   const signingInPage = /^\/signin\/?$/.test(location.pathname);
   const [product, setProduct] = useState(null);
@@ -132,9 +174,16 @@ function App() {
     root.dir = lang === "ar" ? "rtl" : "ltr";
     root.dataset.theme = theme;
     savePreference("language", lang);
-    savePreference("theme", theme);
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#0b0f12" : "#f5f7f4");
+    savePreference("reference-theme", theme);
   }, [lang, theme]);
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.design = design;
+    const canvas = applyPalette(root, design, mix, theme);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", canvas);
+    savePreference("reference-design", design);
+    savePreference("reference-mix", mix);
+  }, [design, mix, theme]);
   useEffect(() => {
     document.title = landingPage ? "BASIRA | Web Security Workspace"
       : demoPage ? "BASIRA | Demo" : "BASIRA | Workspace";
@@ -155,6 +204,14 @@ function App() {
     const query = params.size ? "?" + params : "";
     navigate((detail ? "/reports/" + report : "/reports") + query + (detail ? "#report-findings" : ""), { replace: true });
   }, [findingsPage, location.search]);
+  useEffect(() => {
+    if (location.hash === "#agents" || (landingPage && ["#workflow", "#coverage"].includes(location.hash))) {
+      document.getElementById(location.hash.slice(1))?.scrollIntoView({ block: "start" });
+    }
+  }, [landingPage, location.hash, location.pathname]);
+  useEffect(() => {
+    if (landingPage && session.user && !location.hash) navigate("/dashboard", { replace: true });
+  }, [landingPage, location.hash, session.user]);
   async function start() {
     if (lock.current || sourceBusy) return;
     const invalidSource = sourceError(source.text, lang);
@@ -204,22 +261,23 @@ function App() {
     metrics = latest?.metrics;
   return (
     <>
+      <div className={signingInPage ? undefined : "workspace-layout"} dir={signingInPage ? undefined : "ltr"}>
       {!signingInPage && <SiteHeader pathname={location.pathname} follow={follow} lang={lang} authenticated={Boolean(session.user)}
-        personal={personal} showSignIn={!projectsPage && !reportsPage && !findingsPage} />}
-      <div className={personalWorkspace ? "personal-shell" : undefined}>
+        designPicker={designPicker} preferences={preferences} />}
       {personalWorkspace && <PersonalSidebar key={session.user.id} location={location} navigate={navigate} lang={lang}
-        revision={projectRevision} onLogout={() => { session.setUser(null); navigate("/", { replace: true }); }} />}
-      <main ref={mainContent} id="main-content" tabIndex={-1} className={landingPage ? "site-landing-main" : "site-workspace-main"}>
+        follow={follow} revision={projectRevision} onLogout={() => { session.setUser(null); navigate("/", { replace: true }); }} />}
+      {!signingInPage && !personalWorkspace && <OverviewSidebar lang={lang} follow={follow} location={location} personal={personal} />}
+      <main ref={mainContent} id="main-content" tabIndex={-1} dir={lang === "ar" ? "rtl" : "ltr"}
+        className={landingPage ? "site-landing-main" : "site-workspace-main"}>
         {productError ? <div role="alert"><p>{t("تعذّر تحميل إعدادات بصيرة.", "Basira settings could not be loaded.")}</p>
           <button className="btn" type="button" onClick={() => setProductAttempt((attempt) => attempt + 1)}>{t("إعادة المحاولة", "Retry")}</button></div>
           : !product ? <p role="status">{t("جاري تحميل بصيرة…", "Loading Basira…")}</p>
-          : landingPage ? <Landing follow={follow} lang={lang} theme={theme} authenticated={Boolean(session.user)} personal={personal}
-            preferences={{ lang, setLang, theme, setTheme }} />
+          : landingPage ? <Landing follow={follow} lang={lang} authenticated={Boolean(session.user)} personal={personal} />
           : reportsPage ? <Reports location={location} navigate={navigate} revision={latest?.id} lang={lang} session={session} personal={personal} />
           : findingsPage ? <p role="status">{t("جاري فتح التقارير…", "Opening reports…")}</p>
           : projectsPage ? <Platform location={location} navigate={navigate} lang={lang} session={session}
             personal={personal} onProjectsChanged={() => setProjectRevision((revision) => revision + 1)}
-            preferences={{ lang, setLang, theme, setTheme }} />
+            preferences={{ ...preferences, designPicker: signingInPage ? designPicker : null }} />
           : demoPage ? (
           <>
             <div className="heading">

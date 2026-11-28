@@ -204,6 +204,26 @@ function ScanList({ project, scans, lang, t, emptyMessage }) {
   </li>)}</ul> : <p>{emptyMessage || t("لسه مفيش فحوصات للمشروع ده.", "This project has no scans yet.")}</p>;
 }
 
+function RecentScanTable({ project, scans, lang, t }) {
+  if (!scans.length) return <ScanList project={project} scans={scans} lang={lang} t={t} />;
+  return <div className="command-table-wrap">
+    <table className="command-table">
+      <thead><tr>
+        <th scope="col">{t("مصدر الفحص", "Scan source")}</th>
+        <th scope="col">{t("الحالة", "Status")}</th>
+        <th scope="col">{t("التاريخ", "Date")}</th>
+      </tr></thead>
+      <tbody>{scans.map((item) => <tr key={item.id}>
+        <th scope="row"><a className="workspace-scan-title" href={scanLink(project, item.id)}>
+          <FileText size={18} aria-hidden="true" /><bdi>{item.artifact.name}</bdi>
+        </a></th>
+        <td><span className="workspace-badge" data-state={item.state}>{label(states, item.state, t)}</span></td>
+        <td><time dateTime={item.created_at}>{new Date(item.created_at).toLocaleDateString(lang === "ar" ? "ar-EG" : "en")}</time></td>
+      </tr>)}</tbody>
+    </table>
+  </div>;
+}
+
 function NewScan({ projects, project, choose, navigate, lang, personal }) {
   const t = translate(lang);
   const [step, setStep] = useState(0);
@@ -675,13 +695,29 @@ function Dashboard({ location, navigate, user, lang, invitationRevision, persona
           <button className="btn" disabled={busy}>{t("حفظ السياسة", "Save policy")}</button>
         </form>
     </Panel>;
+  const activity = inOverview && !loading && !error && <section className="card project-panel workspace-activity" aria-labelledby="overview-activity">
+    <div className="directory-heading">
+      <div>
+        <h2 id="overview-activity"><Activity size={20} aria-hidden="true" />{t("أحدث الفحوصات", "Recent scans")}</h2>
+        {projects.length === 1 && <p><bdi>{project?.name}</bdi></p>}
+      </div>
+      {projects.length > 1 && <ProjectSelector projects={projects} value={project?.id} onChange={choose} t={t} required />}
+      {project && <DirectoryLink className="overview-text-link" to={"/scans?project=" + project.id} navigate={navigate}>
+        {t("عرض السجل", "Open scan history")}
+      </DirectoryLink>}
+    </div>
+    {!projects.length && <p>{t("النشاط هيظهر هنا لما يتعمل أول فحص من تبويب المشاريع.", "Activity appears here after the first scan from Projects.")}</p>}
+    {project && !snapshot && <p role="status">{t("بنحمّل الفحوصات…", "Loading scans…")}</p>}
+    {project && snapshot && <RecentScanTable project={project.id} scans={snapshot.scans.slice(0, 4)} lang={lang} t={t} />}
+  </section>;
   return <div className="project-workspace" data-workspace-page={route.slice(1)}>
-    <header className="project-header">
+    <header className={"project-header" + (inOverview ? " command-hero" : "")}>
       <div>{((inProjects && project) || creatingProject) && <DirectoryLink className="workspace-back" to={personal ? "/projects" : "/projects?org=" + project.org_id} navigate={navigate}>{t("كل المشاريع", "All projects")}</DirectoryLink>}
         {personal && inHistory && project && <DirectoryLink className="workspace-back" to={"/projects?project=" + project.id}
           navigate={navigate}><bdi>{project.name}</bdi></DirectoryLink>}
-        <h1>{inProjects && project ? <bdi>{project.name}</bdi> : title}</h1>
-        {inOverview && <p>{showName ? <>{t("أهلًا،", "Welcome,")} <bdi>{displayName}</bdi></> : t("أهلًا بيك", "Welcome")}</p>}</div>
+        <h1>{inOverview && showName ? <>{t("أهلًا،", "Welcome,")} <bdi>{displayName}</bdi></>
+          : inProjects && project ? <bdi>{project.name}</bdi> : title}</h1>
+        {inOverview && <p>{t("تابعي نتائج الفحوصات وتغطية المشروع.", "Monitor findings and project review coverage.")}</p>}</div>
       {!loading && showNewScan && <DirectoryLink className="btn primary"
         to={newScanLink(project?.role !== "viewer" ? project?.id : "")} navigate={navigate}>
         <Plus size={17} aria-hidden="true" />{t("فحص جديد", "New scan")}
@@ -689,19 +725,13 @@ function Dashboard({ location, navigate, user, lang, invitationRevision, persona
     </header>
     {error && <p className="workspace-error" role="alert">{error} <button className="btn" onClick={() => setRetry((value) => value + 1)}>{t("إعادة المحاولة", "Retry")}</button></p>}
     {loading && <p role="status">{t("بنحمّل المشاريع…", "Loading projects…")}</p>}
-    {!loading && inOverview && !error && project && <DashboardView key={project.id} path={path} projectId={project.id} t={t} lang={lang} reportLink={reportLink} />}
-    {!loading && inOverview && !error && <section className="card project-panel workspace-activity" aria-labelledby="overview-activity">
-      <div className="directory-heading">
-        <div>
-          <h2 id="overview-activity"><Activity size={20} aria-hidden="true" />{t("آخر النشاط", "Recent activity")}</h2>
-          {projects.length === 1 && <p><bdi>{project?.name}</bdi></p>}
-        </div>
-        {projects.length > 1 && <ProjectSelector projects={projects} value={project?.id} onChange={choose} t={t} required />}
-      </div>
-      {!projects.length && <p>{t("النشاط هيظهر هنا لما يتعمل أول فحص من تبويب المشاريع.", "Activity appears here after the first scan from Projects.")}</p>}
-      {project && !snapshot && <p role="status">{t("بنحمّل الفحوصات…", "Loading scans…")}</p>}
-      {project && snapshot && <ScanList project={project.id} scans={snapshot.scans.slice(0, 4)} lang={lang} t={t} />}
-    </section>}
+    {activity && <DashboardView key={project?.id ?? "empty"} path={path} projectId={project?.id} t={t} lang={lang}
+      reportLink={reportLink} activity={activity} projectCount={projects.length} projectScans={snapshot?.scans}
+      activityEvents={(snapshot?.scans ?? []).slice(0, 4).map((item) => ({
+        id: item.id, title: item.artifact.name, state: item.state, href: scanLink(project.id, item.id),
+        detail: label(states, item.state, t) + " · " + new Date(item.updated_at ?? item.created_at)
+          .toLocaleString(lang === "ar" ? "ar-EG" : "en", { dateStyle: "medium", timeStyle: "short" }),
+      }))} />}
     {!loading && inScan && <NewScan key={selected || "new"} projects={projects} project={project} choose={choose} navigate={navigate} lang={lang} personal={personal} />}
     {inProjects && !project && !loading && (personal ?
       <PersonalDirectory projects={projects} creating={params.has("new")} navigate={navigate}

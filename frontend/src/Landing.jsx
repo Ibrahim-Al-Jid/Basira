@@ -1,265 +1,234 @@
-import React from "react";
+import React, { useState } from "react";
 import {
-  Activity, ArrowDownRight, ArrowLeft, ArrowRight, AudioLines, Boxes,
-  Braces, Check, Cloud, Code2, FileCheck2, FileSearch, GitBranch, Globe2,
-  Languages, Layers3, Moon, ScanLine, ShieldCheck, SlidersHorizontal, Sun, Workflow,
+  Activity, Braces, Bug, Cloud, FileCheck2, Folder, GitBranch, Globe2, Grid2X2, History,
+  Layers3, ScanLine, Search, Settings, ShieldCheck, SlidersHorizontal, TriangleAlert, Workflow, Zap,
 } from "lucide-react";
-import "./landing.css";
+import { WorkspaceBrand, WorkspaceSidebarNote } from "./SiteHeader";
+import { CommandActivity, CommandMetrics, CoverageGauge, ReviewAgents, RiskDistribution } from "./CommandOverview";
 
 const domains = [
-  { id: "html", icon: Code2, names: ["أمان HTML", "HTML security"] },
-  { id: "web", icon: Globe2, names: ["المتصفح والاستجابات", "Browser & responses"] },
-  { id: "dependencies", icon: Boxes, names: ["التبعيات", "Dependencies"] },
-  { id: "infrastructure", icon: Cloud, names: ["البنية التحتية", "Infrastructure"] },
-  { id: "ci", icon: GitBranch, names: ["مسارات CI/CD", "CI/CD pipelines"] },
-  { id: "application", icon: SlidersHorizontal, names: ["إعدادات التطبيق", "Application configuration"] },
-  { id: "source", icon: Braces, names: ["كود المصدر (PHP وJS وPython)", "Source code (PHP, JS, Python)"] },
+  ["أمان HTML", "HTML security", "بنية الصفحة والنماذج", "Page structure and forms"],
+  ["المتصفح والاستجابات", "Browser & responses", "سياسات الاستجابات والترويسات", "Response policies and headers"],
+  ["التبعيات", "Dependencies", "المكتبات والحزم", "Libraries and packages"],
+  ["البنية التحتية", "Infrastructure", "ملفات البناء والتشغيل", "Build and runtime files"],
+  ["مسارات CI/CD", "CI/CD pipelines", "إعدادات التكامل والنشر", "Integration and deployment configuration"],
+  ["إعدادات التطبيق", "Application configuration", "ملفات الضبط", "Configuration files"],
+  ["كود المصدر", "Source code", "JavaScript وPython وPHP", "JavaScript, Python, and PHP"],
 ];
 
-const content = {
-  ar: {
-    eyebrow: "منصة مراجعة أمنية للمشاريع",
-    headline: ["أمّن مشروعك.", "ابدأ من الدليل."],
-    lead: "افحص ملفات مشروعك، وشوف المشاكل الأمنية وأدلتها وتوصيات إصلاحها في تقرير واحد.",
-    start: "ابدأ مشروعك",
-    graphicLabel: "تصوّر توضيحي للفحص",
-    pipeline: "مسار تحليل الأدلة", active: "عرض توضيحي",
-    inputs: "مدخلات التحليل", reviewing: "تحليل الأدلة", output: "التقرير",
-    inputFile: "ملف المشروع", reportFile: "الأدلة والتغطية", ready: "جاهز للعرض",
-    coverage: "مجالات الفحص",
-    proofTag: "المبدأ", proofTitle: "تقرير كل سطر فيه مصدره.",
-    proof: [
-      ["الدليل قبل الحكم", "كل نتيجة مربوطة بملف وسطر وقاعدة، وتقدر تفتح المصدر وتتأكد بنفسك."],
-      ["عربي وإنجليزي من نفس الحقائق", "نفس البيانات بتطلع في تقريرين، من غير فرق في الأرقام أو الترتيب."],
-      ["من غير مزوّد موديل", "الفحوصات المحلية شغالة لوحدها، والموديل اختياري ومحدود الطلبات."],
-    ],
-    limits: "التغطية بتتكتب صريحة: اللي اتفحص واللي لأ. النتيجة النضيفة مش إثبات إن المشروع آمن.",
-    tagline: "مراجعة أمنية للمشاريع، من الملف إلى تقرير مبني على الدليل.",
-    howItWorks: "كيف بيشتغل",
-    footerNav: "روابط الصفحة",
-    toLight: "الوضع الفاتح", toDark: "الوضع الغامق",
-    switchLanguage: "English", switchLanguageLabel: "التبديل إلى الإنجليزية",
-    workflowTag: "طريقة العمل", workflowTitle: "من الملف إلى قرار واضح.",
-    workflow: [
-      ["اختار المصدر", "ارفع HTML، لقطة من الكود بصيغة ZIP، ملف HAR أو إعدادات JSON."],
-      ["تابع الفحص", "تابع الأدلة وهي بتتحلل والقواعد اللي انطبقت على مدخلك."],
-      ["راجع التقرير", "راجع أدلة النتائج وتوصيات الإصلاح، وصدّر التقرير أو قارنه بفحص سابق."],
-    ],
-  },
-  en: {
-    eyebrow: "Project security review",
-    headline: ["Secure your project.", "Start with evidence."],
-    lead: "Review your project files for security issues. See the evidence and suggested fixes in one report.",
-    start: "Start a project",
-    graphicLabel: "Illustration of a scan",
-    pipeline: "Evidence pipeline", active: "Illustrative preview",
-    inputs: "Scan input", reviewing: "Evidence analysis", output: "Report",
-    inputFile: "Project artifact", reportFile: "Evidence and coverage", ready: "Ready to review",
-    coverage: "Coverage domains",
-    proofTag: "The principle", proofTitle: "A report where every line has its source.",
-    proof: [
-      ["Evidence before the verdict", "Every finding is tied to a file, a line and the check that applied, so you can open the source and check it yourself."],
-      ["Arabic and English from the same facts", "The same data produces both reports, with no difference in the numbers or the order."],
-      ["No model provider needed", "The local checks run on their own; a model is optional and its requests are capped."],
-    ],
-    limits: "Coverage is stated plainly: what was checked and what was not. A clean result is not proof the project is safe.",
-    tagline: "Project security review, from a file to a report built on evidence.",
-    howItWorks: "How it works",
-    footerNav: "Page links",
-    toLight: "Light theme", toDark: "Dark theme",
-    switchLanguage: "ع", switchLanguageLabel: "Switch to Arabic",
-    workflowTag: "How it works", workflowTitle: "From a file to a clear decision.",
-    workflow: [
-      ["Choose a source", "Upload HTML, a ZIP snapshot of your code, a HAR capture, or a JSON configuration."],
-      ["Follow the scan", "See the stages of analysis and which checks applied to the source you chose."],
-      ["Review the report", "Inspect evidence and suggested fixes, export a report, or compare it to an earlier scan."],
-    ],
-  },
-};
+const steps = [
+  [Folder, "اختاري مصدر المشروع", "Choose a project source", "حددي الملفات اللي هتتراجع.", "Select the files to review."],
+  [ScanLine, "تابعي تحليل الأدلة", "Follow the evidence review", "شوفي القواعد اللي اتطبّقت على الملفات.", "See which checks applied to your files."],
+  [FileCheck2, "راجعي التقرير", "Review the report", "افتحي الأدلة وتوصيات الإصلاح.", "Open the evidence and suggested fixes."],
+];
 
-const steps = [FileSearch, Workflow, FileCheck2];
+const coverageIcons = [Braces, Globe2, Layers3, Cloud, GitBranch, SlidersHorizontal, Braces];
+const exampleWeeks = [
+  [[5, 2], [8, 4], [6, 3]],
+  [[10, 5], [7, 2], [12, 6]],
+  [[8, 3], [9, 5], [6, 2]],
+  [[11, 4], [9, 3], [12, 5]],
+];
 
-function PipelinePreview({ copy }) {
+function ActivityPreview({ t, number }) {
+  const [selected, setSelected] = useState(0);
+  const weeks = selected ? [exampleWeeks[selected - 1]] : exampleWeeks;
+  const [reviews, findings] = weeks.flat().reduce(
+    ([reviews, findings], [review, finding]) => [reviews + review, findings + finding], [0, 0],
+  );
   return (
-    <figure className="landing-visual" aria-label={copy.graphicLabel}>
-      <div className="landing-board">
-        <header className="landing-board-header">
-          <span><Activity size={16} /> {copy.pipeline}</span>
-          <span className="landing-preview-label"><span aria-hidden="true" />{copy.active}</span>
-        </header>
-        <div className="landing-board-body">
-          <div className="landing-grid-lines" />
-          <div className="landing-radar" aria-hidden="true">
-            <span className="landing-radar-circle landing-radar-outer" />
-            <span className="landing-radar-circle landing-radar-middle" />
-            <span className="landing-radar-circle landing-radar-inner" />
-            <span className="landing-radar-sweep" />
-            <span className="landing-radar-center"><ShieldCheck size={31} strokeWidth={1.6} /></span>
-            <span className="landing-mailbox landing-mailbox-first"><Braces size={16} /></span>
-            <span className="landing-mailbox landing-mailbox-last"><ScanLine size={16} /></span>
-            <span className="landing-radar-blip" />
-          </div>
-          <div className="landing-stage landing-stage-input">
-            <div className="landing-stage-icon"><Layers3 size={17} /></div>
-            <div><strong>{copy.inputs}</strong><small>{copy.inputFile}</small></div>
-          </div>
-          <div className="landing-stage landing-stage-output">
-            <div className="landing-stage-icon"><FileCheck2 size={17} /></div>
-            <div><strong>{copy.output}</strong><small>{copy.reportFile}</small></div>
-          </div>
+    <figure className="overview-card overview-chart">
+      <figcaption>
+        <strong><Activity size={19} aria-hidden="true" />{t("نشاط الفحوصات", "Assessment activity")}</strong>
+        <span className="overview-pill">{t("عرض توضيحي", "Demo data")}</span>
+      </figcaption>
+      <div className="overview-chart-summary" aria-live="polite">
+        <div><strong>{number(reviews)}</strong><span>{t("فحص مكتمل", "Completed scans")}</span></div>
+        <div><strong>{number(findings)}</strong><span>{t("نتيجة موثّقة", "Verified findings")}</span></div>
+      </div>
+      <div className="overview-chart-area" aria-hidden="true">
+        <div className="overview-chart-axis">{[12, 9, 6, 3, 0].map((tick) => <span key={tick}>{number(tick)}</span>)}</div>
+        <div className="overview-chart-plot" data-single={Boolean(selected)}>
+          {weeks.map((week, index) => (
+            <div className="overview-chart-week" key={selected || index}>
+              {week.map(([review, finding], day) => (
+                <div className="overview-chart-pair" key={day}>
+                  <span style={{ blockSize: (review / 12 * 100) + "%" }} />
+                  <span style={{ blockSize: (finding / 12 * 100) + "%" }} />
+                </div>
+              ))}
+            </div>
+          ))}
         </div>
-        <footer className="landing-board-footer">
-          <span><AudioLines size={17} /> {copy.reviewing}</span>
-          <span><Check size={15} /> {copy.ready}</span>
-        </footer>
+      </div>
+      <div className="overview-chart-filters" role="group" aria-label={t("الفترة المعروضة", "Displayed period")}>
+        <button type="button" aria-pressed={!selected} onClick={() => setSelected(0)}>{t("الكل", "All")}</button>
+        {exampleWeeks.map((_, index) => {
+          const week = index + 1;
+          return <button type="button" key={week} aria-pressed={selected === week} onClick={() => setSelected(week)}>
+            {t("الأسبوع " + number(week), "Week " + week)}
+          </button>;
+        })}
       </div>
     </figure>
   );
 }
 
-function CoverageDomains({ copy, language, personal }) {
-  if (personal) return (
-    <section className="landing-coverage" aria-labelledby="landing-coverage-title">
-      <div className="landing-inner">
-        <h2 id="landing-coverage-title">{copy.coverage}</h2>
-        <ul className="landing-domain-grid">
-          {domains.map(({ id, names, icon: Icon }) => (
-            <li key={id}><Icon size={20} aria-hidden="true" />{names[language]}</li>
+function CoverageDirectory({ follow, t }) {
+  const [query, setQuery] = useState("");
+  const filter = query.trim().toLocaleLowerCase();
+  const rows = domains.map((domain, index) => ({ domain, Icon: coverageIcons[index] }))
+    .filter(({ domain }) => domain.some((field) => field.toLocaleLowerCase().includes(filter)));
+  return (
+    <section className="overview-card overview-coverage" id="coverage" aria-labelledby="overview-coverage-title">
+      <div className="overview-section-head">
+        <h2 id="overview-coverage-title">{t("مجالات الفحص", "Coverage domains")}</h2>
+        <label className="overview-search">
+          <Search size={16} aria-hidden="true" />
+          <input type="search" value={query} onChange={(event) => setQuery(event.target.value)}
+            aria-label={t("ابحثي في مجالات الفحص", "Search coverage domains")}
+            placeholder={t("ابحثي في التغطية…", "Search coverage…")} />
+        </label>
+      </div>
+      <table aria-labelledby="overview-coverage-title">
+        <thead><tr><th scope="col">{t("المجال", "Domain")}</th><th scope="col">{t("أمثلة على التغطية", "Coverage examples")}</th></tr></thead>
+        <tbody>
+          {rows.map(({ domain: [ar, en, arDetail, enDetail], Icon }) => (
+            <tr key={en}>
+              <th scope="row"><span className="overview-domain"><Icon size={17} aria-hidden="true" />{t(ar, en)}</span></th>
+              <td>{t(arDetail, enDetail)}</td>
+            </tr>
           ))}
-        </ul>
-      </div>
-    </section>
-  );
-  const group = (duplicate) => (
-    <ul aria-hidden={duplicate || undefined} className="landing-marquee-group">
-      {domains.map(({ id, names, icon: Icon }) => (
-        <li key={id} dir={language ? "ltr" : "rtl"}><Icon size={18} aria-hidden="true" /> {names[language]}</li>
-      ))}
-    </ul>
-  );
-  return (
-    <section className="landing-coverage" aria-labelledby="landing-coverage-title">
-      <div className="landing-inner landing-coverage-heading">
-        <h2 id="landing-coverage-title">{copy.coverage}</h2>
-      </div>
-      <div className="landing-marquee" dir="ltr">
-        <div className="landing-marquee-track">
-          {group(false)}{group(true)}
-        </div>
-      </div>
+          {!rows.length && <tr><td colSpan={2} role="status">{t("مفيش مجالات مطابقة للبحث.", "No matching coverage domains.")}</td></tr>}
+        </tbody>
+      </table>
+      <a className="overview-text-link" href="/reports" onClick={(event) => follow(event, "/reports")}>{t("افتحي التقارير", "Open reports")}</a>
     </section>
   );
 }
 
-const proofIcons = [ShieldCheck, Languages, ScanLine];
-
-function Proof({ copy, personal }) {
+export function OverviewSidebar({ lang, follow, location, personal }) {
+  const t = (ar, en) => lang === "ar" ? ar : en;
+  const { pathname, hash } = location;
+  const home = pathname === "/";
+  const viewingFixes = new URLSearchParams(location.search).get("focus") === "remediation";
+  const scanPath = personal === false ? "/demo" : "/new-scan";
+  const links = [
+    [Grid2X2, "/", t("نظرة عامة", "Overview")],
+    [Folder, "/projects", t("المشاريع", "Projects")],
+    [ScanLine, scanPath, t("فحص جديد", "New scan")],
+    ...(home ? [
+      [Workflow, "#agents", t("فريق المراجعة", "Review agents")],
+    ] : []),
+    [Bug, "/findings", t("النتائج", "Findings")],
+    [SlidersHorizontal, "/reports?focus=remediation", t("الإصلاحات", "Remediation")],
+    [FileCheck2, "/reports", t("التقارير", "Reports")],
+    [History, "/scans", t("سجل الفحوصات", "Scan history")],
+    [Settings, "/settings", t("الإعدادات", "Settings")],
+  ];
   return (
-    <section className="landing-proof" aria-labelledby="landing-proof-title">
-      <div className="landing-inner">
-        <div className="landing-section-head">
-          {!personal && <p className="landing-eyebrow"><span aria-hidden="true" />{copy.proofTag}</p>}
-          <h2 id="landing-proof-title">{copy.proofTitle}</h2>
-        </div>
-        <ul className="landing-proof-grid">
-          {copy.proof.map(([title, detail], index) => {
-            const Icon = proofIcons[index];
-            return (
-              <li key={title}>
-                <span className="landing-proof-icon" aria-hidden="true"><Icon size={22} /></span>
-                <h3>{title}</h3>
-                <p>{detail}</p>
-              </li>
-            );
-          })}
-        </ul>
-        <p className="landing-limits">{copy.limits}</p>
-      </div>
-    </section>
+    <aside className="overview-sidebar">
+      <WorkspaceBrand href="/" follow={follow} lang={lang} />
+      <nav className="overview-nav" aria-label={t("التنقل الرئيسي", "Main navigation")}>
+        {links.map(([Icon, path, label]) => (
+          <a key={path} href={path} aria-label={label} title={label}
+            aria-current={path === hash ? "location"
+              : (viewingFixes ? path === "/reports?focus=remediation" : path === pathname && (!home || !hash)) ? "page" : undefined}
+            onClick={path.startsWith("#") ? undefined : (event) => follow(event, path)}>
+            <Icon size={18} aria-hidden="true" />
+            <span>{label}</span>
+          </a>
+        ))}
+      </nav>
+      <WorkspaceSidebarNote href="/#agents" follow={follow} lang={lang} />
+    </aside>
   );
 }
 
-function LandingFooter({ copy, language, start, authenticated, follow, preferences }) {
-  const jump = (event) => {
-    event.preventDefault();
-    document.getElementById("workflow")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
+export function Landing({ follow, lang, authenticated, personal }) {
+  const t = (ar, en) => lang === "ar" ? ar : en;
+  const number = (value) => value.toLocaleString(lang === "ar" ? "ar-EG" : "en");
+  const start = !personal ? "/demo" : authenticated ? "/new-scan" : "/signin?mode=register";
+  const sampleRisk = { high: 5, medium: 17, low: 12 };
+  const sampleScans = [
+    [t("متجر إلكتروني", "E-commerce store"), "completed", 8, t("دقيقتان و١٤ ثانية", "2m 14s")],
+    [t("بوابة الشركة", "Company portal"), "running", 3, t("دقيقة و٣٢ ثانية", "1m 32s")],
+    [t("واجهة العملاء", "Customer portal"), "completed", 12, t("٣ دقائق و٢٠ ثانية", "3m 20s")],
+  ];
+  const metrics = [
+    { icon: ShieldCheck, label: t("تغطية الفحص", "Review coverage"), value: number(92) + "%", points: [18, 22, 28, 24, 41, 38, 54, 47, 70, 65, 83, 92] },
+    { icon: Folder, tone: "blue", label: t("المشاريع", "Total projects"), value: number(12), points: [1, 1, 3, 2, 4, 5, 5, 7, 6, 8, 12, 12] },
+    { icon: Bug, tone: "red", label: t("إجمالي النتائج", "Total findings"), value: number(34), points: [2, 4, 4, 8, 14, 10, 19, 22, 18, 29, 30, 34] },
+    { icon: TriangleAlert, tone: "amber", label: t("نتائج عالية الخطورة", "High severity issues"), value: number(sampleRisk.high), points: [0, 0, 1, 2, 1, 3, 2, 4, 3, 5, 4, 5] },
+    { icon: ScanLine, tone: "blue", label: t("فحوصات نشطة", "Active scans"), value: number(1), points: [0, 1, 1, 2, 1, 3, 2, 1, 3, 2, 1, 1] },
+  ];
   return (
-    <footer className="landing-footer">
-      <div className="landing-inner landing-footer-inner">
-        <div className="landing-footer-brand">
-          <span className="landing-footer-mark" aria-hidden="true"><i /><i /><i /></span>
-          <div>
-            <strong dir="ltr">BASIRA</strong>
-            <p>{copy.tagline}</p>
-          </div>
+    <div className="security-overview">
+      <section className="command-hero" aria-labelledby="landing-title">
+        <div>
+          <h1 id="landing-title">{t("أهلًا بيك في بصيرة", "Welcome to BASIRA")}</h1>
+          <p>{t("لوحة أمان المشاريع · بيانات توضيحية", "Project security overview · Demo data")}</p>
         </div>
-        <nav className="landing-footer-links" aria-label={copy.footerNav}>
-          <a href="#workflow" onClick={jump}>{copy.howItWorks}</a>
-          <a href={start} onClick={(event) => follow(event, start)}>{authenticated ? (language ? "Open projects" : "افتح مشاريعك") : copy.start}</a>
-        </nav>
-        {preferences && <div className="landing-footer-controls">
-          <button type="button" className="landing-control" aria-pressed={preferences.theme === "dark"}
-            aria-label={preferences.theme === "dark" ? copy.toLight : copy.toDark}
-            onClick={() => preferences.setTheme(preferences.theme === "dark" ? "light" : "dark")}>
-            {preferences.theme === "dark" ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
-          </button>
-          <button type="button" className="landing-control landing-control-word" aria-label={copy.switchLanguageLabel}
-            onClick={() => preferences.setLang(language ? "ar" : "en")}>
-            {copy.switchLanguage}
-          </button>
-        </div>}
-      </div>
-    </footer>
-  );
-}
-
-export function Landing({ follow, lang, theme, authenticated, personal, preferences }) {
-  const language = lang === "en" ? 1 : 0;
-  const copy = language ? content.en : content.ar;
-  const workflow = personal ? [
-    language ? ["Choose a source", "Upload a source ZIP. GitHub and authorized website evidence are planned."]
-      : ["اختار المصدر", "ارفع كود المشروع بصيغة ZIP. ربط GitHub وجمع أدلة الموقع قيد التجهيز."],
-    ...copy.workflow.slice(1),
-  ] : copy.workflow;
-  const start = authenticated ? "/projects" : personal ? "/signin?mode=register" : "/signin";
-  const Arrow = language ? ArrowRight : ArrowLeft;
-  return (
-    <div className="basira-landing" data-landing-theme={theme || "dark"} data-personal={personal || undefined}
-      lang={language ? "en" : "ar"} dir={language ? "ltr" : "rtl"}>
-      <section className="landing-hero landing-inner" aria-labelledby="landing-title">
-        <div className="landing-intro">
-          <p className="landing-eyebrow"><span aria-hidden="true" />{copy.eyebrow}</p>
-          <h1 id="landing-title">{copy.headline[0]}<br /><em>{copy.headline[1]}</em></h1>
-          <p className="landing-lead">{copy.lead}</p>
-          <div className="landing-actions">
-            <a className="landing-button landing-primary" href={start} onClick={(event) => follow(event, start)}>
-              {authenticated ? (language ? "Open projects" : "افتح مشاريعي") : copy.start} <Arrow size={19} aria-hidden="true" />
-            </a>
-          </div>
-        </div>
-        <PipelinePreview copy={copy} />
+        <a className="overview-primary" href={start} onClick={(event) => follow(event, start)}>
+          <Zap size={18} aria-hidden="true" />
+          {t("فحص جديد", "New scan")}
+        </a>
       </section>
-      <CoverageDomains copy={copy} language={language} personal={personal} />
-      <Proof copy={copy} personal={personal} />
-      <section className="landing-inner landing-workflow" id="workflow" aria-labelledby="landing-workflow-title">
-        <div className="landing-section-head">
-          {!personal && <p className="landing-eyebrow"><span aria-hidden="true" />{copy.workflowTag}</p>}
-          <h2 id="landing-workflow-title">{personal ? copy.workflowTag : copy.workflowTitle}</h2>
-        </div>
-        <ol className="landing-steps">
-          {workflow.map(([title, detail], index) => {
-            const Icon = steps[index];
-            return (
-              <li key={title}>
-                <div className="landing-step-top"><Icon size={24} aria-hidden="true" />{!personal && <ArrowDownRight size={20} aria-hidden="true" />}</div>
-                <h3>{title}</h3><p>{detail}</p>
+
+      <CommandMetrics metrics={metrics} />
+
+      <div className="command-panels">
+        <CoverageGauge t={t} number={number} cover={{ ran: 105, total: 114 }} example />
+        <RiskDistribution t={t} number={number} counts={sampleRisk} example />
+        <ReviewAgents t={t} lang={lang} overview />
+      </div>
+
+      <div className="command-lower">
+        <section className="overview-card command-panel command-recent">
+          <header className="command-panel-head">
+            <h2>{t("أحدث الفحوصات", "Recent scans")}</h2>
+            <a href="/scans" onClick={(event) => follow(event, "/scans")}>{t("عرض الكل", "View all")}</a>
+          </header>
+          <div className="command-table-wrap">
+            <table className="command-table">
+              <thead><tr><th scope="col">{t("المشروع", "Project")}</th><th scope="col">{t("الحالة", "Status")}</th>
+                <th scope="col">{t("النتائج", "Findings")}</th><th scope="col">{t("المدة", "Duration")}</th></tr></thead>
+              <tbody>{sampleScans.map(([name, state, findings, duration]) => (
+                <tr key={name}><th scope="row"><span className="command-scan-name"><Globe2 size={17} aria-hidden="true" />{name}</span></th>
+                  <td><span className="workspace-badge" data-state={state}>{state === "completed" ? t("مكتمل", "Completed") : t("قيد التنفيذ", "Running")}</span></td>
+                  <td>{number(findings)}</td><td>{duration}</td></tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </section>
+        <CommandActivity t={t} historyHref="/scans" events={[
+          { id: "complete", state: "completed", title: t("اكتمل فحص المتجر الإلكتروني", "E-commerce scan completed"), detail: t("من دقيقتين", "2 minutes ago") },
+          { id: "finding", state: "failed", title: t("اتسجّلت نتيجة عالية الخطورة", "A high-severity finding was recorded"), detail: t("من ٣ دقايق", "3 minutes ago") },
+          { id: "analysis", state: "running", title: t("بدأ تحليل ملفات بوابة الشركة", "Company portal analysis started"), detail: t("من ٥ دقايق", "5 minutes ago") },
+          { id: "report", title: t("تقرير واجهة العملاء جاهز للمراجعة", "Customer portal report ready"), detail: t("من ٧ دقايق", "7 minutes ago") },
+        ]} />
+      </div>
+
+      <div className="overview-panels">
+        <ActivityPreview t={t} number={number} />
+
+        <section className="overview-card overview-workflow" id="workflow" aria-labelledby="overview-workflow-title">
+          <h2 id="overview-workflow-title">{t("سير الفحص", "Review workflow")}</h2>
+          <ol>
+            {steps.map(([Icon, ar, en, arDetail, enDetail]) => (
+              <li key={en}>
+                <span className="overview-step-icon"><Icon size={19} aria-hidden="true" /></span>
+                <div><strong>{t(ar, en)}</strong><p>{t(arDetail, enDetail)}</p></div>
               </li>
-            );
-          })}
-        </ol>
-      </section>
-      <LandingFooter copy={copy} language={language} start={start} authenticated={authenticated} follow={follow} preferences={preferences} />
+            ))}
+          </ol>
+          <a href="/scans" onClick={(event) => follow(event, "/scans")}>
+            {t("سجل الفحوصات", "Scan history")}
+          </a>
+        </section>
+      </div>
+
+      <CoverageDirectory follow={follow} t={t} />
     </div>
   );
 }

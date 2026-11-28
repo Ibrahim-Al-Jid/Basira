@@ -77,10 +77,9 @@ main:has(.signin-page) {
   font: 800 .9rem/1 var(--ui-font);
   text-decoration: none;
   box-shadow: 0 4px 0 var(--ink);
-  transition: transform .16s var(--pop-spring), background .16s, box-shadow .16s;
 }
-.signin-control:hover { background: var(--pop-lemon); transform: translateY(-2px); box-shadow: 0 6px 0 var(--ink); }
-.signin-control:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.signin-control:hover { background: var(--pop-lemon); box-shadow: 0 6px 0 var(--ink); }
+.signin-control:active { box-shadow: 0 1px 0 var(--ink); }
 .signin-control:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 .signin-control-word { min-inline-size: 0; }
 
@@ -270,11 +269,10 @@ main:has(.signin-page) {
   color: var(--canvas);
   font: 800 1rem/1 var(--ui-font);
   box-shadow: 0 5px 0 var(--accent);
-  transition: transform .16s var(--pop-spring), box-shadow .16s;
 }
 :root[data-theme="dark"] .signin-submit { background: var(--accent); color: #1b1340; box-shadow: 0 5px 0 var(--ink); }
-.signin-submit:hover { transform: translateY(-2px); box-shadow: 0 7px 0 var(--accent); }
-.signin-submit:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--accent); }
+.signin-submit:enabled:hover { box-shadow: 0 7px 0 var(--accent); }
+.signin-submit:enabled:active { box-shadow: 0 1px 0 var(--accent); }
 .signin-submit:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 .signin-submit:disabled { opacity: .6; transform: none; box-shadow: none; }
 .signin-secondary {
@@ -293,7 +291,7 @@ main:has(.signin-page) {
   box-shadow: 0 4px 0 var(--ink);
   transition: transform .16s var(--pop-spring), background .16s, box-shadow .16s;
 }
-.signin-secondary:hover { background: var(--pop-lemon); transform: translateY(-2px); box-shadow: 0 6px 0 var(--ink); }
+.signin-secondary:hover { background: var(--pop-lemon); box-shadow: 0 6px 0 var(--ink); }
 .signin-secondary:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 .signin-oidc { inline-size: 100%; }
 .signin-switch {

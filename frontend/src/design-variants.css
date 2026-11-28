@@ -1,0 +1,30 @@
+/* Palettes supply colors only. Every screen uses the same component layout. */
+:root[data-design] {
+  --canvas: var(--palette-canvas, light-dark(#eef1f8, #090b13));
+  --surface: light-dark(color-mix(in srgb, white 86%, var(--canvas)), color-mix(in srgb, var(--canvas) 93%, var(--accent)));
+  --surface-alt: color-mix(in srgb, var(--surface) 90%, var(--accent));
+  --rail-surface: light-dark(color-mix(in srgb, white 55%, var(--canvas)), color-mix(in srgb, var(--canvas) 92%, #040611));
+  --ink: light-dark(#17213a, #edf0ff);
+  --muted: light-dark(#52617b, #a2adc6);
+  --line: light-dark(color-mix(in srgb, var(--ink) 15%, var(--surface)), color-mix(in srgb, var(--ink) 14%, var(--surface)));
+  --control-line: color-mix(in srgb, var(--ink) 25%, var(--surface));
+  --accent: var(--palette-accent, light-dark(#5a42c5, #a58aff));
+  --accent-secondary: var(--palette-companion, light-dark(#08788d, #24d8ee));
+  --accent-text: var(--accent);
+  --on-accent: light-dark(white, #121423);
+  --accent-gradient: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+  --tint: color-mix(in srgb, var(--surface) 83%, var(--accent));
+  --pop-lemon: var(--tint);
+  --pop-mint: color-mix(in srgb, var(--surface) 84%, var(--accent-secondary));
+  --pop-lilac: var(--tint);
+  --pop-sky: var(--surface-alt);
+  --shadow-1: 0 4px 20px color-mix(in srgb, var(--accent) 7%, transparent);
+  --shadow-2: 0 12px 35px color-mix(in srgb, var(--accent) 14%, transparent);
+  --panel-radius: 1.0625rem;
+  --control-radius: .7rem;
+  --page-title-size: clamp(1.6rem, 3.1vw, 2.15rem);
+  --display-font: "IBM Plex Sans Arabic", Inter, sans-serif;
+  --workspace-max: 100rem;
+  --workspace-top: clamp(1.25rem, 2.25vw, 2.25rem);
+}
+:root[data-design][lang="en"] { --display-font: Inter, "IBM Plex Sans Arabic", sans-serif; }
