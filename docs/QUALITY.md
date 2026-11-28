@@ -29,11 +29,13 @@ The baseline is `tests/fixtures/quality-baseline.json`. Improvements never fail.
 
 ## Browser suites
 
-Three Playwright suites run on every pull request, in the `Browser smoke and container acceptance` job in `.github/workflows/ci.yml`, against a real Compose deployment:
+Five Playwright suites run on every pull request, in the `Browser smoke and container acceptance` job in `.github/workflows/ci.yml`, against a real Compose deployment:
 
+- Personal projects: ZIP scan and report in personal mode (runs right after the browser smoke).
 - Account: invitations, access and credentials.
 - Workspace: routing and report scope.
 - Password: signup, sign-in and cross-account isolation, with password auth and self-signup switched on.
+- Source intake: source intake and linked evidence (`tests/browser_source_intake.py`, added to CI in #155).
 
 They need Docker and Chromium, so they are not part of `pytest backend`. A suite that fails here blocks the merge.
 

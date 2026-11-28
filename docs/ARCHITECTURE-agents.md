@@ -76,7 +76,7 @@ All are pydantic models with `extra="forbid"`, as the gateway already does for a
 | gitleaks, osv-scanner | snapshot copy | fixed argv, no network, time and output caps (`backend/source_adapters.py`) |
 | read_file | one file from the pinned snapshot | line window and byte cap |
 | search_code | the snapshot | length-limited pattern, child process with a timeout (`search_lines`) |
-| domain collector | DNS over HTTPS to one fixed resolver, TLS facts, a fixed set of well-known paths, certificate-transparency names | approved hosts and apex only, rate limited, public addresses only |
+| domain collector | DNS over HTTPS to one fixed resolver, TLS facts, a fixed set of well-known paths, certificate-transparency names | approved hosts and apex only, rate limited, public addresses only; module done (#157, `backend/domain_collector.py`), not wired into any role or scan yet |
 | remediation catalog | rule id and language | curated text |
 
 An agent cannot call anything outside its allow-list. Every call is recorded as a task run with tool id, version, duration and result size.
@@ -140,7 +140,7 @@ Each phase is one small PR. The DB agent owns migrations: the `analysis_mode` co
 | P1 | `analysis_mode` setting, validation, contract fields, default `hybrid` with fallback to `rules` | Invalid value gives 422; old scans read as `rules`; hybrid without a model completes as `rules` with `fallback_reason`; contract round trip test |
 | P2 (**done**, #148) | Deterministic `ProjectMap` (Scout): languages, entry points, routes, config files, dependency manifests, trust boundaries, keyed by snapshot digest | Same input gives the same map; map holds paths and counts only, no file bodies; unit tests on the sample projects |
 | P3 (**done**, #150) | Auditor upgrade: location exists, quote present at the location, rule or deterministic check reproduces | Candidates with a missing file, line or quote are rejected with a reason code; the existing corpus recall does not drop |
-| P4 | Bounded Hunter tool loop behind a flag, rules as tools | Mocked model only in tests; budget exhaustion keeps the deterministic result; injected text in a snapshot never changes tool calls |
+| P4 (**module done**, #151; not wired into scans) | Bounded Hunter tool loop behind a flag, rules as tools | Mocked model only in tests; budget exhaustion keeps the deterministic result; injected text in a snapshot never changes tool calls |
 | P5 | Interface selector and copy above | Both languages render; the selected mode shows in the report |
 | P6 | Benchmark runner mapping modes to C1, C2, C4 using recorded responses | Reproduces the recorded scores without network |
 
