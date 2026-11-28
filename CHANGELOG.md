@@ -9,6 +9,7 @@
 - PLAN status matches the merged state: P10 slices a to f and P20 are marked merged, with the automatic default project as the one open P10 item.
 
 ### Removed
+- `frontend/src/design-pop.css` and `frontend/src/landing.css` (29 KB): not imported anywhere since the command-center frontend was merged. The build output is unchanged.
 - SARIF export, by owner decision: the download button, the `format=sarif` endpoint option, the generator in `backend/advanced_reporting.py`, its tests and every mention in the docs. Reports still export to HTML (Arabic and English), JSON and PDF.
 
 ### Added
@@ -63,6 +64,7 @@
 - Scan errors in English mode showed only "Check the form values and try again." for every 422. The UI now shows an English version of the real server reason for the common intake and GitHub errors (for example "The snapshot has no supported source files"), and the GitHub step of New scan lists the file types Basira reads (Markdown and images are not scanned; a repository with none of the supported files is rejected). Arabic mode already showed the server text.
 - Arabic layout: the sidebar now sits on the right (it stayed on the left before). Desktop and tablet widths; the phone layout (menu under the header) is unchanged. Measured in a browser at 1440, 1024 and 390 px in Arabic and English: sidebar right edge equals the viewport width in Arabic, left edge 0 in English, no horizontal overflow (`frontend/src/command-center.css`).
 - Arabic header now mirrors with the sidebar: search on the right, theme, language and account controls on the left (one CSS rule in `frontend/src/command-center.css`). Checked in a browser in Arabic at 1280 and 390 px and English at 1280 px: no overflow. This branch builds on the Arabic sidebar PR (#57), merge that first.
+- Unknown browser URLs now open the app's own "Page not found" screen (HTTP 404) instead of a blank page with a raw server 404, and `/projects/<id>` and `/projects/<id>/reports/<id>` open the project and the report instead of an empty page (`backend/main.py`, `frontend/src/main.jsx`). API routes still return JSON 404. Found by a full product audit; test added in `backend/test_api.py`.
 
 ### Removed
 - `work/` folder (its content moved into `docs/PLAN.md`).
