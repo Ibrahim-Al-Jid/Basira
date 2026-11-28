@@ -13,6 +13,10 @@ ORIGIN = os.environ.get("BASIRA_TEST_PLATFORM_URL", "http://127.0.0.1:8776")
 assert urlparse(ORIGIN).hostname == "127.0.0.1"
 
 
+def catalog_rule_count(request):
+    return len(request.get(ORIGIN + "/api/catalog").json()["rules"])
+
+
 def download(page, link):
     with page.expect_download() as pending:
         link.click()
@@ -72,7 +76,7 @@ def lab_check(browser):
     expect(tab.locator(".reports-finding[data-rule='HTML-17']")).to_be_visible()
     expect(tab.get_by_role("heading", name="سجل تشغيل الأدوات")).to_have_count(0)
     open_report_section(tab, "coverage")
-    expect(tab.locator(".reports-coverage tbody tr")).to_have_count(100)
+    expect(tab.locator(".reports-coverage tbody tr")).to_have_count(catalog_rule_count(tab.context.request))
     open_report_section(tab, "technical")
     expect(tab.get_by_role("heading", name="سجل تشغيل الأدوات")).to_be_visible()
     open_report_section(tab, "export")
@@ -84,7 +88,7 @@ def main():
         browser = playwright.chromium.launch()
         lab_check(browser)
         if "--local-only" in sys.argv:
-            print("The anonymous lab defaults to extended mode and reports all 100 coverage statuses.")
+            print("The anonymous lab defaults to extended mode and reports every catalog coverage status.")
             browser.close()
             return
         context = browser.new_context(locale="ar-EG", viewport={"width": 390, "height": 844})
@@ -108,7 +112,7 @@ def main():
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
         assert page.goto(ORIGIN + "/checks").status == 404
-        assert len(user.get(ORIGIN + "/api/catalog").json()["rules"]) == 100
+        assert catalog_rule_count(user) >= 100  # Release 1 baseline; the catalog grows as checks are added
 
         first = project_scan(page, project, '<script src="http://assets.example.test/site.js"></script>'
                                            '<form action="https://portal.example.test/"></form>')
