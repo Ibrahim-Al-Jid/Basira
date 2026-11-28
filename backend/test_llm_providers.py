@@ -72,3 +72,32 @@ def test_custom_provider_rejects_unsafe_base_urls(url):
 def test_custom_provider_rejects_names_that_resolve_to_private_addresses_even_when_mixed():
     with pytest.raises(ValueError):
         custom_base("https://api.example.com/v1", public("93.184.216.34", "10.1.2.3"))
+
+
+REQUEST = {"method": "GET", "url": "https://api.example.com/v1/models", "headers": {"Authorization": "Bearer k"}}
+
+
+def test_pin_request_resolves_again_and_connects_to_a_public_address_keeping_the_host_name():
+    from .llm_providers import pin_request
+    request = REQUEST
+    pinned = pin_request(request, public("93.184.216.34"))
+    assert pinned["url"] == "https://93.184.216.34/v1/models"
+    assert pinned["headers"]["Host"] == "api.example.com" and pinned["extensions"] == {"sni_hostname": "api.example.com"}
+    assert pinned["headers"]["Authorization"] == "Bearer k"
+    v6 = pin_request(request, public("2606:2800:220:1:248:1893:25c8:1946"))
+    assert v6["url"].startswith("https://[2606:2800:220:1:248:1893:25c8:1946]/")
+
+
+def test_dns_rebinding_after_validation_is_refused_at_connect_time():
+    from .llm_providers import pin_request
+    request = REQUEST
+    for answers in (("10.0.0.5",), ("93.184.216.34", "169.254.169.254"), ("127.0.0.1",), ()):
+        with pytest.raises(ValueError, match="public|resolve"):
+            pin_request(request, public(*answers))
+
+    def fail(*args, **kwargs):
+        raise OSError("no such host")
+    with pytest.raises(ValueError, match="resolve"):
+        pin_request(request, fail)
+    literal = {**REQUEST, "url": "https://93.184.216.34/v1/models"}
+    assert pin_request(literal, fail) == literal
