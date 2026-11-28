@@ -104,19 +104,6 @@ class Project(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
-class GitHubConnection(Base):
-    __tablename__ = "github_connections"
-    __table_args__ = (
-        CheckConstraint("status IN ('verified', 'revoked')", name="ck_github_connections_status"),
-    )
-
-    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
-    installation_id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    provider_account_id: Mapped[str] = mapped_column(String(32))
-    status: Mapped[str] = mapped_column(String(12))
-    verified_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-
-
 class PersonalGitHubGrant(Base):
     __tablename__ = "personal_github_grants"
 

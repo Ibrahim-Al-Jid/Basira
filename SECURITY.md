@@ -10,7 +10,7 @@ Include what makes the report reproducible: the affected commit or version, the 
 
 ## What is in scope
 
-- The application in this repository: the HTTP API, the scan pipeline, the isolated worker, the report and export paths, and the personal workspace (accounts, projects, the GitHub connection).
+- The application in this repository: the HTTP API, the scan pipeline, the isolated worker, the report and export paths, and the personal workspace (accounts, projects, the GitHub authorization).
 - The checks in `backend/checks/` and the taxonomy behind them, when a check reports something that would mislead the person reading the report.
 - The build and deployment configuration kept here: `Dockerfile`, the Compose files, the CI workflow and the scripts in `ops/`.
 

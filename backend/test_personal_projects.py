@@ -12,7 +12,7 @@ from sqlalchemy import text
 
 from . import model_connections, model_gateway, platform_runtime as store
 from .main import app
-from .platform_db import Base, GitHubConnection, database_engine, platform_session, utc_now
+from .platform_db import Base, database_engine, platform_session, utc_now
 
 BASE = "http://127.0.0.1:8765"
 API = "/api/platform"
@@ -94,13 +94,7 @@ def test_personal_mode_closes_legacy_routes_and_keeps_github_metadata_private(pe
         assert owner.get(path).status_code == 404
     assert owner.post(API + "/invitations/accept", json={}).status_code == 404
 
-    with platform_session() as db:
-        db.add(GitHubConnection(user_id=owner.get(API + "/auth/me").json()["id"], installation_id="1",
-                                provider_account_id="2", status="verified", verified_at=utc_now()))
-    assert owner.get(API + "/github-connections").json()["connections"] == [
-        {"installation_id": "1", "provider_account_id": "2"},
-    ]
-    assert other.get(API + "/github-connections").json() == {"connections": [], "connect_available": False}
+    assert owner.get(API + "/github-connections").status_code == 404
 
 
 def test_account_catalog_and_scan_use_only_the_owners_saved_credential(personal_clients, monkeypatch, tmp_path):

@@ -1,4 +1,4 @@
-"""Account-owned projects and a read-only GitHub connection foundation."""
+"""Account-owned projects."""
 
 from datetime import UTC
 
@@ -8,7 +8,7 @@ from sqlalchemy import select
 from . import platform_runtime as store
 from .identity import NamedResource, require_user
 from .platform_db import (
-    GitHubConnection, Project, bind_owner, bind_project, personal_namespace_id,
+    Project, bind_owner, bind_project, personal_namespace_id,
     personal_projects_enabled, platform_session, utc_now,
 )
 from .scan_contracts import Identifier
@@ -124,16 +124,3 @@ def restore_project(project_id: Identifier, request: Request):
         project.deleted_at = None
         project.updated_at = utc_now()
         return project_view(project)
-
-
-@router.get("/github-connections")
-def github_connections(request: Request):
-    user = personal_user(request)
-    with platform_session() as db:
-        bind_owner(db, user.id)
-        rows = db.scalars(select(GitHubConnection).where(
-            GitHubConnection.user_id == user.id, GitHubConnection.status == "verified",
-        ).order_by(GitHubConnection.installation_id))
-        return {"connections": [{"installation_id": row.installation_id,
-                                 "provider_account_id": row.provider_account_id} for row in rows],
-                "connect_available": False}

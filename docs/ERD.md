@@ -5,7 +5,6 @@
 ```mermaid
 erDiagram
     USERS ||--o{ PROJECTS : owns
-    USERS ||--o{ GITHUB_CONNECTIONS : verifies
     PROJECTS ||--o{ PROJECT_SCANS : runs
     PROJECTS ||--o| PROJECT_OWNERSHIP_REVIEWS : awaits
 ```
@@ -14,7 +13,7 @@ erDiagram
 |---|---|
 | `projects` | `owner_user_id` يشير إلى `users.id`، مع فهرس للمالك والحذف. `updated_at` لحفظ وقت التعديل، و`deleted_at` لإخفاء المشروع والأدلة التابعة له عند الحذف. |
 | `project_ownership_reviews` | يسجل المشروع الملتبس وسبب الحجز وتاريخه. قرار المسؤول يسجل مرجع الموافقة ووقت الحل، ولا يظهر هذا الجدول لحساب التطبيق. |
-| `github_connections` | سجل التأسيس من المرحلة ١٣. جدول متوقف: لا يكتب فيه أي كود حالي، ونقطة القراءة `GET /api/platform/github-connections` تعيد الصفوف القديمة مع `connect_available: false` فقط. يبقى متاحًا للقراءة حسب قرار المالك ولا يُبنى عليه أي سلوك جديد. تفويض GitHub الشخصي الحالي يُحفظ في الجدولين الموضحين أدناه. |
+| `github_connections` | حُذف بالترحيل `platform_drop_github_0035`. لم يكتب فيه أي كود، ونقطة القراءة الوحيدة كانت تعيد قائمة فارغة. |
 | `personal_github_states` | صف مؤقت لكل مستخدم. يحمل بصمتي state والجلسة، وPKCE verifier مشفّر، ووقت انتهاء. يُستهلك مرة واحدة. |
 | `personal_github_grants` | صف لكل مستخدم يحمل معرّف حساب GitHub، ومعرّف نسخة الاتصال، ورمزًا مشفّرًا، ووقت انتهاء. الفصل يحذف الصف وطلب التفويض الجاري. |
 | `organizations.personal_owner_id` | صف توافق فريد للحساب الذي ينشئ مشاريعه في النسخة الشخصية. يظل `org_id` مطلوبًا في العلاقات المركبة الحالية، بما فيها الوظائف والتقارير والأدلة السابقة. |

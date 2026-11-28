@@ -166,7 +166,6 @@ The response is `202` with the scan id. Then poll `GET .../scans/{scan_id}?after
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/platform/github/connection` | Current connection state. |
-| GET | `/api/platform/github-connections` | All connections for the account. |
 | POST | `/api/platform/github/authorize` | Start the GitHub App authorization. |
 | DELETE | `/api/platform/github/connection` | Disconnect. |
 | GET | `/api/platform/github/repositories` | Repositories visible to the installation. |
