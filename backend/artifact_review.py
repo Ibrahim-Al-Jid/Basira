@@ -15,6 +15,7 @@ from zipfile import BadZipFile, ZIP_DEFLATED, ZIP_STORED, ZipFile
 import zlib
 
 from .checks import openapi_contract, zap_passive
+from .checks.source_code import OTHER_CODE_SUFFIXES, language
 from .contracts import Finding, RuleCoverage
 from .scan_contracts import ANALYZER_INPUTS, TOOL_PROTOCOL_VERSION, json_digest, resolve_analyzers
 from .rules import RULES, SourceIndex
@@ -378,6 +379,15 @@ def review_prepared(prepared, policy, *, kind=None, external=False):
             results = module.check(files, har, policy, advisories)
             if set(results) != set(expected):
                 raise ValueError("Unregistered result")
+            if adapter.id == "source-code" and all(value is None for value in results.values()):
+                # No file was parseable. When the snapshot held code in a language the checks
+                # do not parse, say so instead of leaving every source rule silently "not applicable".
+                other = {PurePosixPath(path).suffix.lower() for path in files
+                         if language(path) is None and PurePosixPath(path).suffix.lower() in OTHER_CODE_SUFFIXES}
+                if other:
+                    coverage.extend(RuleCoverage(rule=rule, domain=DOMAINS[rule.split("-")[0]], status="skipped",
+                                                 match_count=0, reason="unsupported_language") for rule in expected)
+                    continue
             adapter_findings, adapter_coverage = [], []
             for rule_id in expected:
                 domain = DOMAINS[rule_id.split("-")[0]]
@@ -484,6 +494,12 @@ def review_prepared(prepared, policy, *, kind=None, external=False):
                       f"Found {unique} {'finding type' if unique == 1 else 'finding types'} "
                       f"at {len(findings)} {'location' if len(findings) == 1 else 'locations'}. "
                       f"{errors} {'rule' if errors == 1 else 'rules'} could not run.")
+        unsupported = sum(row.reason == "unsupported_language" for row in coverage)
+        if unsupported:
+            summary_en += (f" {unsupported} rule(s) need PHP, JavaScript or Python files: this snapshot has"
+                           " code in another language, which the checks do not parse.")
+            summary_ar += (f" {unsupported} قاعدة تحتاج ملفات PHP أو JavaScript أو Python: اللقطة فيها كود"
+                           " بلغة تانية والفحوصات مش بتقراها.")
     return {
         "summary_ar": summary_ar,
         "summary_en": summary_en,
