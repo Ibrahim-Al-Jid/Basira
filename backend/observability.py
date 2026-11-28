@@ -12,11 +12,13 @@ default). A bad value falls back to INFO instead of stopping the app.
 
 import logging
 import os
+import re
 import time
 from uuid import uuid4
 
 LOGGER = logging.getLogger("basira.access")
 LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR"}
+REQUEST_ID = re.compile(r"[A-Za-z0-9._-]{1,64}")
 STATIC_PREFIXES = ("/assets/", "/favicon.ico", "/mark.svg", "/basira-network-globe.webp")
 
 
@@ -30,7 +32,8 @@ def install_observability(app):
 
     @app.middleware("http")
     async def access_log(request, call_next):
-        request_id = request.headers.get("x-request-id") or uuid4().hex
+        supplied = request.headers.get("x-request-id", "")
+        request_id = supplied if REQUEST_ID.fullmatch(supplied) else uuid4().hex
         started = time.perf_counter()
         try:
             response = await call_next(request)
