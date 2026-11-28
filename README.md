@@ -105,3 +105,7 @@ Verification status: the Docker image build and these Compose commands have not 
 ## Documentation
 
 Start at the [documentation index](docs/README.md). The plan, phase status and pull requests are in [docs/PLAN.md](docs/PLAN.md), the [vulnerability taxonomy](docs/taxonomy.md) shows what Basira covers and what it does not yet, and the [thesis and defense package](docs/thesis/README.md) holds the written thesis, slides outline and prepared answers. For running it, read [setup](docs/SETUP.md) and [configuration](docs/CONFIGURATION.md); for the HTTP surface, [API](docs/API.md); when a step fails, [troubleshooting](docs/TROUBLESHOOTING.md).
+
+## Credits
+
+The entry page renders a planet with NASA-derived imagery shipped by the [three-globe](https://github.com/vasturiano/three-globe) package.
