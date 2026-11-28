@@ -72,8 +72,8 @@ A future addition may be started early only if Release 1 is complete, or if it b
 
 Phases P01 to P08 are built; this plan has 24 phases (P01 to P24). P09 has its live view and model lane in place; P10 slices a to f and P20 are merged, and the design question is closed (28 November 2026: keep the current look, no new design); open: the automatic default project (scan flow is 4 actions, target 3), then future additions. Release 1 scope is defined above; everything else is a future addition. Section 3b lists every merged pull request, which is where the evidence for a status lives.
 
-Verified on 28 November 2026 at commit `67121cb`, Linux, Python 3.13.18, Node 22.23.5:
-- Backend suite: `python -m pytest backend -q` gave 529 passed, 22 skipped, 8 subtests in 39.4 s. The frontend build ran first, as `backend/test_api.py` serves `frontend/dist`.
+Verified on 28 November 2026 at commit `f434837`, Linux, Python 3.13.18, Node 22.23.5:
+- Backend suite: `python -m pytest backend -q` gave 581 passed, 22 skipped, 8 subtests in 19.7 s. The frontend build ran first, as `backend/test_api.py` serves `frontend/dist`.
 - Frontend: `npm --prefix frontend ci` and `npm run build` succeed; `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs` gave 8 pass.
 - App start: `/`, `/demo`, `/signin`, `/projects`, `GET /api/taxonomy` and `GET /api/product` returned 200.
 - Documentation set: [SETUP](SETUP.md), [CONFIGURATION](CONFIGURATION.md), [API](API.md) and [TROUBLESHOOTING](TROUBLESHOOTING.md) added, with the commands they contain checked in the same run.
@@ -267,7 +267,17 @@ Every change reaches `main` through a pull request (see [two-account-flow](two-a
 | #163 | DB: migration 0033, per-scan `agent_calls` counter on `project_scans` and model-call cap functions (P4a), not used by scans yet | P09 |
 | #164 | Frontend: remove CSS left unused by the retired demo page | P10 |
 | #165 | Docs follow-up 5: #158, #160, #161, #163 | docs |
-| #166 | Worker runs the Hunter loop behind `BASIRA_AGENT_LOOP` (off by default); dormant until P4c | P09 |
+| #166 | Worker runs the Hunter loop behind `BASIRA_AGENT_LOOP` (off by default) | P09 |
+| #168 | Docs follow-up 6: #164, #166, #167 | docs |
+| #169 | Hunter findings beside rules findings in `report.agent_findings`; agent path on behind the flag (P4c) | P09 |
+| #172 | CI: release browser suite (`--password-account`) on every pull request | P18 |
+| #181 | Maestro agent module: narrow-only plan and token ledger (P4h), not wired into scans | P09 |
+| #176 | Local setup: profile flags folded into the start scripts; `compose.local.yaml` removed | P18 |
+| #177 | `report.agent_run` says whether the Hunter run completed or fell back (P4e) | P09 |
+| #179 | Scout agent module: model-ranked file picks for the Hunter (P4f), not wired into scans | P09 |
+| #174 | End-to-end tests of the agent path with a scripted model (P4d) | P09 |
+| #173 | Reports: separate "Agent review" section for `agent_findings` | P10 |
+| #170 | Scan timeline texts for the agent failed and fallback events | P10 |
 | #167 | Gateway `/chat` route for the Hunter loop with a per-scan call cap of 8 | P09 |
 | #162 | Docs follow-up 4: #151 to #153, #155 to #157 | docs |
 | #154 | Docs follow-up 3: #144, #147 to #150 | docs |
