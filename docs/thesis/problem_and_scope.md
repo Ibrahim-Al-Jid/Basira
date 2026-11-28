@@ -16,7 +16,7 @@ Basira takes a narrower job: review **evidence the owner supplies** (a ZIP of th
 
 - Intake: ZIP, GitHub App snapshot, approved website pages, HAR, ZAP and OpenAPI import.
 - 114 defensive checks (ruleset `basira-static-3`): 100 in six families (HTML, web headers and cookies, dependencies, infrastructure, CI, app configuration) and 14 source-code checks (`SRC-01` to `SRC-14`) for PHP, JavaScript/TypeScript and Python, reported as matched, clear, not applicable, skipped or error.
-- Five LangGraph roles: Coordinator, Planning, Analysis, Verification, Reporting.
+- Five LangGraph roles: Maestro, Scout, Hunter, Auditor, Scribe.
 - Optional model enrichment, one request per scan at most (`MAX_MODEL_CALLS = 1`). The model is advisory: it cannot add, remove or rewrite findings.
 - Reports in Arabic and English with HTML, JSON and PDF export; scan comparison, comments, finding statuses.
 - Taxonomy of 17 domains, 75 subdomains, 159 named problems, mapped to CWE, OWASP Top 10:2025, OWASP API Top 10 2023 and WSTG. 44 subdomains are backed by at least one shipped check; 31 are documented gaps.
