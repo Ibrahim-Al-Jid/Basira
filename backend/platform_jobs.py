@@ -105,6 +105,11 @@ def execute_scan(org_id, project_id, scan_id):
                                    MESSAGES["scan.agent_fallback"])
             hunted = hunter is not None
             if outcome is not None and outcome.status == "ok":
+                data["agent_run"] = {"status": "completed"}
+            else:
+                data["agent_run"] = {"status": "fell_back",
+                                     "reason_code": "model_unavailable" if outcome is None else outcome.status}
+            if outcome is not None and outcome.status == "ok":
                 data["agent_findings"] = agent_scan.agent_findings(outcome.candidates, data["findings"])
         if row["input_meta"].get("model_connection") and data["findings"] and not hunted:
             if os.environ.get("BASIRA_GATEWAY_URL") and os.environ.get("BASIRA_GATEWAY_TOKEN"):

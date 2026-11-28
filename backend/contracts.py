@@ -99,6 +99,13 @@ class AgentFinding(BaseModel):
     fingerprint: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
+class AgentRun(BaseModel):
+    """How the Hunter's run ended for this scan. Absent when the agent path never ran."""
+    status: Literal["completed", "fell_back"]
+    reason_code: Literal["model_unavailable", "model_error", "invalid_output", "budget_steps", "budget_tool_calls",
+                         "budget_tokens", "budget_time"] | None = Field(default=None, exclude_if=lambda value: value is None)
+
+
 class RuleCoverage(BaseModel):
     rule: str
     domain: str
@@ -254,6 +261,7 @@ class Report(BaseModel):
     summary_ar: str
     summary_en: str
     findings: list[Finding]
+    agent_run: AgentRun | None = Field(default=None, exclude_if=lambda value: value is None)
     agent_findings: list[AgentFinding] = Field(default_factory=list, max_length=50, exclude_if=lambda value: not value)
     coverage: list[RuleCoverage] | None = None
     steps: list[Step] = Field(default_factory=list)

@@ -55,7 +55,19 @@ def test_hybrid_scan_keeps_the_rules_result_when_the_hunter_fails(platform, monk
     scan = queue(owner, ctx, "agent-fail-2", "hybrid")
     fail_hunter(monkeypatch)
     jobs.execute_scan(ctx.org_id, ctx.project_id, scan)
-    assert state(ctx, scan)["state"] == "completed"
+    row = state(ctx, scan)
+    assert row["state"] == "completed"
+    assert row["report"]["agent_run"] == {"status": "fell_back", "reason_code": "model_error"}
+    assert row["report"]["input_artifact"]["mode_effective"] == "hybrid" and "agent_findings" not in row["report"]
+
+
+def test_hybrid_scan_says_so_when_no_model_connection_could_be_reserved(platform, monkeypatch):
+    owner, _other, ctx = platform
+    scan = queue(owner, ctx, "agent-fail-3", "hybrid")
+    monkeypatch.setenv("BASIRA_AGENT_LOOP", "1")
+    monkeypatch.setattr(store, "reserve_model_connection", lambda *a: None)
+    jobs.execute_scan(ctx.org_id, ctx.project_id, scan)
+    assert state(ctx, scan)["report"]["agent_run"] == {"status": "fell_back", "reason_code": "model_unavailable"}
 
 
 def test_flag_off_never_reaches_the_hunter(platform, monkeypatch):
@@ -148,7 +160,7 @@ def test_hybrid_scan_adds_agent_findings_beside_unchanged_rules_findings(platfor
     monkeypatch.delenv("BASIRA_AGENT_LOOP", raising=False)
     jobs.execute_scan(ctx.org_id, ctx.project_id, plain)
     baseline = state(ctx, plain)["report"]
-    assert "agent_findings" not in baseline
+    assert "agent_findings" not in baseline and "agent_run" not in baseline
     # The column records the mode that actually ran at creation: hybrid without the agent path ran the rules.
     assert state(ctx, plain)["analysis_mode"] == "rules"
 
@@ -161,4 +173,5 @@ def test_hybrid_scan_adds_agent_findings_beside_unchanged_rules_findings(platfor
     row = state(ctx, scan)
     assert row["state"] == "completed"
     assert row["report"]["agent_findings"][0]["path"] == "app.py"
+    assert row["report"]["agent_run"] == {"status": "completed"}
     assert row["report"]["findings"] == baseline["findings"]
