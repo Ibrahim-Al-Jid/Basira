@@ -41,17 +41,9 @@
 }
 .personal-links :is(a, button):hover { background: var(--surface-alt); color: var(--ink); }
 .personal-links [aria-current] { background: var(--tint); color: var(--accent); }
-.personal-links .personal-new-project {
-  border: 1px solid var(--line);
-  color: var(--ink);
-  margin-block-end: .35rem;
-}
-.personal-sidebar[data-project-directory] .personal-new-project {
-  background: var(--accent);
-  color: var(--on-accent);
-  border-color: var(--accent);
-}
-.personal-sidebar[data-project-directory] .personal-new-project:hover { background: var(--accent); color: var(--on-accent); }
+
+
+
 .personal-links .personal-nav-account { border-block-start: 1px solid var(--line); padding-block-start: .65rem; margin-block-start: .45rem; }
 .personal-links svg { flex: none; }
 .personal-sidebar .personal-menu { display: none; }

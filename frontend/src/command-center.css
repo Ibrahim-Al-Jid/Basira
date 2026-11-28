@@ -61,25 +61,11 @@
 .site-brand-mark { inline-size: 3rem; block-size: 3.2rem; }
 .site-brand { gap: .72rem; }
 .site-brand-copy small { letter-spacing: 0; font-size: .73rem; }
-.command-rail-note {
-  position: absolute;
-  inset-inline: 1.7rem;
-  inset-block-end: 5rem;
-  display: flex;
-  align-items: center;
-  gap: .65rem;
-  min-block-size: 4.25rem;
-  padding: .7rem .85rem;
-  color: var(--accent);
-  background: color-mix(in srgb, var(--rail-surface) 75%, var(--surface-alt));
-  border: 1px solid var(--command-edge);
-  border-radius: .8rem;
-  text-decoration: none;
-}
-.command-rail-note strong, .command-rail-note small { display: block; }
-.command-rail-note small { color: var(--ink); }
-.command-rail-note:hover { border-color: var(--accent); }
-.personal-sidebar .command-rail-note { position: static; margin: 1.2rem .35rem 0; }
+
+
+
+
+
 .overview-nav a, .personal-links :is(a, button) { gap: .65rem; min-block-size: 2.9rem; }
 .overview-nav a svg, .personal-links :is(a, button) > svg {
   box-sizing: border-box;
@@ -90,7 +76,7 @@
   color: var(--accent-secondary);
   background: color-mix(in srgb, var(--accent-secondary) 13%, var(--surface));
 }
-.overview-nav a[aria-current], .personal-links [aria-current], .personal-sidebar[data-project-directory] .personal-new-project {
+.overview-nav a[aria-current], .personal-links [aria-current]{
   color: var(--ink);
   background: linear-gradient(100deg, var(--tint), color-mix(in srgb, var(--accent-secondary) 18%, var(--surface)));
   box-shadow: inset 3px 0 var(--accent), 0 0 .75rem color-mix(in srgb, var(--accent) 14%, transparent);
@@ -119,8 +105,8 @@
 .command-search span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .command-search kbd { margin-inline-start: auto; font: inherit; white-space: nowrap; font-size: .76rem; }
 .command-search:hover, .command-search:focus-visible { border-color: var(--accent); }
-.command-history, .site-controls .site-account { inline-size: 2.7rem; border-radius: 50%; }
-.command-history svg { color: var(--accent-secondary); }
+ .site-controls .site-account { inline-size: 2.7rem; border-radius: 50%; }
+
 .command-preferences { display: flex; border-radius: 99rem; background: var(--surface); border: 1px solid var(--line); }
 .command-preferences .site-icon { border: 0; background: transparent; border-radius: 50%; }
 .workspace-layout > .site-header .site-header-inner { min-block-size: 4.9rem; }
@@ -316,8 +302,7 @@
 .command-activity li strong { display: block; font-size: .84rem; line-height: 1.2; }
 .command-activity li small { display: block; color: var(--muted); font-size: .77rem; }
 
-:root[data-design] :is(.workspace-layout .card, .reports-panel, .reports-dialog, .reports-finding, .workspace-summary, .workspace-wizard,
-  .workspace-panel, .workspace-management, .personal-project-card, .workspace-upload, .agent-lanes, .modal,
+:root[data-design] :is(.workspace-layout .card, .reports-panel, .reports-dialog, .reports-finding, .workspace-summary, .workspace-wizard, .workspace-management, .personal-project-card, .workspace-upload, .agent-lanes, .modal,
   .signin-card, .signin-stage, .overview-card) {
   border-color: var(--command-edge);
   box-shadow: var(--command-glow);
@@ -333,7 +318,7 @@
   background: var(--command-glass);
   box-shadow: var(--command-glow);
 }
-.workspace-layout :is(.reports-row-icon, .personal-project-marker, .account-avatar, .workspace-step-icon) {
+.workspace-layout :is(.reports-row-icon, .personal-project-marker, .account-avatar) {
   color: var(--accent);
   background: var(--tint);
   border-color: var(--command-edge);
@@ -379,9 +364,9 @@
 }
 @media (max-width: 920px) {
   .overview-nav a svg { inline-size: 1.75rem; block-size: 1.75rem; }
-  .command-rail-note { display: none; }
+  
 }
-@media (max-height: 780px) { .overview-sidebar .command-rail-note { position: static; margin-block-start: 1.1rem; } }
+
 @media (max-width: 760px) {
   [data-theme="dark"] .workspace-layout > :is(.overview-sidebar, .personal-sidebar)::after { display: none; }
 }
@@ -391,7 +376,7 @@
   .command-search { inline-size: auto; flex: 1; min-block-size: 2.55rem; padding-inline: .55rem; gap: .35rem; }
   .command-search kbd { display: none; }
   .workspace-layout > .site-header .site-header-inner { min-block-size: 3.7rem; }
-  .command-history, .site-controls .site-account { inline-size: 2.2rem; }
+   .site-controls .site-account { inline-size: 2.2rem; }
   .command-preferences .site-icon { min-inline-size: 1.95rem; padding-inline: .15rem; }
   .command-search svg { inline-size: 1rem; }
   [data-theme="dark"] .workspace-layout > main:has(.command-hero)::before { inline-size: 100%; opacity: .43; }
