@@ -87,7 +87,7 @@ function WorkspaceSearch({ lang, authenticated, follow, close }) {
   </Modal>;
 }
 
-export function SiteHeader({ pathname, follow, lang, authenticated, designPicker, preferences }) {
+export function SiteHeader({ pathname, follow, lang, authenticated, preferences }) {
   const t = labels[lang];
   const route = pathname.split("/").filter(Boolean)[0] ?? "";
   const [searchOpen, setSearchOpen] = useState(false);
@@ -116,14 +116,6 @@ export function SiteHeader({ pathname, follow, lang, authenticated, designPicker
           <Search size={20} aria-hidden="true" /><span>{searchLabel}</span><kbd aria-hidden="true" dir="ltr">Ctrl K</kbd>
         </button>
         <div className="site-controls">
-          <details className="command-theme">
-            <summary className="site-icon" aria-label={lang === "ar" ? "ألوان الواجهة" : "Interface colors"}>
-              <i className="command-workspace-dot" aria-hidden="true" />
-              <span>{lang === "ar" ? "الألوان" : "Colors"}</span>
-              <ChevronDown size={16} aria-hidden="true" />
-            </summary>
-            {designPicker}
-          </details>
           <div className="command-preferences">
             <button className="site-icon" type="button" aria-label={themeLabel} title={themeLabel}
               onClick={() => preferences.setTheme(preferences.theme === "dark" ? "light" : "dark")}>

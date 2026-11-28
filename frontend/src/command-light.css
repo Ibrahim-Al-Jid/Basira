@@ -57,8 +57,6 @@
   background: var(--rail-surface);
   border-color: var(--command-edge);
 }
-[data-theme="light"] .command-workspace-dot { background: #007f74; }
-[data-theme="light"] .command-theme > .palette-controls { background: #fff; }
 [data-theme="light"] .command-search kbd { color: var(--muted); }
 
 [data-theme="light"] .workspace-layout > main:has(.command-hero)::before {

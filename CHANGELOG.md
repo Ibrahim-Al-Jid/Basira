@@ -9,7 +9,8 @@
 - PLAN status matches the merged state: P10 slices a to f and P20 are marked merged, with the automatic default project as the one open P10 item.
 
 ### Removed
-- Header bell icon: it was a link to Scan history (the sidebar already has it), not notifications. The colour picker pill is now labelled "Colors" instead of "Workspace" (it only changes the palette). `frontend/src/SiteHeader.jsx`.
+- Header bell icon: it was a link to Scan history (the sidebar already has it), not notifications. `frontend/src/SiteHeader.jsx`.
+- Colour palette picker (the "Workspace" / "Colors" pill, the 16 palettes and the "Mix with" option), its stored preferences and its code (`DesignPicker.jsx` and its styles). Owner decision: it only changed colours. The look is fixed to the current default palette, which keeps WCAG AA (accent on canvas 6.9:1 dark, 5.7:1 light, measured; the best of the 16 differed by about 0.5 and would have changed the look). The dark/light toggle and language switch stay.
 - SARIF export, by owner decision: the download button, the `format=sarif` endpoint option, the generator in `backend/advanced_reporting.py`, its tests and every mention in the docs. Reports still export to HTML (Arabic and English), JSON and PDF.
 
 ### Added

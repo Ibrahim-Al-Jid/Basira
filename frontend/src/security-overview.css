@@ -84,42 +84,6 @@ body { background: var(--canvas); color: var(--ink); }
 .overview-nav a[aria-current] svg, .personal-links [aria-current] svg { color: var(--accent); }
 .overview-nav a[aria-current], .personal-links [aria-current] { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, var(--surface)); }
 
-.palette-controls { display: flex; flex-wrap: wrap; justify-content: end; gap: .4rem; min-inline-size: 0; }
-.design-picker {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  max-inline-size: min(53vw, 15rem);
-  flex: 0 1 auto;
-  gap: .35rem;
-}
-.design-picker > span { color: var(--muted); font-size: .79rem; white-space: nowrap; }
-.design-picker svg {
-  position: absolute;
-  z-index: 1;
-  inset-inline-start: .65rem;
-  color: var(--accent);
-  pointer-events: none;
-}
-.design-picker select {
-  min-inline-size: 0;
-  max-inline-size: 100%;
-  min-block-size: 2.55rem;
-  padding: .4rem;
-  padding-inline-start: 2rem;
-  color: var(--ink);
-  border: 1px solid var(--control-line);
-  border-radius: var(--control-radius);
-  background: var(--surface-alt);
-  font-size: .84rem;
-  text-overflow: ellipsis;
-  cursor: pointer;
-}
-.design-picker select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.design-picker option { background: var(--surface); color: var(--ink); }
-.palette-mix svg { color: var(--accent-secondary); }
-.design-picker:has(> span) svg { position: static; }
-.design-picker:has(> span) select { padding-inline-start: .4rem; }
 
 .overview-heading {
   display: grid;
@@ -502,8 +466,6 @@ body { background: var(--canvas); color: var(--ink); }
   .site-account span { display: none; }
   .site-controls { gap: .25rem; }
   .site-icon { min-inline-size: 2.25rem; }
-  .design-picker { max-inline-size: min(30vw, 11rem); }
-  .design-picker > span { display: none; }
   .signin-controls { flex-wrap: wrap; justify-content: end; }
 }
 @media (max-width: 390px) {
@@ -511,8 +473,5 @@ body { background: var(--canvas); color: var(--ink); }
   .site-controls { inline-size: 100%; justify-content: space-between; flex-wrap: nowrap; }
   .overview-nav { gap: .12rem; }
   .overview-nav a { flex-basis: 2.25rem; }
-  .palette-controls { flex-wrap: nowrap; gap: .25rem; }
-  .design-picker { max-inline-size: 24vw; }
-  .design-picker svg { display: none; }
 }
 

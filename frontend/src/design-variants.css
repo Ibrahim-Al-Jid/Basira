@@ -1,6 +1,6 @@
 /* Palettes supply colors only. Every screen uses the same component layout. */
 :root[data-design] {
-  --canvas: var(--palette-canvas, light-dark(#eef1f8, #090b13));
+  --canvas: light-dark(#edf5fd, #000b19);
   --surface: light-dark(color-mix(in srgb, white 86%, var(--canvas)), color-mix(in srgb, var(--canvas) 93%, var(--accent)));
   --surface-alt: color-mix(in srgb, var(--surface) 90%, var(--accent));
   --rail-surface: light-dark(color-mix(in srgb, white 55%, var(--canvas)), color-mix(in srgb, var(--canvas) 92%, #040611));
@@ -8,8 +8,8 @@
   --muted: light-dark(#52617b, #a2adc6);
   --line: light-dark(color-mix(in srgb, var(--ink) 15%, var(--surface)), color-mix(in srgb, var(--ink) 14%, var(--surface)));
   --control-line: color-mix(in srgb, var(--ink) 25%, var(--surface));
-  --accent: var(--palette-accent, light-dark(#5a42c5, #a58aff));
-  --accent-secondary: var(--palette-companion, light-dark(#08788d, #24d8ee));
+  --accent: light-dark(#006984, #27def7);
+  --accent-secondary: light-dark(#1559a8, #009eff);
   --accent-text: var(--accent);
   --on-accent: light-dark(white, #121423);
   --accent-gradient: linear-gradient(135deg, var(--accent), var(--accent-secondary));
