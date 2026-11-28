@@ -87,6 +87,14 @@ class AgentRun(BaseModel):
                          "budget_tokens", "budget_time"] | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
+class AgentSummary(BaseModel):
+    """Scribe's model-written summary. It sits beside summary_en and summary_ar and never replaces them."""
+    source: Literal["agent"] = "agent"
+    summary_en: str = Field(min_length=1, max_length=800)
+    summary_ar: str = Field(min_length=1, max_length=800)
+    cited: list[str] = Field(default_factory=list, max_length=200)
+
+
 class RuleCoverage(BaseModel):
     rule: str
     domain: str
@@ -244,6 +252,7 @@ class Report(BaseModel):
     findings: list[Finding]
     agent_run: AgentRun | None = Field(default=None, exclude_if=lambda value: value is None)
     agent_findings: list[AgentFinding] = Field(default_factory=list, max_length=50, exclude_if=lambda value: not value)
+    agent_summary: AgentSummary | None = Field(default=None, exclude_if=lambda value: value is None)
     coverage: list[RuleCoverage] | None = None
     steps: list[Step] = Field(default_factory=list)
     metrics: Metrics
