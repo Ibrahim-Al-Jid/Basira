@@ -1,4 +1,5 @@
-"""One scan through the whole agent path with a scripted model: worker, gateway /chat, Hunter loop, Auditor, report.
+"""One scan through the whole agent path with a scripted model: worker, gateway /chat, Maestro, Scout, Hunter loop,
+Auditor, Scribe, report.
 
 Nothing leaves the process. The provider is a scripted function, the gateway is the real app, and the key only ever
 appears in the provider call."""
@@ -77,42 +78,97 @@ GOOD = {"path": "app.py", "line": 4, "quote": "os.system(cmd)", "rule": RULE}
 INVENTED = {"path": "app.py", "line": 2, "quote": "this line does not exist", "rule": RULE}
 
 
-def test_hybrid_scan_goes_through_gateway_hunter_and_auditor_into_agent_findings(credential_platform, monkeypatch):
+PLAN = json.dumps({"stages": ["scout", "hunter", "auditor", "scribe"], "hunter_steps": 6})
+PICKS = json.dumps({"picks": ["app.py"]})
+SUMMARY = json.dumps({"summary_en": "The review left one place for a person to check.",
+                      "summary_ar": "المراجعة سابت مكان واحد محتاج حد يراجعه.", "cites": ["A1"]})
+
+
+def hunter_turns(*final_places):
+    return [tool("search_code", path="app.py", pattern="system"), tool("read_file", path="app.py"), final(*final_places)]
+
+
+def five(hunter=None, plan=PLAN, picks=PICKS, summary=SUMMARY):
+    return [plan, picks, *(hunter if hunter is not None else hunter_turns(GOOD, INVENTED)), summary]
+
+
+def phases(row):
+    return [(item["role"], item["status"], item.get("reason_code")) for item in row["report"]["agent_run"]["phases"]]
+
+
+def test_hybrid_scan_runs_all_five_roles_through_the_gateway(credential_platform, monkeypatch):
     client, _, _, ctx, _, _ = credential_platform
-    answers = [tool("search_code", path="app.py", pattern="system"), tool("read_file", path="app.py"),
-               final(GOOD, INVENTED)]
-    row, runs, provider = scan_through(client, ctx, monkeypatch, "hybrid", answers)
+    row, runs, provider = scan_through(client, ctx, monkeypatch, "hybrid", five())
     assert row["state"] in ("completed", "partial"), row.get("report")
     report = row["report"]
     assert [(item["path"], item["line"], item["rule"]) for item in report["agent_findings"]] == [("app.py", 4, RULE)]
     assert report["agent_findings"][0]["source"] == "agent" and report["agent_findings"][0]["assessment"] == "review_required"
+    assert report["agent_summary"]["source"] == "agent" and report["agent_summary"]["cited"]
+    assert report["agent_run"]["status"] == "completed"
+    assert phases(row) == [("maestro", "completed", None), ("scout", "completed", None),
+                           ("hunter", "completed", None), ("scribe", "completed", None)]
     assert report["input_artifact"]["mode_effective"] == "hybrid"
-    assert len(provider) == 3 and all(key == "Bearer " + KEY for _, key, _ in provider)
+    assert len(provider) == 6 and all(key == "Bearer " + KEY for _, key, _ in provider)
     assert all(not any(item["role"] == "tool" for item in call["messages"]) for _, _, call in provider)
-    [run] = runs
-    assert (run["status"], run["steps"], run["tokens_in"], run["analysis_mode"]) == ("completed", 3, 60, "hybrid")
+    assert sorted((run["role_id"], run["status"]) for run in runs) == [
+        ("analysis", "completed"), ("orchestrator", "completed"), ("planning", "completed"),
+        ("reporting", "completed")]
+    assert sum(run["tokens_in"] for run in runs) == 120
     with platform_session() as db:
-        assert db.scalar(sa.select(store.scans.c.agent_calls).where(store.scans.c.id == row["id"])) == 3
+        assert db.scalar(sa.select(store.scans.c.agent_calls).where(store.scans.c.id == row["id"])) == 6
+    # Model output never reaches the frozen rules findings.
+    assert all(item.get("source") != "agent" for item in report["findings"])
 
 
-def test_hybrid_scan_keeps_the_rules_result_when_the_model_returns_garbage(credential_platform, monkeypatch):
+def test_agents_scan_runs_all_five_roles_too(credential_platform, monkeypatch):
     client, _, _, ctx, _, _ = credential_platform
-    row, runs, _ = scan_through(client, ctx, monkeypatch, "hybrid", ["not json at all"])
-    assert row["state"] in ("completed", "partial")
-    assert "agent_findings" not in row["report"] and row["report"]["input_artifact"]["mode_effective"] == "hybrid"
-    assert [(run["status"], run["reason_code"]) for run in runs] == [("failed", "invalid_output")]
+    row, runs, _ = scan_through(client, ctx, monkeypatch, "agents", five())
+    assert row["state"] in ("completed", "partial") and row["report"]["agent_run"]["status"] == "completed"
+    assert len(runs) == 4 and row["report"]["input_artifact"]["mode_effective"] == "agents"
 
 
-def test_agents_scan_fails_loudly_when_the_model_returns_garbage(credential_platform, monkeypatch):
+@pytest.mark.parametrize("broken,role", [(0, "maestro"), (1, "scout"), (5, "scribe")])
+def test_hybrid_scan_carries_on_when_a_helper_role_returns_garbage(credential_platform, monkeypatch, broken, role):
     client, _, _, ctx, _, _ = credential_platform
-    row, runs, _ = scan_through(client, ctx, monkeypatch, "agents", ["not json at all"])
+    script = five()
+    script[broken] = "not json at all"
+    row, runs, _ = scan_through(client, ctx, monkeypatch, "hybrid", script)
+    assert row["state"] in ("completed", "partial") and row["report"]["agent_findings"]
+    assert dict((name, status) for name, status, _ in phases(row))[role] == "fell_back"
+    assert ("agent_summary" in row["report"]) == (role != "scribe")
+    assert [run["status"] for run in runs if run["status"] == "failed"] == ["failed"]
+
+
+@pytest.mark.parametrize("broken,role", [(0, "orchestrator"), (1, "planning"), (5, "reporting")])
+def test_agents_scan_fails_loudly_when_any_role_returns_garbage(credential_platform, monkeypatch, broken, role):
+    client, _, _, ctx, _, _ = credential_platform
+    script = five()
+    script[broken] = "not json at all"
+    row, runs, _ = scan_through(client, ctx, monkeypatch, "agents", script)
     assert row["state"] == "failed" and row["report"] is None
-    assert [run["reason_code"] for run in runs] == ["invalid_output"]
+    assert [(run["role_id"], run["reason_code"]) for run in runs if run["status"] == "failed"] == [(role, "invalid_output")]
+
+
+def test_hybrid_scan_keeps_the_rules_result_when_the_hunter_returns_garbage(credential_platform, monkeypatch):
+    client, _, _, ctx, _, _ = credential_platform
+    row, runs, _ = scan_through(client, ctx, monkeypatch, "hybrid", five(hunter=["not json at all"]))
+    assert row["state"] in ("completed", "partial")
+    assert "agent_findings" not in row["report"] and "agent_summary" not in row["report"]
+    assert row["report"]["agent_run"]["status"] == "fell_back" and row["report"]["agent_run"]["reason_code"] == "invalid_output"
+    assert [(run["role_id"], run["status"]) for run in runs if run["status"] == "failed"] == [("analysis", "failed")]
+
+
+def test_agents_scan_fails_loudly_when_the_hunter_returns_garbage(credential_platform, monkeypatch):
+    client, _, _, ctx, _, _ = credential_platform
+    row, runs, _ = scan_through(client, ctx, monkeypatch, "agents", five(hunter=["not json at all"]))
+    assert row["state"] == "failed" and row["report"] is None
+    assert [run["reason_code"] for run in runs if run["status"] == "failed"] == ["invalid_output"]
 
 
 def test_a_loop_that_never_finishes_stops_at_the_step_budget_and_the_gateway_cap(credential_platform, monkeypatch):
     client, _, _, ctx, _, _ = credential_platform
     forever = [tool("search_code", path="app.py", pattern="os") for _ in range(20)]
-    row, runs, provider = scan_through(client, ctx, monkeypatch, "hybrid", forever)
+    row, runs, provider = scan_through(client, ctx, monkeypatch, "hybrid", [PLAN, PICKS, *forever])
     assert row["state"] in ("completed", "partial")
-    assert len(provider) <= model_gateway.CHAT_CALL_CAP and [run["status"] for run in runs] == ["over_budget"]
+    assert len(provider) <= model_gateway.CHAT_CALL_CAP
+    assert [run["status"] for run in runs if run["role_id"] == "analysis"] == ["over_budget"]

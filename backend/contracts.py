@@ -80,11 +80,21 @@ class AgentFinding(BaseModel):
     fingerprint: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
+class AgentPhase(BaseModel):
+    """One role's part in an agent run. Maestro, Scout, the Hunter (with the Auditor inside) and Scribe each get one."""
+    role: Literal["maestro", "scout", "hunter", "scribe"]
+    status: Literal["completed", "fell_back", "skipped"]
+    reason_code: Literal["model_error", "invalid_output", "budget_steps", "budget_tool_calls", "budget_tokens",
+                         "budget_time", "not_planned", "empty"] | None = Field(
+        default=None, exclude_if=lambda value: value is None)
+
+
 class AgentRun(BaseModel):
     """How the Hunter's run ended for this scan. Absent when the agent path never ran."""
     status: Literal["completed", "fell_back"]
     reason_code: Literal["model_unavailable", "model_error", "invalid_output", "budget_steps", "budget_tool_calls",
                          "budget_tokens", "budget_time"] | None = Field(default=None, exclude_if=lambda value: value is None)
+    phases: list[AgentPhase] = Field(default_factory=list, max_length=4, exclude_if=lambda value: not value)
 
 
 class AgentSummary(BaseModel):

@@ -95,8 +95,8 @@ def execute_scan(org_id, project_id, scan_id):
         if hunter_loop.enabled() and row["input_meta"].get("mode_effective") in ("agents", "hybrid"):
             mode = row["input_meta"]["mode_effective"]
             hunter = store.reserve_model_connection(org_id, project_id, scan_id, row["lease"])
-            outcome = agent_scan.run_hunter(row, hunter, mode) if hunter else None
-            if outcome is None or outcome.status != "ok":
+            outcome = agent_scan.run_agents(row, hunter, mode, data["findings"]) if hunter else None
+            if outcome is None or not outcome.ok:
                 if mode == "agents":
                     # An agents scan must not quietly become a rules scan.
                     store.finish(org_id, project_id, scan_id, row["lease"], message=MESSAGES["scan.agent_failed"])
@@ -104,13 +104,16 @@ def execute_scan(org_id, project_id, scan_id):
                 store.record_stage(org_id, project_id, scan_id, row["lease"], "model_skipped",
                                    MESSAGES["scan.agent_fallback"])
             hunted = hunter is not None
-            if outcome is not None and outcome.status == "ok":
-                data["agent_run"] = {"status": "completed"}
+            if outcome is not None and outcome.ok:
+                data["agent_run"] = {"status": "completed", "phases": outcome.phases}
+                data["agent_findings"] = outcome.agent_findings
+                if outcome.summary:
+                    data["agent_summary"] = outcome.summary
             else:
                 data["agent_run"] = {"status": "fell_back",
-                                     "reason_code": "model_unavailable" if outcome is None else outcome.status}
-            if outcome is not None and outcome.status == "ok":
-                data["agent_findings"] = agent_scan.agent_findings(outcome.candidates, data["findings"])
+                                     "reason_code": "model_unavailable" if outcome is None else outcome.reason_code}
+                if outcome is not None:
+                    data["agent_run"]["phases"] = outcome.phases
         if row["input_meta"].get("model_connection") and data["findings"] and not hunted:
             if os.environ.get("BASIRA_GATEWAY_URL") and os.environ.get("BASIRA_GATEWAY_TOKEN"):
                 verdict = model_budget.decide(

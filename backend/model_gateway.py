@@ -421,7 +421,8 @@ def priority(body: Facts, authorization: ServiceAuth = None):
     return provider_order(key, body.model, body.counts)
 
 
-CHAT_CALL_CAP = 8
+# One scan: Maestro 1 + Scout 1 + Hunter 8 (hunter_loop.Budget.max_steps) + Scribe 1.
+CHAT_CALL_CAP = 11
 CHAT_MESSAGE_LIMIT = 40
 CHAT_CONTENT_LIMIT = 12_000
 CHAT_OUTPUT_TOKENS = 2000

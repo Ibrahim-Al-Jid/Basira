@@ -5,7 +5,7 @@ import zipfile
 import httpx
 import sqlalchemy as sa
 
-from . import agent_scan, hunter_loop, platform_jobs as jobs, platform_runtime as store
+from . import agent_client, agent_scan, hunter_loop, platform_jobs as jobs, platform_runtime as store
 from .agent_memory import agent_runs
 from .platform_db import platform_session
 from .scan_events import MESSAGES
@@ -169,9 +169,14 @@ def test_hybrid_scan_adds_agent_findings_beside_unchanged_rules_findings(platfor
     monkeypatch.setattr(store, "reserve_model_connection", lambda *a: CONNECTION)
     place = {"path": "app.py", "line": 2, "quote": "os.system(input())", "rule": "http-script"}
     monkeypatch.setattr(agent_scan, "run_hunter", lambda *a, **k: hunter_loop.HunterResult("ok", [place], []))
+    monkeypatch.setattr(agent_scan, "snapshot", lambda row: {"app.py": "import os\nos.system(input())\n"})
+    monkeypatch.setattr(agent_scan, "gateway_config", lambda: ("http://gw", {}))
+    monkeypatch.setattr(agent_client, "gateway_model", lambda *a, **k: lambda messages, tools: {
+        "content": '{"stages":["hunter","auditor"],"hunter_steps":4}', "tool_calls": [],
+        "usage": {"input": 1, "output": 1}})
     jobs.execute_scan(ctx.org_id, ctx.project_id, scan)
     row = state(ctx, scan)
     assert row["state"] == "completed"
     assert row["report"]["agent_findings"][0]["path"] == "app.py"
-    assert row["report"]["agent_run"] == {"status": "completed"}
+    assert row["report"]["agent_run"]["status"] == "completed"
     assert row["report"]["findings"] == baseline["findings"]
