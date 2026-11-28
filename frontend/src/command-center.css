@@ -9,9 +9,9 @@
 }
 :root[data-theme="dark"] { --edge-strength: 27%; }
 :root[data-design="original"] {
-  --accent: var(--palette-accent, light-dark(#006b89, #27def7));
-  --accent-secondary: var(--palette-companion, light-dark(#155eb1, #009eff));
-  --canvas: var(--palette-canvas, light-dark(#eaf3fc, #000b19));
+  --accent: light-dark(#006984, #27def7);
+  --accent-secondary: light-dark(#1559a8, #009eff);
+  --canvas: light-dark(#edf5fd, #000b19);
 }
 
 :root[data-theme="dark"][data-design="original"] {
@@ -119,31 +119,11 @@
 .command-search span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .command-search kbd { margin-inline-start: auto; font: inherit; white-space: nowrap; font-size: .76rem; }
 .command-search:hover, .command-search:focus-visible { border-color: var(--accent); }
-.command-theme { position: relative; }
-.command-theme summary { cursor: pointer; list-style: none; white-space: nowrap; }
-.command-theme summary { justify-content: space-between; gap: .6rem; min-inline-size: 9rem; padding-inline: .8rem; border-radius: 99rem; }
-.command-workspace-dot { inline-size: .65rem; block-size: .65rem; border-radius: 50%; background: #06d8c2; }
 .command-history, .site-controls .site-account { inline-size: 2.7rem; border-radius: 50%; }
 .command-history svg { color: var(--accent-secondary); }
 .command-preferences { display: flex; border-radius: 99rem; background: var(--surface); border: 1px solid var(--line); }
 .command-preferences .site-icon { border: 0; background: transparent; border-radius: 50%; }
 .workspace-layout > .site-header .site-header-inner { min-block-size: 4.9rem; }
-.command-theme summary::-webkit-details-marker { display: none; }
-.command-theme > .palette-controls {
-  position: absolute;
-  inset-block-start: calc(100% + .55rem);
-  inset-inline-end: 0;
-  min-inline-size: min(16rem, 84vw);
-  display: grid;
-  padding: .8rem;
-  background: var(--surface);
-  border: 1px solid var(--command-edge);
-  border-radius: var(--panel-radius);
-  box-shadow: var(--shadow-2);
-}
-.command-theme .design-picker { justify-content: space-between; max-inline-size: none; }
-.command-theme .design-picker > span { display: initial; }
-.command-theme .design-picker select { min-inline-size: 7rem; }
 .command-search-dialog { display: grid; gap: .8rem; }
 .command-search-dialog input { inline-size: 100%; }
 .command-search-results { display: grid; gap: .4rem; }
@@ -409,21 +389,11 @@
   .site-header-inner { display: flex; flex-wrap: nowrap; }
   .site-controls { inline-size: auto; flex-wrap: nowrap; justify-content: end; }
   .command-search { inline-size: auto; flex: 1; min-block-size: 2.55rem; padding-inline: .55rem; gap: .35rem; }
-  .command-search kbd, .command-theme summary span { display: none; }
+  .command-search kbd { display: none; }
   .workspace-layout > .site-header .site-header-inner { min-block-size: 3.7rem; }
-  .command-theme summary { min-inline-size: 2.2rem; padding-inline: .35rem; gap: .16rem; }
-  .command-theme summary svg { inline-size: .8rem; }
   .command-history, .site-controls .site-account { inline-size: 2.2rem; }
   .command-preferences .site-icon { min-inline-size: 1.95rem; padding-inline: .15rem; }
   .command-search svg { inline-size: 1rem; }
-  .command-theme { position: static; }
-  .command-theme > .palette-controls {
-    inset-inline: .85rem;
-    inset-block-start: calc(100% + .3rem);
-    max-inline-size: 20rem;
-    margin-inline-start: auto;
-  }
-  .command-theme .design-picker svg { display: initial; }
   [data-theme="dark"] .workspace-layout > main:has(.command-hero)::before { inline-size: 100%; opacity: .43; }
 }
 
