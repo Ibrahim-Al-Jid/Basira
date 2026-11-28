@@ -318,7 +318,7 @@ def catalog(body: CatalogRequest, response: Response, authorization: ServiceAuth
     return {"models": sorted(models.values(), key=lambda item: (not item["free"], item["name"].casefold()))}
 
 
-def local_start_model_call(db, body):
+def local_start_model_call(db, body, cap=None):
     from . import platform_runtime as store
     from .identity import ROLE_ACTIONS, project_access
     from .model_connections import account_connection, public_connection
@@ -328,7 +328,7 @@ def local_start_model_call(db, body):
     if (not row or row["state"] != "running" or row["lease"] != body.lease
             or not row["lease_until"] or row["lease_until"] <= store.now()
             or not row["source_expires_at"] or row["source_expires_at"] <= store.now()
-            or not row["enrichment_reserved_at"] or row["enrichment_started_at"]
+            or not row["enrichment_reserved_at"] or (row["enrichment_started_at"] if cap is None else row["agent_calls"] >= cap)
             or row["input_meta"].get("connection_generation") != body.generation
             or row["input_meta"].get("connection_model") != body.model
             or row["input_meta"].get("connection_source", "organization") != body.source):
@@ -345,27 +345,64 @@ def local_start_model_call(db, body):
         namespace = body.org_id
     if not current or current["model"] != body.model or current["generation"] != body.generation:
         return None
-    result = db.execute(store.scans.update().where(
-        store.scans.c.id == body.scan_id, store.scans.c.enrichment_started_at.is_(None),
-    ).values(enrichment_started_at=store.now()))
+    if cap is None:
+        claim = sa.and_(store.scans.c.enrichment_started_at.is_(None))
+        values = {"enrichment_started_at": store.now()}
+    else:
+        # One statement, so two concurrent turns cannot both take the last call.
+        claim = store.scans.c.agent_calls < cap
+        values = {"agent_calls": store.scans.c.agent_calls + 1,
+                  "enrichment_started_at": sa.func.coalesce(store.scans.c.enrichment_started_at, store.now())}
+    result = db.execute(store.scans.update().where(store.scans.c.id == body.scan_id, claim).values(**values))
     if result.rowcount != 1:
         return None
     sealed = sealed_credential(db, namespace, body.generation)
     return (sealed, namespace) if body.source == "account" else (sealed,)
 
 
-def start_model_call(body):
+def start_model_call(body, cap=None):
+    """Reserve the scan's one advisor call, or with `cap` one more agent turn out of at most `cap`."""
     try:
         with platform_session() as db:
             if db.bind.dialect.name == "postgresql":
-                procedure = "basira_start_account_model_call" if body.source == "account" else "basira_start_model_call"
+                account = body.source == "account"
+                if cap is None:
+                    procedure = "basira_start_account_model_call" if account else "basira_start_model_call"
+                    tail = ""
+                else:
+                    procedure = "basira_start_account_agent_call" if account else "basira_start_agent_call"
+                    tail = ", :call_cap"
+                arguments = {"org_id": body.org_id, "project_id": body.project_id, "scan_id": body.scan_id,
+                             "lease": body.lease, "generation": body.generation, "model": body.model}
+                if cap is not None:
+                    arguments["call_cap"] = cap
                 return db.execute(sa.text(
                     f"SELECT * FROM public.{procedure}("
-                    ":org_id, :project_id, :scan_id, :lease, :generation, :model)"
-                ), body.model_dump(exclude={"counts", "connection", "source", "advisor", "provider", "base_url"})).one_or_none()
-            return local_start_model_call(db, body)
+                    f":org_id, :project_id, :scan_id, :lease, :generation, :model{tail})"
+                ), arguments).one_or_none()
+            return local_start_model_call(db, body, cap)
     except (PlatformUnavailable, sa.exc.SQLAlchemyError):
         raise HTTPException(503, "Scan provider reservation is unavailable") from None
+
+
+def reserved_key(body, cap=None):
+    """Recheck the connection, reserve the call and return the provider key. Shared by /priority and /chat."""
+    operator = body.generation == OPERATOR_GENERATION
+    if operator and body.source == "account":
+        raise HTTPException(409, "Personal connection is no longer available")
+    if operator and operator_enabled(body.org_id) != body.model:
+        raise HTTPException(409, "Operator connection is no longer available")
+    encryptor = None if operator else vault()
+    if not operator and not encryptor:
+        raise HTTPException(503, "Credential store is unavailable")
+    started = start_model_call(body) if cap is None else start_model_call(body, cap)
+    if started is None:
+        raise HTTPException(409, "Scan provider reservation was revoked or used")
+    namespace = started[1] if body.source == "account" else body.org_id
+    key = openrouter_secret() if operator else decrypt_key(encryptor, started[0], namespace, body.generation)
+    if not key:
+        raise HTTPException(503, "Model enrichment is unavailable")
+    return key
 
 
 @app.post("/priority")
@@ -376,26 +413,87 @@ def priority(body: Facts, authorization: ServiceAuth = None):
         raise HTTPException(422, "Unsupported rule identifier")
     if body.advisor and not valid_advisor_facts(body.advisor, body.counts):
         raise HTTPException(422, "Unsupported advisor facts")
-    operator = body.generation == OPERATOR_GENERATION
-    if operator and body.source == "account":
-        raise HTTPException(409, "Personal connection is no longer available")
-    if operator and operator_enabled(body.org_id) != body.model:
-        raise HTTPException(409, "Operator connection is no longer available")
-    encryptor = None if operator else vault()
-    if not operator and not encryptor:
-        raise HTTPException(503, "Credential store is unavailable")
-    started = start_model_call(body)
-    if started is None:
-        raise HTTPException(409, "Scan provider reservation was revoked or used")
-    namespace = started[1] if body.source == "account" else body.org_id
-    key = openrouter_secret() if operator else decrypt_key(encryptor, started[0], namespace, body.generation)
-    if not key:
-        raise HTTPException(503, "Model enrichment is unavailable")
+    key = reserved_key(body)
     if body.provider != "openrouter":
         return other_provider_order(body.provider, key, body.model, body.counts, body.base_url, body.advisor)
     if body.advisor:
         return provider_order(key, body.model, body.counts, advisor=body.advisor)
     return provider_order(key, body.model, body.counts)
+
+
+CHAT_CALL_CAP = 8
+CHAT_MESSAGE_LIMIT = 40
+CHAT_CONTENT_LIMIT = 12_000
+CHAT_OUTPUT_TOKENS = 2000
+
+
+class ChatMessage(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    role: Literal["system", "user", "assistant"]
+    content: str = Field(max_length=CHAT_CONTENT_LIMIT)
+
+
+class ChatFacts(BaseModel):
+    """One turn of the Hunter loop. The key never leaves the gateway; every turn takes one of the scan's calls."""
+    model_config = ConfigDict(extra="forbid")
+    connection: Literal["openrouter-default"]
+    provider: Literal["openrouter", "openai", "anthropic", "google", "custom"] = "openrouter"
+    base_url: str | None = Field(None, max_length=300)
+    model: ModelName
+    org_id: Identifier
+    project_id: Identifier
+    scan_id: Identifier
+    lease: Identifier
+    generation: Generation
+    source: Literal["account", "organization"] = "organization"
+    messages: list[ChatMessage] = Field(min_length=2, max_length=CHAT_MESSAGE_LIMIT)
+
+
+def transcript(messages):
+    """Providers other than OpenRouter take one system and one user text: fold the turns into the user text."""
+    return "\n\n".join(f"[{item.role}]\n{item.content}" for item in messages[1:])
+
+
+def observed_usage(usage, prompt, text):
+    """Provider usage when it is a sane integer, else a rough estimate so the loop's token budget still bites."""
+    result = {}
+    if isinstance(usage, dict):
+        for names, dest in ((("prompt_tokens", "input_tokens"), "input"), (("completion_tokens", "output_tokens"), "output")):
+            value = next((usage[n] for n in names if type(usage.get(n)) is int), None)
+            if value is not None and 0 <= value <= 1_000_000:
+                result[dest] = value
+    result.setdefault("input", len(prompt) // 4 + 1)
+    result.setdefault("output", len(text) // 4 + 1)
+    return result
+
+
+@app.post("/chat")
+def chat(body: ChatFacts, authorization: ServiceAuth = None):
+    verify_service(authorization)
+    if body.messages[0].role != "system" or any(item.role == "system" for item in body.messages[1:]):
+        raise HTTPException(422, "Unsupported message order")
+    key = reserved_key(body, CHAT_CALL_CAP)
+    prompt = "".join(item.content for item in body.messages)
+    if body.provider != "openrouter":
+        text, usage = other_provider_reply(body.provider, key, body.model, body.messages[0].content,
+                                           transcript(body.messages), body.base_url)
+        return {"content": text, "usage": observed_usage(usage, prompt, text)}
+    try:
+        response = httpx.post(
+            PROVIDER_URL + "/chat/completions", trust_env=False,
+            headers={"Authorization": "Bearer " + key}, timeout=30.0,
+            json={"model": body.model, "max_tokens": CHAT_OUTPUT_TOKENS,
+                  "provider": {"data_collection": "deny", "allow_fallbacks": False},
+                  "messages": [item.model_dump() for item in body.messages]},
+        )
+        response.raise_for_status()
+        answer = response.json()
+        text = answer["choices"][0]["message"]["content"]
+        if not isinstance(text, str):
+            raise ValueError()
+    except (ValueError, KeyError, AttributeError, IndexError, TypeError, RecursionError, httpx.HTTPError):
+        raise HTTPException(502, "Model could not answer") from None
+    return {"content": text, "usage": observed_usage(answer.get("usage"), prompt, text)}
 
 
 ADVISOR_PROMPT = (
