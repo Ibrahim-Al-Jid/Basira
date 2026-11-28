@@ -4,6 +4,7 @@ import { agents, fetchJson } from "./data";
 import { FindingReview, ReportComparison, ReportDialog, ToolRuns } from "./ReportAdvanced";
 import { modelOrderNote, suggestedPriority } from "./modelOrder";
 import { AgentReview, AgentSummary, ModeFallbackNote, FileManifest, ImportedEvidence, LinkedEvidence } from "./ReportEvidence";
+import { ProjectTabs } from "./ProjectTabs";
 import "./reports.css";
 
 const PAGE_SIZE = 10;
@@ -1027,7 +1028,7 @@ export function Reports({ location, navigate, lang: preferredLanguage = "ar", se
   const heading = useRef(null);
   const current = state?.url === url && state.retry === retry ? state : null;
   const scanProject = projects?.projects?.find((item) => item.id === project && item.role !== "viewer");
-  const showNewScan = !personal && !id && !guestProject && (scanProject || (!project && projects?.projects?.some((item) => item.role !== "viewer")));
+  const inProject = projects?.projects?.find((item) => item.id === project);
 
   // Reports belong to a project and the project lives in the URL. A link without it (typed or shared by hand)
   // is resolved here by asking the user's own projects which one holds the report.
@@ -1083,9 +1084,9 @@ export function Reports({ location, navigate, lang: preferredLanguage = "ar", se
             <ArrowDownToLine size={18} aria-hidden="true" />{t.pdf}
           </a>
         </div>}
-        {showNewScan && <Link className="reports-button reports-primary" navigate={navigate}
-          href={scanProject ? reportPath("/new-scan", new URLSearchParams(), { project }) : "/new-scan"}>{t.newScan}</Link>}
       </header>
+      {!id && inProject && <ProjectTabs project={inProject} active="reports" manage={["owner", "admin"].includes(inProject.role)}
+        personal={personal} t={(ar, en) => lang === "ar" ? ar : en} navigate={navigate} />}
       {!id && <ReportContext location={location} navigate={navigate} lang={lang} active={Boolean(project)}
         state={projects} retry={retryProjects} />}
       {id && guestProject && <div className="reports-panel reports-state">
@@ -1109,4 +1110,4 @@ export function Reports({ location, navigate, lang: preferredLanguage = "ar", se
         : <Archive reports={current.data.reports || []} t={t} lang={lang} params={params} navigate={navigate} />)}
     </section>
   );
-}
+      }
