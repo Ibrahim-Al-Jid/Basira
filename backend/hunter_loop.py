@@ -3,7 +3,8 @@
 The model is injected as a plain callable so tests run on scripted answers and this module holds no key, no network
 and no provider code. Everything the model returns is data: tool calls are checked against an allow-list, tool
 arguments are validated, and candidates are re-checked against the snapshot by the Auditor. Any failure ends the loop
-with a fixed status code and no candidates, so the caller falls back to the deterministic result."""
+with a fixed status code and no candidates, so the caller falls back to the deterministic result.
+Candidates are checked by backend/auditor.py before they are returned."""
 import json
 import os
 import time
