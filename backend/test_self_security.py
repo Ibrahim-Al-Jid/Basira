@@ -167,6 +167,7 @@ def test_gateway_never_sends_the_key_to_a_host_that_turned_private(monkeypatch):
 
     monkeypatch.setattr(gateway.httpx, "get", forbidden)
     monkeypatch.setattr(gateway.httpx, "post", forbidden)
+    monkeypatch.setattr(gateway.httpx, "stream", forbidden)
     with pytest.raises(gateway.HTTPException) as refused:
         gateway.other_provider_reply("custom", "sk-secret-value", "m", "s", "u", "https://api.example.com/v1")
     assert refused.value.status_code == 422 and "sk-secret-value" not in str(refused.value.detail)
@@ -180,7 +181,7 @@ def test_provider_redirects_are_never_followed(monkeypatch):
         return httpx.Response(302, request=httpx.Request("POST", url), headers={"location": "http://169.254.169.254/"})
 
     use_resolver(monkeypatch, public("93.184.216.34"))
-    monkeypatch.setattr(gateway.httpx, "post", fake_post)
+    monkeypatch.setattr(gateway, "fetch_limited", lambda method, url, limit, **kw: fake_post(url, **kw))
     with pytest.raises(gateway.HTTPException) as failed:
         gateway.other_provider_reply("custom", "k", "m", "s", "u", "https://api.example.com/v1")
     assert failed.value.status_code == 502 and seen == [False]
@@ -199,7 +200,7 @@ def test_a_stored_key_is_encrypted_bound_to_its_organization_and_never_in_an_err
     def down(url, **kwargs):
         raise httpx.ConnectError("boom " + kwargs["headers"].get("Authorization", ""))
 
-    monkeypatch.setattr(gateway.httpx, "post", down)
+    monkeypatch.setattr(gateway, "fetch_limited", lambda method, url, limit, **kw: down(url, **kw))
     with pytest.raises(gateway.HTTPException) as failed:
         gateway.other_provider_reply("openai", "sk-live-abcdef123456", "m", "s", "u")
     assert "abcdef123456" not in str(failed.value.detail)
