@@ -161,7 +161,6 @@ export function SignIn({ onAuthenticated, lang, personal, startInRegister, navig
           <span dir="ltr">BASIRA</span>
         </a>
         <div className="signin-controls">
-          {preferences?.designPicker}
           {preferences && (
             <>
               <button type="button" className="signin-control" aria-pressed={preferences.theme === "dark"}
