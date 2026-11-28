@@ -114,6 +114,11 @@ jobs:
           python -m playwright install --with-deps chromium
       - name: Browser smoke (signup, real ZIP scan, 9 pages in English and Arabic)
         run: BASIRA_QA_ORIGIN=http://127.0.0.1:8901 python tests/browser_smoke.py
+      - name: Browser acceptance - personal projects
+        run: python browser_personal_projects.py
+        working-directory: tests
+        env:
+          BASIRA_QA_ORIGIN: http://127.0.0.1:8901
       - name: Compose state and logs (personal mode)
         if: always()
         # Guarded: when the boot step never ran there is no .env.local, and an
