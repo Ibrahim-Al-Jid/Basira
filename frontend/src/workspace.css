@@ -223,3 +223,6 @@ main.site-landing-main { padding: 0; max-width: none; }
   45% { opacity: .72; }
   100% { scale: 1.45; opacity: 0; }
 }
+
+/* The page title is focused on route change for screen readers; it is not a control, so it gets no ring. Controls keep theirs. */
+main [tabindex="-1"]:focus, main[tabindex="-1"]:focus { outline: none; }
