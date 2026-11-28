@@ -19,6 +19,19 @@ class ApiTests(unittest.TestCase):
         self.key = "test-key-fictional"
         self.run = {"source": "<p>demo</p>"}
 
+    def test_unknown_browser_urls_open_the_app_not_a_blank_page(self):
+        with TemporaryDirectory() as root:
+            dist = Path(root) / "frontend" / "dist"
+            dist.mkdir(parents=True)
+            (dist / "index.html").write_text("<div id=root></div>")
+            with patch.object(main, "ROOT", Path(root)):
+                page = self.client.get("/no-such-page", headers={"accept": "text/html"})
+                assert page.status_code == 404 and "id=root" in page.text
+                assert self.client.get("/projects/abc", headers={"accept": "text/html"}).status_code == 200
+                assert self.client.get("/projects/abc/reports/def", headers={"accept": "text/html"}).status_code == 200
+                api = self.client.get("/api/no-such-route", headers={"accept": "text/html"})
+                assert api.status_code == 404 and api.headers["content-type"].startswith("application/json")
+
     def test_removed_user_routes_and_raw_credential_rejection(self):
         assert self.client.get("/checks").status_code == 404
         assert self.client.get("/checks/").status_code == 404
