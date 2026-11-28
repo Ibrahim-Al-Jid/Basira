@@ -139,6 +139,9 @@ curl -s -c /tmp/basira.jar -X POST http://127.0.0.1:8765/api/run \
 | GET | `/api/platform/projects/{project_id}/github-source` | The project's connected repository. |
 | POST | `/api/platform/projects/{project_id}/github-source/scans` | Import a snapshot from the connected repository and scan it. |
 
+
+`POST /scans` takes `analysis_mode` in its JSON body: `"rules"`, `"agents"` or `"hybrid"` (default `"hybrid"`). A report records what was asked and what ran: `analysis_mode`, `mode_effective` and, when they differ, `fallback_reason`. The model-backed agent path is not built yet, so today `hybrid` runs as `rules` with `fallback_reason: "agent_path_unavailable"`, and `"agents"` is refused with 422 (`وضع الوكلاء غير متاح بعد`) instead of quietly becoming a rules scan. Reports written before run modes existed read as `rules` in both fields.
+
 Submit a ZIP scan:
 
 ```bash
