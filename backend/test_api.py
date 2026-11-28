@@ -1,6 +1,8 @@
+from contextlib import closing
 import json
 import os
 from pathlib import Path
+import sqlite3
 from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
@@ -166,3 +168,31 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(set(events["discriminator"]["mapping"]), {"step", "complete", "error"})
         detail = schema["paths"]["/api/reports/{report_id}"]["get"]["responses"]["200"]
         self.assertEqual(detail["content"]["application/json"]["schema"]["$ref"], "#/components/schemas/Report")
+
+
+class DatabasePreparationTests(unittest.TestCase):
+    def test_schema_is_prepared_once_per_database_path(self):
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "once.sqlite3"
+            with patch.dict(os.environ, {"BASIRA_DB_PATH": str(path)}):
+                before = main.prepared_database.cache_info()
+                with main.database() as db:
+                    db.execute("SELECT count(*) FROM reports").fetchone()
+                with main.database() as db:
+                    db.execute("SELECT count(*) FROM reports").fetchone()
+                after = main.prepared_database.cache_info()
+        self.assertEqual(after.misses, before.misses + 1)
+        self.assertGreaterEqual(after.hits, before.hits + 1)
+
+    def test_legacy_sessions_table_gains_expiry_once(self):
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "legacy.sqlite3"
+            with closing(sqlite3.connect(path)) as db, db:
+                db.execute("CREATE TABLE sessions(owner TEXT PRIMARY KEY)")
+                db.execute("INSERT INTO sessions(owner) VALUES('legacy-owner')")
+            with patch.dict(os.environ, {"BASIRA_DB_PATH": str(path)}):
+                with main.database() as db:
+                    columns = {row["name"] for row in db.execute("PRAGMA table_info(sessions)")}
+                    window = db.execute("SELECT ends_at FROM legacy_session_window WHERE id=1").fetchone()
+        self.assertIn("expires_at", columns)
+        self.assertIsNotNone(window)
