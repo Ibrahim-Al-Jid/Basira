@@ -5,9 +5,12 @@
 # and a GitHub credential key, start the local profile, and wait until the app
 # answers. Values already present in .env.local are never overwritten.
 #
-#   ./ops/start-local.sh                      # http://127.0.0.1:8765
-#   ./ops/start-local.sh --port 9000 --model
-#   ./ops/start-local.sh --github-client-id <id> --github-app-slug <slug>
+# Invoke through bash: the file is tracked without the executable bit, so
+# ./ops/start-local.sh fails with Permission denied on a fresh clone.
+#
+#   bash ops/start-local.sh                      # http://127.0.0.1:8765
+#   bash ops/start-local.sh --port 9000 --model
+#   bash ops/start-local.sh --github-client-id <id> --github-app-slug <slug>
 set -euo pipefail
 
 port=8765
