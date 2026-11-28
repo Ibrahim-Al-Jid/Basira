@@ -35,6 +35,7 @@ def project_view(project):
 def list_owned(user_id, archived=False):
     """Active projects by name, or the account's deleted projects, newest deletion first."""
     with platform_session() as db:
+        bind_owner(db, user_id)
         if archived:
             query = select(Project).where(Project.owner_user_id == user_id, Project.deleted_at.is_not(None)
                                           ).order_by(Project.deleted_at.desc(), Project.id)
@@ -50,6 +51,7 @@ def _utc(value):
 
 
 def owned(db, project_id, user_id, *, lock=False):
+    bind_owner(db, user_id)
     query = select(Project).where(
         Project.id == project_id, Project.owner_user_id == user_id, Project.deleted_at.is_(None),
     )
@@ -63,6 +65,7 @@ def owned(db, project_id, user_id, *, lock=False):
 def create_project(body: NamedResource, request: Request):
     user = personal_user(request)
     with platform_session() as db:
+        bind_owner(db, user.id)
         # Serialize first-project creation for this account. Existing composite FKs
         # still use the internal organization ID until the legacy schema is retired.
         namespace = personal_namespace_id(db, user.id, create=True)
@@ -111,6 +114,7 @@ def restore_project(project_id: Identifier, request: Request):
     """Bring a deleted project back. Scans cancelled by the deletion stay cancelled."""
     user = personal_user(request)
     with platform_session() as db:
+        bind_owner(db, user.id)
         project = db.scalar(select(Project).where(
             Project.id == project_id, Project.owner_user_id == user.id, Project.deleted_at.is_not(None),
         ).with_for_update())

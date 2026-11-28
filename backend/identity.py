@@ -28,7 +28,8 @@ except ImportError:
 
 from .platform_db import (
     AuthSession, Membership, Organization, PlatformUnavailable, Project, ProjectGrant,
-    User, personal_projects_enabled, platform_database_url, platform_session, utc_now,
+    User, bind_legacy_project_access, bind_owner, personal_projects_enabled, platform_database_url,
+    platform_session, utc_now,
 )
 
 router = APIRouter(prefix="/api/platform", tags=["Project identity"])
@@ -250,10 +251,12 @@ def require_membership(db, org_id, user_id):
 
 def project_access(db, project_id, user_id):
     if personal_projects_enabled():
+        bind_owner(db, user_id)
         return db.execute(select(Project.org_id, literal("owner").label("role")).join(
             User, User.id == Project.owner_user_id,
         ).where(Project.id == project_id, Project.owner_user_id == user_id,
                 Project.deleted_at.is_(None), User.disabled_at.is_(None))).one_or_none()
+    bind_legacy_project_access(db)
     return db.execute(
         select(Project.org_id, Membership.role).join(
             Membership, and_(Membership.org_id == Project.org_id, Membership.user_id == user_id,
@@ -452,6 +455,7 @@ def create_project(org_id: str, body: NamedResource, request: Request):
         if member.role not in MANAGERS:
             raise HTTPException(403, "إنشاء المشروع يتطلب صلاحية إدارة المؤسسة.")
         project = Project(org_id=org_id, name=body.name)
+        bind_legacy_project_access(db)
         db.add(project)
         db.flush()
         return {"id": project.id, "org_id": org_id, "name": project.name, "role": member.role}
@@ -465,6 +469,7 @@ def list_projects(request: Request, archived: bool = False):
 
         return list_owned(user.id, archived)
     with platform_session() as db:
+        bind_legacy_project_access(db)
         items = db.execute(select(Project.id, Project.org_id, Project.name, Membership.role).join(
             Membership, and_(Membership.org_id == Project.org_id, Membership.user_id == user.id,
                              Membership.revoked_at.is_(None)),

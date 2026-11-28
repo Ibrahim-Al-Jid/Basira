@@ -77,6 +77,22 @@ def test_security_definer_functions_are_not_public(db):
         assert not granted, f"{signature} must not be executable by PUBLIC"
 
 
+def test_projects_table_is_owner_scoped(db):
+    """The records are gated by a policy over `projects`, so the table itself must be gated too."""
+    enabled, forced = db.connect().execute(sa.text(
+        "SELECT c.relrowsecurity, c.relforcerowsecurity FROM pg_class AS c "
+        "JOIN pg_namespace AS n ON n.oid = c.relnamespace "
+        "WHERE n.nspname = 'public' AND c.relname = 'projects'")).one()
+    assert enabled, "projects must enable row level security"
+    # Not forced on purpose: basira_project_owner reads projects as the deploy role's definer, and
+    # row_security = off raises for an owner that is subject to RLS.
+    assert not forced, "projects must stay unforced so the definer owner lookup keeps working"
+    policies = db.connect().execute(sa.text(
+        "SELECT policyname, permissive FROM pg_policies "
+        "WHERE schemaname = 'public' AND tablename = 'projects'")).all()
+    assert ("personal_project_access", "PERMISSIVE") in policies
+
+
 def test_checkpoint_trigger_exists(db):
     assert scalar(db, "SELECT count(*) FROM pg_trigger WHERE tgname = 'basira_clear_analysis_checkpoint'") == 1
 
