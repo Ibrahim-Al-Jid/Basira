@@ -72,8 +72,8 @@ A future addition may be started early only if Release 1 is complete, or if it b
 
 Phases P01 to P08 are built; this plan has 24 phases (P01 to P24). P09 has its live view and model lane in place; P10 slices a to f and P20 are merged, and the design question is closed (28 November 2026: keep the current look, no new design); open: the automatic default project (scan flow is 4 actions, target 3), then future additions. Release 1 scope is defined above; everything else is a future addition. Section 3b lists every merged pull request, which is where the evidence for a status lives.
 
-Verified on 28 November 2026 at commit `0438894` (main after PR #66), Linux, Python 3.13.18, Node 22.23.5:
-- Backend suite: `python -m pytest backend -q` gave 407 passed, 2 skipped, 8 subtests in 20.9 s. The frontend build ran first, as `backend/test_api.py` serves `frontend/dist`.
+Verified on 28 November 2026 at commit `6226110`, Linux, Python 3.13.18, Node 22.23.5:
+- Backend suite: `python -m pytest backend -q` gave 431 passed, 18 skipped, 8 subtests in 20.9 s. The frontend build ran first, as `backend/test_api.py` serves `frontend/dist`.
 - Frontend: `npm --prefix frontend ci` and `npm run build` succeed; `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs` gave 8 pass.
 - App start: `/`, `/demo`, `/signin`, `/projects`, `GET /api/taxonomy` and `GET /api/product` returned 200.
 - Documentation set: [SETUP](SETUP.md), [CONFIGURATION](CONFIGURATION.md), [API](API.md) and [TROUBLESHOOTING](TROUBLESHOOTING.md) added, with the commands they contain checked in the same run.
@@ -182,6 +182,61 @@ Every change reaches `main` through a pull request (see [two-account-flow](two-a
 | #59 | Forms and project cards: consistent fields, tidy action rows | P10 |
 | #60 | Arabic: mirror the header with the sidebar (owner decision K) | P10 |
 | #66 | Container operations: log rotation, healthchecks, dropped capabilities | P18 |
+| #61 | Repo hygiene: editor defaults, ignore rules, security policy | docs |
+| #62 | Docs: setup, configuration, API, troubleshooting, plan status | docs |
+| #63 | Scope scan idempotency keys to one project | P03 |
+| #64 | Model `project_ownership_reviews` so `alembic check` passes | P03 |
+| #67 | Pin every direct dependency to an exact version | P18 |
+| #68 | Request access log with a request id | P18 |
+| #69 | Remap review rows onto target-aware finding fingerprints | P02 |
+| #70 | Fix the report technical tab crashing the page | P10 |
+| #71 | New scan: "Choose a file first" in the app language | P10 |
+| #73 | Run the schema tests against PostgreSQL 16 in CI | P18 |
+| #74 | Restore the alternate-language PDF in report downloads | P02 |
+| #75 | Sidebar: Findings, Remediation and Reports merged into Reports | P10 |
+| #76 | Browser tests derive the expected rule count from the catalog | P18 |
+| #77 | Purge expired auth, throttle, invitation and GitHub rows | P03 |
+| #78 | Project page: remove the duplicate Scan History tab | P10 |
+| #79 | Reference the users table from the four user columns | P03 |
+| #80 | Landing: sidebar matches the workspace, hero image preloaded | P10 |
+| #81 | Review a submitted configuration document as itself | P02 |
+| #82 | Platform backup script | P18 |
+| #83 | Browser workspace test matches the current landing and Reports page | P18 |
+| #84 | Anonymous traffic no longer grows the session table | P03 |
+| #85 | `github_connections` documented as a dead table | docs |
+| #87 | Public entry page at `/` (Sign in, animated globe), demo overview at `/overview` | P10 |
+| #88 | A dispatched job is delivered after the claim transaction commits | P03 |
+| #89 | CI: repository checks, dependency check, secret scan, container build | P18 |
+| #90 | Source-code check: dead assignment removed | P04 |
+| #92 | `ops/start-local.sh` bootstrap for Linux and macOS | P18 |
+| #96 | Access log re-installed after it was dropped | P18 |
+| #97 | Browser suites show the register response body on failure | P18 |
+| #98 | RELEASE.md records Docker as verified in CI | docs |
+| #99 | Full security header set sent with the app shell | P03 |
+| #100 | Test: the app role cannot reach the ownership queue | P03 |
+| #101 | Account suite asserts the always-visible nav rail on narrow widths | P18 |
+| #103 | The job-path project owner is resolved outside row level security | P03 |
+| #104 | Test for the app shell security headers | P18 |
+| #105 | Frontend hardens GitHub links that come from API data | P10 |
+| #106 | Project rows scoped to their owner with row level security | P03 |
+| #107 | Schema prepared once | P03 |
+| #108 | Plan identity-table row level security | P03 |
+| #109 | Source rules report `unsupported_language` when no adapter can read the file | P04 |
+| #110 | The dispatch queue is claimed through a definer function | P03 |
+| #111 | Sessions are resolved and revoked through definer functions | P03 |
+| #112 | Invitations scoped to the organization that owns them | P03 |
+| #113 | Users and memberships scoped to the organization that owns them | P03 |
+| #114 | `X-Forwarded` headers honoured only from a loopback proxy | P03 |
+| #116 | Password credentials scoped and the attempt counter made definer-only | P03 |
+| #117 | Provider response size capped for user-chosen provider URLs | P03 |
+| #118 | Background failures log their class and location without their messages | P18 |
+| #121 | Deployment: healthchecks for dispatcher, worker, scanner and model-gateway | P18 |
+| #122 | Agent system design note | docs |
+| #124 | Organizations and project grants scoped to the people who may see them | P03 |
+| #130 | DVWA download cache for the container CI job | P18 |
+| #131 | Scan configuration files under build and dist directories | P04 |
+| #132 | Migration 0030 state constraints | P03 |
+| #133 | `ops/postgres-init.sh` is idempotent | P18 |
 
 Order of work, set by the agent as the expert (27 Nov 2026): P21 (provider settings, done), P09 model lane (done), P10 redesign slices a to f (merged), then P20 (replay and budget check, merged), P19 (source-code checks, the biggest measured gap), P11, P17 and P23 (measured evaluation with precision, when the free-tier cap allows), P13, P16, P15, P22, P07 gaps, P12, P24, P18. P14 follows decision A and ships before P17 if approved, so evaluation covers it.
 

@@ -197,4 +197,4 @@ for path in sorted(schema["paths"]):
 PY
 ```
 
-The count printed on `main` at `0438894` is 60 paths and 78 operations. `GET /openapi.json` returns the same schema from the running app, and `/docs` renders it.
+The count printed on `main` at `6226110` is 60 paths and 78 operations. `GET /openapi.json` returns the same schema from the running app, and `/docs` renders it.
