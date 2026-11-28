@@ -29,7 +29,7 @@ OpenRouter free tier: 50 requests per day without credit (measured on 27 Novembe
 Principle: the audience sees one thing at a time, and the presenter controls the pace. Stage events (P09) drive it; replay mode (below) makes it identical on a stored scan.
 
 1. Show the empty project and the intake choices (ZIP, GitHub, HAR, config).
-2. Start the scan. Agent lanes appear one by one: Coordinator, Planning, Analysis, Verification, Reporting. Say what each does as its lane fills.
+2. Start the scan. Agent lanes appear one by one: Maestro, Scout, Hunter, Auditor, Scribe. Say what each does as its lane fills.
 3. Findings appear one at a time, highest severity first, each with its evidence and the check that found it. A "next finding" control lets the presenter advance instead of waiting.
 4. Report: summary, then coverage ("what was not checked"), then export to PDF and JSON, then Arabic.
 5. Close with the numbers from [research/detection-experiment.md](research/detection-experiment.md), exactly as recorded, including the limits.
