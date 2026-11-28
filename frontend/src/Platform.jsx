@@ -40,19 +40,27 @@ const states = {
   failed: ["فشل", "Failed"], cancelled: ["أُلغي", "Cancelled"],
   model_skipped: ["الموديل لم يُستخدم", "Model not used"],
 };
-function eventDetail(event) {
-  if (event.kind === "running") {
-    const attempt = event.detail.match(/\d+/)?.[0];
-    return attempt ? `Execution attempt ${attempt} started.` : "Execution started.";
-  }
-  return ({
-    "تم تسجيل الطلب للفحص.": "Scan request queued.",
-    "اكتمل الفحص.": "Scan completed.",
-    "اتلغى الفحص.": "Scan cancelled.",
-    "التقرير التجريبي جاهز.": "The partial report is ready.",
-    "وصلت المهمة للحد الأقصى لمحاولات التشغيل.": "The scan reached its retry limit.",
-    "تعذّر تنفيذ الفحص.": "The scan could not be completed.",
-  })[event.detail] || event.detail;
+const eventText = {
+  "scan.queued": ["تم تسجيل الطلب للفحص.", "Scan request queued."],
+  "scan.completed": ["اكتمل الفحص.", "Scan completed."],
+  "scan.partial_ready": ["التقرير التجريبي جاهز.", "The partial report is ready."],
+  "scan.cancelled": ["اتلغى الفحص.", "Scan cancelled."],
+  "scan.cancelled_requester_changed": ["اتلغى الفحص لأن صلاحية مقدم الطلب اتغيّرت.", "Scan cancelled because the requester's access changed."],
+  "scan.cancelled_project_deleted": ["اتلغى الفحص بعد حذف المشروع.", "Scan cancelled after the project was deleted."],
+  "scan.failed_input_expired": ["انتهت مدة الاحتفاظ بالمدخل قبل اكتمال الفحص.", "The input expired before the scan finished."],
+  "scan.failed_provenance": ["تعذّر التحقق من مصدر الفحص أو النطاق المسجّل.", "The scan source or recorded scope could not be verified."],
+  "scan.failed_retry_limit": ["وصلت المهمة للحد الأقصى لمحاولات التشغيل.", "The scan reached its retry limit."],
+  "scan.failed": ["تعذّر تنفيذ الفحص.", "The scan could not be completed."],
+};
+const attemptText = {
+  "scan.attempt_started": (n) => [`بدأت محاولة التنفيذ رقم ${n}.`, `Execution attempt ${n} started.`],
+  "scan.attempt_resumed": (n) => [`استؤنفت محاولة التنفيذ رقم ${n} من نتيجة التحليل المحفوظة.`, `Execution attempt ${n} resumed from the saved analysis.`],
+};
+// Events carry a stable key from the backend. The stored Arabic detail is only the fallback for unknown keys.
+function eventDetail(event, t) {
+  const attempt = event.params?.attempt;
+  const pair = attemptText[event.key]?.(attempt ?? "") ?? eventText[event.key];
+  return pair ? t(pair[0], pair[1]) : t(event.detail, event.detail);
 }
 const isActive = (state) => state === "queued" || state === "running";
 const label = (table, value, t) => table[value] ? t(...table[value]) : value;
@@ -176,7 +184,7 @@ function ScanStatus({ projectId, scanId, lang }) {
           <h3>{t("سجل الفحص", "Scan activity")}</h3>
           <ol className="workspace-timeline" aria-label={t("سجل الفحص", "Scan events")}>{events.filter((item) => !["agent_done", "agent_start", "stage_start"].includes(item.kind)).map((item) => <li key={item.sequence}>
           <b>{label(states, item.kind, t)}</b>
-          <p dir="auto">{t(item.detail, eventDetail(item))}</p>
+          <p dir="auto">{eventDetail(item, t)}</p>
           <time dateTime={item.occurred_at}>{new Date(item.occurred_at).toLocaleString(lang === "ar" ? "ar-EG" : "en")}</time>
           </li>)}</ol>
         </section>}
