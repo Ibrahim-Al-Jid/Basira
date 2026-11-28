@@ -145,3 +145,26 @@ def test_unique_observations_keeps_same_line_instances_but_merges_tools():
     assert len(unique_observations([hit("html"), hit("html")])) == 2
     merged = unique_observations([hit("html"), hit("other")])
     assert len(merged) == 1 and len(merged[0]["origins"]) == 2
+
+
+def test_snapshot_with_only_unsupported_language_is_partial_not_complete():
+    archive = io.BytesIO()
+    with ZipFile(archive, "w") as bundle:
+        bundle.writestr("main.go", 'package main\n\nimport "os/exec"\n\n'
+                                   'func main() { exec.Command("sh", "-c", os.Getenv("C")).Run() }\n')
+    answer = scan("repository", "service.zip", archive.getvalue())
+    report = answer["result"]
+    rows = [row for row in report["coverage"] if row["rule"].startswith("SRC-")]
+    assert rows and all(row["status"] == "skipped" for row in rows)
+    assert {row["reason"] for row in rows} == {"unsupported_language"}
+    assert report["status"] == "partial"
+    assert "another language" in report["summary_en"]
+
+
+def test_snapshot_with_a_supported_language_still_reports_clear_rules():
+    archive = io.BytesIO()
+    with ZipFile(archive, "w") as bundle:
+        bundle.writestr("app.py", "print('hello')\n")
+    report = scan("repository", "service.zip", archive.getvalue())["result"]
+    rows = {row["rule"]: row for row in report["coverage"]}
+    assert rows["SRC-01"]["status"] == "clear"
