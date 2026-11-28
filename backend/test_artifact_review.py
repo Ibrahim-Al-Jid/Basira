@@ -147,6 +147,19 @@ def test_unique_observations_keeps_same_line_instances_but_merges_tools():
     assert len(merged) == 1 and len(merged[0]["origins"]) == 2
 
 
+def test_config_document_is_reviewed_as_itself():
+    document = {"services": {"web": {"environment": {"TOKEN": "ghp_" + "A" * 36}}}}
+    answer = scan("config", "compose.json", json.dumps(document).encode())
+    assert "error" not in answer
+    assert answer["result"]["status"] == "completed"
+    assert [item["rule"] for item in answer["result"]["findings"]] == ["APP-02"]
+
+
+def test_config_bundle_envelope_still_works():
+    bundle = {"files": {"Dockerfile": "FROM python:3\nUSER root\n"}}
+    answer = scan("config", "bundle.json", json.dumps(bundle).encode())
+    assert "error" not in answer
+    assert answer["result"]["status"] == "completed"
 def test_snapshot_with_only_unsupported_language_is_partial_not_complete():
     archive = io.BytesIO()
     with ZipFile(archive, "w") as bundle:
