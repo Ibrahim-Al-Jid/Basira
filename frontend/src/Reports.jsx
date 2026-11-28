@@ -1059,7 +1059,11 @@ export function Reports({ location, navigate, revision, lang: preferredLanguage 
       {explicitDemo && !id && <Link className="reports-button" href="/reports" navigate={navigate}>
         {lang === "ar" ? "تقارير المشاريع" : "Project reports"}
       </Link>}
-      {badProject && <p role="alert">{lang === "ar" ? "المشروع المطلوب غير متاح." : "The requested project is unavailable."}</p>}
+      {badProject && <div className="reports-panel reports-state" role="alert">
+        <p>{project ? (lang === "ar" ? "المشروع المطلوب غير متاح." : "The requested project is unavailable.")
+          : (lang === "ar" ? "هذا الرابط لا يحدد المشروع. افتح التقرير من قائمة تقارير المشروع." : "This link does not say which project the report belongs to. Open it from the project's report list.")}</p>
+        <Link className="reports-button" href="/reports" navigate={navigate}>{lang === "ar" ? "تقارير المشاريع" : "Project reports"}</Link>
+      </div>}
       {url && !current && <div className="reports-panel reports-state" role="status">{t.loading}</div>}
       {current?.error && (
         <div className="reports-panel reports-state">
