@@ -58,6 +58,8 @@ const COPY = {
     duration: "المدة",
     ms: "مللي ثانية",
     runCoverage: "تغطية الأداة",
+    selected: "اتحددت",
+    selectionDecisions: "قرارات اختيار الأدوات",
   },
   en: {
     compare: "Compare scans",
@@ -112,6 +114,8 @@ const COPY = {
     duration: "Duration",
     ms: "ms",
     runCoverage: "Tool coverage",
+    selected: "Selected",
+    selectionDecisions: "Tool selection decisions",
   },
 };
 
@@ -405,13 +409,13 @@ export function ToolRuns({ runs, selections, lang, t, label, count }) {
     merged_observations: ["الأدلة اتدمجت مع نتائج موجودة", "Evidence merged with existing observations"],
     imported_observations: ["ملاحظات مستوردة من تقرير محفوظ", "Observations imported from a saved report"],
   };
-  const reasonText = (reason) => Object.hasOwn(reasonCopy, reason) ? t(...reasonCopy[reason]) : reason;
-  const present = t("اتحددت", "Selected");
+  const reasonText = (reason) => Object.hasOwn(reasonCopy, reason) ? reasonCopy[reason][lang === "ar" ? 0 : 1] : reason;
+  const present = advanced.selected;
   return (
     <section className="reports-panel reports-section reports-advanced">
       <h2>{advanced.toolRuns}</h2>
       {!!selections?.length && <details className="reports-section">
-        <summary>{t("قرارات اختيار الأدوات", "Tool selection decisions")}</summary>
+        <summary>{advanced.selectionDecisions}</summary>
         <ul className="reports-review-list">
           {selections.map((selection) => <li key={selection.id}>
             <bdi>{selection.id} · {selection.version}</bdi>
