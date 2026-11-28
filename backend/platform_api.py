@@ -262,12 +262,9 @@ def reports(project_id: str, request: Request):
     ctx = project(request, project_id, "read")
     with store.platform_session() as db:
         store.bind_project_context(db, ctx)
-        selection = sa.select(store.scans.c.report_index, store.scans.c.updated_at.label("sort_at")).where(
+        rows = db.execute(sa.select(store.scans.c.report_index).where(
             store.scope(store.scans, ctx.org_id, ctx.project_id), store.scans.c.state.in_(["completed", "partial"]),
-        ).union_all(sa.select(store.legacy.c.report_index, store.legacy.c.claimed_at.label("sort_at")).where(
-            store.scope(store.legacy, ctx.org_id, ctx.project_id),
-        )).subquery()
-        rows = db.execute(sa.select(selection.c.report_index).order_by(selection.c.sort_at.desc()).limit(100)).scalars()
+        ).order_by(store.scans.c.updated_at.desc()).limit(100)).scalars()
         return History(reports=[HistoryItem.model_validate(value) for value in rows])
 
 

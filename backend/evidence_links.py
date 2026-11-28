@@ -53,10 +53,6 @@ def published(ctx):
 def report(db, ctx, report_id):
     row = db.execute(published(ctx).where(store.scans.c.id == report_id)).mappings().first()
     if row is None:
-        if db.scalar(sa.select(store.legacy.c.legacy_id).where(
-            store.scope(store.legacy, ctx.org_id, ctx.project_id), store.legacy.c.legacy_id == report_id,
-        )):
-            return None
         raise HTTPException(404, "التقرير غير متاح.")
     return row
 
@@ -86,7 +82,7 @@ def available(db, ctx, identifier):
 
 
 def choices(row):
-    if row is None or not row.asset_id:
+    if not row.asset_id:
         return ()
     kind = row.input_meta.get("kind")
     return WEB if kind in CODE else CODE if kind in WEB else ()
@@ -128,7 +124,7 @@ def create_link(project_id: Identifier, report_id: Identifier, body: LinkInput, 
     with tenant_session(ctx) as db:
         store.lock_project(db, ctx.org_id, ctx.project_id)
         first, second = report(db, ctx, report_id), report(db, ctx, body.report_id)
-        if (not choices(first) or second is None or first.asset_id != second.asset_id
+        if (not choices(first) or first.asset_id != second.asset_id
                 or second.input_meta["kind"] not in choices(first)):
             raise HTTPException(409, "اختار تقرير كود وتقرير ويب أو API لنفس الأصل المسجّل في المشروع.")
         code, web = (first.id, second.id) if first.input_meta["kind"] in CODE else (second.id, first.id)

@@ -74,7 +74,7 @@ def scope_key(report, policy):
 
 def points(report, policy):
     groups = {}
-    target = scope_key(report, policy) or ("legacy", report.id)
+    target = scope_key(report, policy)
     for finding in report.findings:
         values = (target, finding.rule, finding.path)
         identifier = hashlib.sha256(json.dumps(values, ensure_ascii=True).encode()).hexdigest()
@@ -146,11 +146,6 @@ def read_report(ctx, report_id):
         )).mappings().first()
         if row and row["report"]:
             return Report.model_validate(row["report"]), row["policy"]
-        legacy = db.execute(sa.select(store.legacy.c.report).where(
-            store.scope(store.legacy, ctx.org_id, ctx.project_id), store.legacy.c.legacy_id == report_id,
-        )).scalar_one_or_none()
-        if legacy:
-            return Report.model_validate(legacy), {}
     raise HTTPException(404, "التقرير غير متاح في المشروع ده.")
 
 
