@@ -67,7 +67,9 @@ def first_scan(page):
     page.get_by_role("button", name="Submit scan").click()
     expect(page.get_by_role("alert")).to_contain_text("The file must be a valid ZIP.")
     page.get_by_role("button", name="Back").click()
+    # Re-selecting the file clears the acknowledgment (updateEvidence), so check it again.
     page.locator('input[type="file"]').set_input_files(source_zip())  # choosing a file opens the review step
+    page.get_by_role("checkbox", name="I have permission to review this file").check()
     page.get_by_role("button", name="Submit scan").click()
     page.wait_for_url("**/projects/*/scans/*")
     scan_id = urlsplit(page.url).path.rsplit("/", 1)[-1]
