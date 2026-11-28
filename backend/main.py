@@ -28,6 +28,7 @@ from .contracts import (
 from .graph import GraphError, run_graph
 from .artifact_review import RULESET_VERSION, catalog as rule_catalog, redact_label
 from .offline_worker import scan_payload
+from . import run_guard
 from .taxonomy import public as taxonomy_public
 from .platform_db import personal_projects_enabled
 from .observability import install_observability
@@ -261,6 +262,7 @@ def save_report(owner, report):
           "content": {"application/x-ndjson": {}}},
 })
 async def run(body: Run, request: Request):
+    run_guard.reserve_run(request)
     owner, token = session(request)
     scan_id = uuid4().hex
     source_info = body.source_info
@@ -327,7 +329,14 @@ async def run(body: Run, request: Request):
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
 
-    response = RunStream(events(), headers={"X-Accel-Buffering": "no"})
+    async def guarded():
+        try:
+            async for item in events():
+                yield item
+        finally:
+            run_guard.release_run()
+
+    response = RunStream(guarded(), headers={"X-Accel-Buffering": "no"})
     return set_session(response, token, request)
 
 
