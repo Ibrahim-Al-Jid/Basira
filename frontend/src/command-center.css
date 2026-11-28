@@ -427,3 +427,15 @@
   [data-theme="dark"] .workspace-layout > main:has(.command-hero)::before { inline-size: 100%; opacity: .43; }
 }
 
+
+/* Arabic: the sidebar sits on the right. The layout container stays left-to-right, so the columns and the border are swapped here. */
+@media (min-width: 761px) {
+  .workspace-layout:has(> main[dir="rtl"]) {
+    grid-template-columns: minmax(0, 1fr) var(--sidebar-width);
+    grid-template-areas: "header sidebar" "content sidebar";
+  }
+  .workspace-layout:has(> main[dir="rtl"]) > :is(.overview-sidebar, .personal-sidebar) {
+    border-inline-end: 0;
+    border-inline-start: 1px solid var(--command-edge);
+  }
+}
