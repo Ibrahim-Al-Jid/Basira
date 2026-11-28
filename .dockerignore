@@ -8,3 +8,7 @@ data
 **/*.pem
 **/*.key
 .pytest_cache
+# Not part of the runtime image: tests, docs and the pytest modules.
+tests
+docs
+backend/test_*.py

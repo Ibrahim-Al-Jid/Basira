@@ -4,6 +4,9 @@
 
 ### Fixed
 - Reviews recorded before `platform_observation_0004` now match their findings again. That revision rewrote `project_finding_observations.fingerprint` to include the scan target and left `finding_reviews` and `finding_review_activity` on the older fingerprint, so a review saved on an earlier scan no longer joined its finding. Migration `platform_review_remap_0018` applies the same mapping to both review tables, copies the review row before moving its activity rows, skips fingerprints that already have a review, and is reversible. Verified on PostgreSQL 16: a review written under the old fingerprint joins its finding after the upgrade (0 to 1 row), and downgrade restores the old fingerprint.
+### Added
+- Container operations: every service and the database and broker log through the `json-file` driver capped at 10 MB times 3 files, the `app` service has a healthcheck and the image has a `HEALTHCHECK`, so a hung process is restarted or routed around instead of looking up. `app`, `worker`, `dispatcher` and `model-gateway` run with `cap_drop: [ALL]` and `no-new-privileges`, which they do not need (they already run as an unprivileged user); the scanner keeps its own isolation.
+- The image build runs `pip check` after installing the requirements and sets `PYTHONDONTWRITEBYTECODE=1`; `.dockerignore` keeps `tests/`, `docs/` and `backend/test_*.py` out of the build context and the runtime image.
 
 ## 2026-11-27
 
