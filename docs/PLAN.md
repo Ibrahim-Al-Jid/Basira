@@ -233,6 +233,10 @@ Every change reaches `main` through a pull request (see [two-account-flow](two-a
 | #121 | Deployment: healthchecks for dispatcher, worker, scanner and model-gateway | P18 |
 | #122 | Agent system design note | docs |
 | #124 | Organizations and project grants scoped to the people who may see them | P03 |
+| #130 | DVWA download cache for the container CI job | P18 |
+| #131 | Scan configuration files under build and dist directories | P04 |
+| #132 | Migration 0030 state constraints | P03 |
+| #133 | `ops/postgres-init.sh` is idempotent | P18 |
 
 Order of work, set by the agent as the expert (27 Nov 2026): P21 (provider settings, done), P09 model lane (done), P10 redesign slices a to f (merged), then P20 (replay and budget check, merged), P19 (source-code checks, the biggest measured gap), P11, P17 and P23 (measured evaluation with precision, when the free-tier cap allows), P13, P16, P15, P22, P07 gaps, P12, P24, P18. P14 follows decision A and ships before P17 if approved, so evaluation covers it.
 
