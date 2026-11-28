@@ -32,6 +32,7 @@ Symptoms are grouped by where they appear. Each entry gives the cause and the ch
 | `415` on a ZIP upload | The request did not declare `application/zip`, `application/x-zip-compressed` or `application/octet-stream` | Send the file body with the right content type and `X-Artifact-Name` |
 | `408` on a ZIP upload | The upload stalled past the 30-second window | Retry on a better connection |
 | `429` on submit | The project has the maximum number of queued scans | Wait 60 seconds, or cancel a running scan |
+| `429` on `/api/run` (the lab) | The anonymous lab guard: more than `BASIRA_LAB_RUN_LIMIT` runs (default 30) from your IP in the current 15-minute window, or more than `BASIRA_LAB_RUN_CONCURRENCY` (default 8) already in flight in this process | Wait for the `Retry-After` seconds, or raise the limit. Both counters are per process and reset when it restarts |
 | A scan sits at queued and never moves | The dispatcher or worker is not running, or Redis is unreachable | `docker compose ps -a`, then logs for `dispatcher` and `worker` |
 | Coverage shows `adapter_output_limit` or `database_unavailable` | A static adapter hit its output limit or its offline database is missing | This is partial coverage, not a clean result. Check `BASIRA_SOURCE_ADAPTERS` and the image's `/opt/basira-osv` |
 | A cancelled scan still writes a report | It cannot: a stale lease holder cannot publish after cancellation | If it happens, it is a defect. Record the scan id and the report id |
