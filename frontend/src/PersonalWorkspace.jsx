@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useRef, useState } from "react";
-import { ArrowUpRight, Bug, CheckCircle2, ChevronLeft, ChevronRight, FileCheck2, Folder, FolderPlus, GitBranch, Grid2X2, History, LogOut, Menu, Pencil, Plus, RefreshCw, RotateCcw, ScanLine, Search, Settings, Trash2 } from "lucide-react";
+import { ArrowUpRight, Bug, CheckCircle2, ChevronLeft, ChevronRight, FileCheck2, Folder, FolderPlus, GitBranch, Grid2X2, History, LogOut, Menu, Pencil, Plus, RefreshCw, RotateCcw, ScanLine, Search, Settings, SlidersHorizontal, Trash2, Workflow } from "lucide-react";
 import { post } from "./data";
 import { action, api, errorText, json, translate } from "./platformClient";
 import { DirectoryLink } from "./ProjectDirectory";
@@ -43,6 +43,8 @@ export function PersonalSidebar({ location, navigate, follow, lang, revision, on
   }
 
   const projectQuery = projectId ? "?project=" + encodeURIComponent(projectId) : "";
+  const fixesQuery = new URLSearchParams({ focus: "remediation", ...(projectId && { project: projectId }) });
+  const viewingFixes = params.get("focus") === "remediation";
   return <nav className="personal-sidebar" data-project-directory={projectDirectory || undefined}
     aria-label={t("مساحة العمل", "Workspace navigation")} onKeyDown={(event) => {
     if (event.key === "Escape" && open) {
@@ -60,11 +62,19 @@ export function PersonalSidebar({ location, navigate, follow, lang, revision, on
       <DirectoryLink to={"/new-scan" + projectQuery} navigate={navigate} aria-current={location.pathname === "/new-scan" ? "page" : undefined}>
         <ScanLine size={18} aria-hidden="true" />{t("فحص جديد", "New scan")}
       </DirectoryLink>
+      <DirectoryLink to={"/dashboard" + projectQuery + "#agents"} navigate={navigate}
+        aria-current={location.pathname === "/dashboard" && location.hash === "#agents" ? "location" : undefined}>
+        <Workflow size={18} aria-hidden="true" />{t("فريق المراجعة", "Review agents")}
+      </DirectoryLink>
       <DirectoryLink to={"/findings" + projectQuery} navigate={navigate}>
         <Bug size={18} aria-hidden="true" />{t("النتائج", "Findings")}
       </DirectoryLink>
+      <DirectoryLink to={"/reports?" + fixesQuery} navigate={navigate}
+        aria-current={location.pathname.startsWith("/reports") && viewingFixes ? "page" : undefined}>
+        <SlidersHorizontal size={18} aria-hidden="true" />{t("الإصلاحات", "Remediation")}
+      </DirectoryLink>
       <DirectoryLink to={"/reports" + projectQuery} navigate={navigate}
-        aria-current={location.pathname.startsWith("/reports") ? "page" : undefined}>
+        aria-current={location.pathname.startsWith("/reports") && !viewingFixes ? "page" : undefined}>
         <FileCheck2 size={18} aria-hidden="true" />{t("التقارير", "Reports")}
       </DirectoryLink>
       <DirectoryLink to={"/scans" + projectQuery} navigate={navigate} aria-current={location.pathname === "/scans" ? "page" : undefined}>
