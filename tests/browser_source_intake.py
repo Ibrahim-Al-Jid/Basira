@@ -59,11 +59,11 @@ def main():
             folder.writestr("frontend/index.html", '<form action="http://example.test"></form>')
             folder.writestr("frontend/style.css", ".card { color: black; }")
             folder.writestr("frontend/icon.png", bytes([0, 1, 2]))
-            folder.writestr("build/Dockerfile", "FROM python:3\nUSER 0\n")
+            folder.writestr("docker/Dockerfile", "FROM python:3\nUSER 0\n")
         code_id = submit(page, project, "repository", "source.zip", sample.getvalue())
         report_path = f"{api}/projects/{project}/reports/{code_id}"
         report = ctx.request.get(report_path).json()
-        assert {row["path"] for row in report["findings"]} >= {"frontend/index.html", "build/Dockerfile"}
+        assert {row["path"] for row in report["findings"]} >= {"frontend/index.html", "docker/Dockerfile"}
         manifest = {item["path"]: item["status"] for item in report["input_manifest"]}
         assert manifest["frontend/style.css"] == "included" and manifest["frontend/icon.png"] == "skipped"
         open_report_section(page, "coverage")
