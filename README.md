@@ -42,7 +42,7 @@ Working memory is the LangGraph state. Completed reports persist in SQLite, tied
 
 ## Run it
 
-Two ways. Both serve the app at http://127.0.0.1:8765.
+Two ways. Both serve the app at http://127.0.0.1:8765. The full guide, including the Windows script, Docker Compose, the GitHub App and the model gateway, is [docs/SETUP.md](docs/SETUP.md); this section is the short version.
 
 ### 1. Local lab (Python and Node, no Docker)
 
@@ -58,7 +58,7 @@ npm start
 
 Open http://127.0.0.1:8765/demo, choose an HTML file, paste markup, or use the built-in sample. Set `PORT` to change the port. Run the tests with `npm test`.
 
-Verified on 27 November 2026 on Linux with Python 3.13 and Node 22, following exactly the commands above: the build succeeds, the app starts, `/`, `/demo` and `GET /api/taxonomy` return 200, and `npm test` gave 284 passed, 1 skipped at that time (the backend suite has grown since; CI on main is the current record). The lab keeps reports in SQLite; accounts and projects need option 2.
+Verified on 28 November 2026 on Linux with Python 3.13.18 and Node 22.23.5, following exactly the commands above at commit `0438894`: the build succeeds (Vite, 444 ms), the app starts, `/`, `/demo`, `/signin`, `/projects`, `GET /api/taxonomy` and `GET /api/product` return 200, `python -m pytest backend -q` gave 407 passed and 2 skipped, and `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs` gave 8 pass. The lab keeps reports in SQLite; accounts and projects need option 2. The Docker path and the Windows script were not run in that environment, and the [setup guide](docs/SETUP.md) says so per item.
 
 ### Run locally on Windows (accounts, projects, Connect GitHub)
 
@@ -104,4 +104,4 @@ Verification status: the Docker image build and these Compose commands have not 
 
 ## Documentation
 
-Start at the [documentation index](docs/README.md). The plan, phase status and conventions are in [docs/PLAN.md](docs/PLAN.md), the [vulnerability taxonomy](docs/taxonomy.md) shows what Basira covers and what it does not yet, and the [thesis and defense package](docs/thesis/README.md) holds the written thesis, slides outline and prepared answers.
+Start at the [documentation index](docs/README.md). The plan, phase status and pull requests are in [docs/PLAN.md](docs/PLAN.md), the [vulnerability taxonomy](docs/taxonomy.md) shows what Basira covers and what it does not yet, and the [thesis and defense package](docs/thesis/README.md) holds the written thesis, slides outline and prepared answers. For running it, read [setup](docs/SETUP.md) and [configuration](docs/CONFIGURATION.md); for the HTTP surface, [API](docs/API.md); when a step fails, [troubleshooting](docs/TROUBLESHOOTING.md).

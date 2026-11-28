@@ -51,4 +51,4 @@ npm start
 
 ## دليل المشروع
 
-ابدأ من [فهرس التوثيق](docs/README.md). الخطة وحالة المراحل في [docs/PLAN.md](docs/PLAN.md)، و[تصنيف الثغرات](docs/taxonomy.md) يوضح اللي بصيرة بيغطيه واللي لسه لأ.
+ابدأ من [فهرس التوثيق](docs/README.md). الخطة وحالة المراحل وقائمة طلبات الدمج في [docs/PLAN.md](docs/PLAN.md)، و[تصنيف الثغرات](docs/taxonomy.md) يوضح اللي بصيرة بيغطيه واللي لسه لأ. للتشغيل: [دليل الإعداد والتشغيل](docs/SETUP.md) و[الإعدادات ومتغيّرات البيئة](docs/CONFIGURATION.md)، ومرجع واجهة الـAPI في [docs/API.md](docs/API.md)، ولو خطوة فشلت: [استكشاف الأخطاء](docs/TROUBLESHOOTING.md).
