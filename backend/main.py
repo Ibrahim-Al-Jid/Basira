@@ -435,7 +435,6 @@ def download(report_id: str, request: Request, lang: Literal["en", "ar"] = "en",
 @app.get("/api/product", include_in_schema=False)
 def product_mode():
     return {"personal_projects": personal_projects_enabled()}
-
 import asyncio
 import base64
 from contextlib import closing, contextmanager
