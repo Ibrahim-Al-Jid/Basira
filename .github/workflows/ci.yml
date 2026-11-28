@@ -187,3 +187,34 @@ jobs:
       - name: Stop the team deployment
         if: always()
         run: docker compose -p basira-team -f compose.yaml --env-file .env.local down || true
+      # browser_local_build.py covers the from-a-checkout shape: no Docker, one
+      # uvicorn process serving the freshly built frontend with a disposable
+      # SQLite database, the way a contributor runs the app locally.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build the frontend for the local-build run
+        run: npm ci && npm run build
+        working-directory: frontend
+      - name: Install the runtime requirements
+        run: pip install -r requirements.txt
+      - name: Start the locally built app (single process, disposable SQLite)
+        run: |
+          BASIRA_DB_PATH=/tmp/basira-local-build.sqlite3 nohup python -m uvicorn backend.main:app --host 127.0.0.1 --port 8766 >/tmp/basira-local-build.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8766/api/product; then ready=1; break; fi
+            sleep 2
+          done
+          test "${ready:-}" = "1"
+      - name: Browser acceptance - local build (lab validation, demo scan, report)
+        run: python browser_local_build.py
+        working-directory: tests
+        env:
+          BASIRA_TEST_URL: http://127.0.0.1:8766
+      - name: Stop the locally built app
+        if: always()
+        run: |
+          pkill -f "uvicorn backend.main:app" || true
+          cat /tmp/basira-local-build.log || true
