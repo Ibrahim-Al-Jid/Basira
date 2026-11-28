@@ -16,6 +16,7 @@ from sqlalchemy import func, select
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import ClientDisconnect
 
+from .analysis_mode import AnalysisMode, MODES, ModeUnavailable
 from . import github_import, intake_website, personal_github, platform_runtime as store
 from .artifact_review import MAX_ARTIFACT, InputError, prepare, redact_label, safe_path
 from .identity import require_project
@@ -34,6 +35,7 @@ class ScopeRequest(BaseModel):
     scope_version: int = Field(ge=0)
     acknowledge_scope: Literal[True]
     model_connection: ModelConnection | None = None
+    analysis_mode: AnalysisMode | None = None  # omitted means "hybrid"; see analysis_mode.DEFAULT_MODE
 
 
 class GitHubRequest(ScopeRequest):
@@ -129,7 +131,10 @@ def commit_scan(ctx, scope, key, digest, raw, name, profile, *, github=None, bef
     try:
         return store.create_scan(ctx, envelope, raw, key, scope_version=scope.scope_version,
                                  model_connection=scope.model_connection, before_create=before_create,
-                                 target_reference=store.web_origin(profile.public_url), intake_digest=digest)
+                                 target_reference=store.web_origin(profile.public_url), intake_digest=digest,
+                                 analysis_mode=scope.analysis_mode)
+    except ModeUnavailable as exc:
+        raise HTTPException(422, str(exc)) from None
     except store.Conflict as exc:
         raise HTTPException(409, str(exc)) from None
     except store.QueueLimit:
@@ -168,8 +173,12 @@ async def upload_zip(
     scope_version: Annotated[int, Header(alias="X-Scope-Version", ge=0)],
     acknowledge: Annotated[Literal["true"], Header(alias="X-Acknowledge-Scope")],
     model: Annotated[ModelConnection | None, Header(alias="X-Model-Connection")] = None,
+    mode: Annotated[str | None, Header(alias="X-Analysis-Mode")] = None,
 ):
-    scope = ScopeRequest(scope_version=scope_version, acknowledge_scope=acknowledge == "true", model_connection=model)
+    if mode is not None and mode not in MODES:
+        raise HTTPException(422, "X-Analysis-Mode لازم يكون واحد من: rules أو agents أو hybrid.")
+    scope = ScopeRequest(scope_version=scope_version, acknowledge_scope=acknowledge == "true",
+                         model_connection=model, analysis_mode=mode)
     ctx = await run_in_threadpool(owner_context, request, project_id)
     await run_in_threadpool(preflight, ctx, scope_version, key)
     if request.headers.get("content-type", "").split(";", 1)[0].lower() not in {
