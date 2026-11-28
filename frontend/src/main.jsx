@@ -130,13 +130,6 @@ function App() {
     else if (project) navigate(`/projects?project=${project[1]}`, { replace: true });
   }, [location.pathname]);
   useEffect(() => {
-    function esc(e) {
-      if (e.key === "Escape") setExpanded(false);
-    }
-    document.addEventListener("keydown", esc);
-    return () => document.removeEventListener("keydown", esc);
-  }, []);
-  useEffect(() => {
     const root = document.documentElement;
     root.lang = lang;
     root.dir = lang === "ar" ? "rtl" : "ltr";
