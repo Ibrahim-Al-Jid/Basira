@@ -163,3 +163,17 @@ export function AgentReview({ findings, run, lang, count }) {
     </ul>}
   </section>;
 }
+
+export function AgentSummary({ summary, lang, count }) {
+  if (!summary) return null;
+  const t = translate(lang);
+  const text = lang === "ar" ? summary.summary_ar : summary.summary_en;
+  return <aside className="reports-agent-summary" aria-labelledby="agent-summary-title">
+    <h3 id="agent-summary-title">{t("ملخص كتبه الوكيل", "Agent-written summary")}
+      <span className="reports-agent-badge">{t("كتبه موديل", "Model-written")}</span></h3>
+    <p dir="auto">{text}</p>
+    <small>{t("الملخص ده بيجي جنب الملخص الأساسي ومش بديل عنه، ومحتاج مراجعة قبل الاعتماد عليه.",
+      "This sits beside the main summary and does not replace it. Review it before relying on it.")}
+      {summary.cited?.length > 0 && " " + t(`بيستشهد بـ ${count(summary.cited.length)} نتيجة.`, `It cites ${count(summary.cited.length)} findings.`)}</small>
+  </aside>;
+}
