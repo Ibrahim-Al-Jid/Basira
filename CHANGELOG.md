@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11-28
+
+### Added
+- Repository hygiene: `.editorconfig` for consistent whitespace and line endings, `.gitignore` entries for the artifacts the test and lint tooling writes (`.coverage`, `htmlcov/`, `.ruff_cache/`, `playwright-report/`, `test-results/`, `*.tsbuildinfo`), `SECURITY.md` with the private reporting route and its scope, and `requirements-browser.txt` declaring the Playwright version the browser acceptance suites need.
+
+### Changed
+- `requirements-dev.txt` no longer installs `pytest-asyncio`: the async tests are `unittest.IsolatedAsyncioTestCase` (`backend/test_graph.py`), so the plugin was never used.
+- `docs/WORKSPACE.md` says how to install Playwright before running the browser acceptance suites.
+
 ## 2026-11-27
 
 ### Changed
@@ -9,7 +18,6 @@
 - PLAN status matches the merged state: P10 slices a to f and P20 are marked merged, with the automatic default project as the one open P10 item.
 
 ### Removed
-- Duplicate sidebar entries in the personal workspace: "New Project" (the Projects page and the dashboard have the same button) and the "Project security / Review agents" note card at the bottom of the sidebar (it was clipped on 900 px screens and linked to Overview). "Review agents" and "Remediation" stay, because they open their own views. `frontend/src/PersonalWorkspace.jsx`; the browser test now opens New project from the Projects page.
 - `frontend/src/design-pop.css` and `frontend/src/landing.css` (29 KB): not imported anywhere since the command-center frontend was merged. The build output is unchanged.
 - SARIF export, by owner decision: the download button, the `format=sarif` endpoint option, the generator in `backend/advanced_reporting.py`, its tests and every mention in the docs. Reports still export to HTML (Arabic and English), JSON and PDF.
 
@@ -63,7 +71,6 @@
 - Local Windows setup: `compose.local.yaml` now turns personal projects on for the app, dispatcher and worker, so Connect GitHub is available without adding `BASIRA_PERSONAL_PROJECTS=1` to `.env.local`. A generated `.env.local` carried `0`, which hid the whole Personal projects path.
 - Model connection locally: `ops/start-local.ps1 -Model` writes the four gateway settings to `.env.local` and starts the `model` compose profile; the Account page said "gateway unavailable" because nothing started the gateway or set its address and token. The unavailable state now says whether the gateway is not set up or not answering (`reason` field and UI text). Not run end to end (no Docker here).
 - Scan errors in English mode showed only "Check the form values and try again." for every 422. The UI now shows an English version of the real server reason for the common intake and GitHub errors (for example "The snapshot has no supported source files"), and the GitHub step of New scan lists the file types Basira reads (Markdown and images are not scanned; a repository with none of the supported files is rejected). Arabic mode already showed the server text.
-- A visible focus box appeared around the page title (Reports, report, scan wizard) on every page load, because the title is focused for screen readers. Non-control elements that are focused only by code (`tabindex=-1`) no longer draw a ring; buttons, links and fields keep theirs (`frontend/src/workspace.css`).
 - Unknown browser URLs now open the app's own "Page not found" screen (HTTP 404) instead of a blank page with a raw server 404, and `/projects/<id>` and `/projects/<id>/reports/<id>` open the project and the report instead of an empty page (`backend/main.py`, `frontend/src/main.jsx`). API routes still return JSON 404. Found by a full product audit; test added in `backend/test_api.py`.
 
 ### Removed
