@@ -126,11 +126,10 @@ export function SiteHeader({ pathname, follow, lang, authenticated, preferences 
               {lang === "ar" ? "EN" : "ع"}
             </button>
           </div>
-          <a className={"site-icon site-account" + (authenticated ? "" : " site-signin")} href={accountPath}
+          <a className="site-icon site-account" href={accountPath}
             aria-label={authenticated ? t.account : t.signin}
             aria-current={route === "settings" ? "page" : undefined} onClick={(event) => follow(event, accountPath)}>
             <UserRound size={17} aria-hidden="true" />
-            {!authenticated && <span>{t.signin}</span>}
           </a>
         </div>
       </div>

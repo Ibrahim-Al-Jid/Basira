@@ -37,6 +37,7 @@ import { emptySource, SourcePicker, sourceError } from "./Source";
 import { Reports } from "./Reports";
 import { Platform, usePlatformSession } from "./Platform";
 import { Landing, OverviewSidebar } from "./Landing";
+import { Entry } from "./Entry";
 import { SiteHeader, readPreference, savePreference } from "./SiteHeader";
 import { PersonalSidebar } from "./PersonalWorkspace";
 import { action } from "./platformClient";
@@ -46,6 +47,7 @@ import "./design-variants.css";
 import "./security-overview.css";
 import "./command-center.css";
 import "./command-light.css";
+import "./entry.css";
 
 const rippleControls = ".btn, .launch, .square, .site-icon, .command-search, .overview-primary, .reports-button, .signin-control, .signin-submit, .signin-secondary, .overview-chart-filters button, .report-language a";
 
@@ -93,7 +95,8 @@ function App() {
   });
   const [theme, setTheme] = useState(() => readPreference("reference-theme", "dark") === "light" ? "light" : "dark");
   const preferences = { lang, setLang, theme, setTheme };
-  const landingPage = location.pathname === "/";
+  const entryPage = location.pathname === "/" && !location.hash;
+  const landingPage = /^\/(?:overview\/?)?$/.test(location.pathname);
   const signingInPage = /^\/signin\/?$/.test(location.pathname);
   const [product, setProduct] = useState(null);
   const [productError, setProductError] = useState(false);
@@ -257,6 +260,8 @@ function App() {
       events.filter((e) => e.status === "done").map((e) => roleOf(e.node)),
     ).size,
     metrics = latest?.metrics;
+  if (entryPage && session.user === null) return <Entry follow={follow} lang={lang} preferences={preferences} />;
+  if (entryPage && session.user === undefined && !session.failure) return <p role="status" className="entry-loading">{t("جاري تحميل بصيرة…", "Loading Basira…")}</p>;
   return (
     <>
       <div className={signingInPage ? undefined : "workspace-layout"} dir={signingInPage ? undefined : "ltr"}>
