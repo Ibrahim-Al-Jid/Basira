@@ -33,8 +33,7 @@ def landing(browser):
             assert page.locator(".landing-marquee-track, .landing-motion-control").count() == 0
             reflows(page)
             assert page.goto(ORIGIN + "/demo").status == 200
-            expect(page.get_by_role("button", name="تشغيل الفحص" if language == "ar" else "Run scan")).to_be_disabled()
-            expect(page.get_by_role("button", name="تحميل العينة" if language == "ar" else "Load sample")).to_be_visible()
+            page.wait_for_url("**/signin")  # the retired demo page sends signed-out visitors to sign-in
             reflows(page)
             assert page.goto(ORIGIN + "/signin").ok
             reflows(page)
