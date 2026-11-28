@@ -8,7 +8,9 @@ param(
     # Start the model gateway and write its settings to .env.local (also on when BASIRA_PROJECT_MODEL_ENABLED=1 is already there).
     [switch]$Model,
     # Turn on the agent path (BASIRA_AGENT_LOOP=1). Needs the model gateway, so it starts the model profile too.
-    [switch]$AgentLoop
+    [switch]$AgentLoop,
+    # Local start turns the agent path on by default so "Use a model to prioritize findings" really runs. This switch keeps rules-only.
+    [switch]$NoAgentLoop
 )
 
 $ErrorActionPreference = 'Stop'
@@ -155,7 +157,7 @@ foreach ($name in 'BASIRA_PERSONAL_PROJECTS', 'BASIRA_PASSWORD_AUTH_ENABLED', 'B
     $localText = Set-Setting $localText $name '1'
 }
 [IO.File]::WriteAllText($settings, $localText, (New-Object Text.UTF8Encoding($false)))
-$agentLoop = $AgentLoop -or ((Get-Setting ([IO.File]::ReadAllText($settings)) 'BASIRA_AGENT_LOOP') -eq '1')
+$agentLoop = -not $NoAgentLoop
 $withModel = Initialize-ModelSettings $settings ([bool]($Model -or $agentLoop))
 if ($agentLoop) {
     [IO.File]::WriteAllText($settings, (Set-Setting ([IO.File]::ReadAllText($settings)) 'BASIRA_AGENT_LOOP' '1'), (New-Object Text.UTF8Encoding($false)))

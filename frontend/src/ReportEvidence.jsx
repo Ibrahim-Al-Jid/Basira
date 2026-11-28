@@ -163,8 +163,8 @@ export function ModeFallbackNote({ artifact, lang }) {
   if (artifact?.fallback_reason !== "agent_path_unavailable") return null;
   const t = translate(lang);
   const reason = artifact.kind === "repository"
-    ? t("مسار الوكلاء مش متاح للفحص ده: محتاج اتصال موديل على الفحص ومسار الوكلاء مفعّل على السيرفر.",
-      "The agent path was not available for this scan: it needs a model connection on the scan and the agent path enabled on the server.")
+    ? t("مسار الوكلاء مش متاح للفحص ده. لازم الاتنين: (1) مفتاح الموديل متسجّل في الحساب > اتصال الموديل ومعلّم عليه «استخدم موديل» وقت الفحص، (2) السيرفر شغّال بـ BASIRA_AGENT_LOOP=1 (ops/start-local بيفعّلها تلقائي). لو الاتنين تمام، شغّل start-local من جديد.",
+      "The agent path was not available for this scan. It needs both: (1) a model key saved under Account > Model connection and the model option ticked on the scan, and (2) the server started with BASIRA_AGENT_LOOP=1 (ops/start-local enables it by default). If both are set, restart with start-local.")
     : t("الوكلاء بيقرأوا رفع المستودعات بس، ونوع المدخل ده بيتفحص بالقواعد.",
       "The agents read repository uploads only, so this input type is checked with rules.");
   return <p className="reports-agent-note" role="status" data-agent-fallback="agent_path_unavailable">
