@@ -299,3 +299,34 @@ def test_dispatch_delivers_after_the_claim_transaction_commits(platform):
 
     assert jobs.dispatch_once(inline_delivery)
     assert claimed and claimed[0] is not None
+
+
+def test_analysis_mode_is_recorded_defaults_to_hybrid_and_falls_back_to_rules(platform):
+    owner, _, ctx = platform
+    root = f"/api/platform/projects/{ctx.project_id}"
+    default = submit(owner, ctx, key="mode-default")
+    assert default.status_code == 202, default.text
+    jobs.execute_scan(ctx.org_id, ctx.project_id, default.json()["id"])
+    report = owner.get(root + "/reports/" + default.json()["id"]).json()
+    assert report["input_artifact"]["analysis_mode"] == "hybrid"
+    assert report["input_artifact"]["mode_effective"] == "rules"
+    assert report["input_artifact"]["fallback_reason"] == "agent_path_unavailable"
+
+    rules = submit(owner, ctx, {**artifact(), "analysis_mode": "rules"}, key="mode-rules")
+    jobs.execute_scan(ctx.org_id, ctx.project_id, rules.json()["id"])
+    info = owner.get(root + "/reports/" + rules.json()["id"]).json()["input_artifact"]
+    assert (info["analysis_mode"], info["mode_effective"]) == ("rules", "rules")
+    assert "fallback_reason" not in info
+
+    # An agents scan must fail loudly while the agent path does not exist, never run as rules.
+    assert submit(owner, ctx, {**artifact(), "analysis_mode": "agents"}, key="mode-agents").status_code == 422
+    assert submit(owner, ctx, {**artifact(), "analysis_mode": "turbo"}, key="mode-bad").status_code == 422
+    # The same idempotency key with another mode is a different request.
+    assert submit(owner, ctx, {**artifact(), "analysis_mode": "hybrid"}, key="mode-rules").status_code == 409
+
+
+def test_reports_stored_before_run_modes_read_as_rules():
+    from .contracts import ArtifactInfo
+    info = ArtifactInfo(kind="html", name="old.html", bytes=10).model_dump()
+    assert (info["analysis_mode"], info["mode_effective"]) == ("rules", "rules")
+    assert "fallback_reason" not in info
