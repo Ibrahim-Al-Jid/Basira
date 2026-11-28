@@ -23,7 +23,7 @@ KNOWN_RULES = frozenset(EXTENDED_IDS) | RULES.keys() | {tool.rule for tool in SO
 
 RUN_STATUS = {"ok": "completed", "disabled": "skipped", "empty": "skipped", "model_error": "failed",
               "invalid_output": "failed"}
-# Stored role ids (agent_roles.py) for the roles that make their own model calls. The Auditor runs inside the Hunter.
+# Stored role ids for the roles that make their own model calls. The Auditor runs inside the Hunter.
 ROLE_ID = {"maestro": "orchestrator", "scout": "planning", "hunter": "analysis", "scribe": "reporting"}
 
 
