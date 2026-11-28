@@ -1,0 +1,3 @@
+# Browser acceptance suites in tests/ (tests/browser_*.py) need Playwright.
+# Install once, then download the browser: python -m playwright install chromium
+playwright==1.65.2
