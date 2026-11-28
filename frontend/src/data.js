@@ -49,7 +49,13 @@ export const dateText = (value) =>
     minute: "2-digit",
   });
 export async function fetchJson(url, options = {}) {
-  const response = await fetch(url, options);
+  let response;
+  try {
+    response = await fetch(url, options);
+  } catch (error) {
+    if (error.name === "AbortError") throw error;
+    throw Error("تعذّر الاتصال بالخادم. اتأكد من الإنترنت وحاول تاني.");
+  }
   let body;
   try {
     body = await response.json();
@@ -58,7 +64,7 @@ export async function fetchJson(url, options = {}) {
   }
   if (!response.ok)
     throw Error(
-      typeof body.detail === "string" ? body.detail : "تعذّر تنفيذ الطلب.",
+      typeof body.detail === "string" && /[\u0600-\u06ff]/.test(body.detail) ? body.detail : "تعذّر تنفيذ الطلب.",
     );
   return body;
 }

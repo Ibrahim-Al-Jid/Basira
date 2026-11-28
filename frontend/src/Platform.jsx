@@ -589,6 +589,7 @@ function Dashboard({ location, navigate, user, lang, invitationRevision, persona
   const [memoryState, setMemory] = useState(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [retry, setRetry] = useState(0);
   const params = new URLSearchParams(location.search);
   const selection = params.get("project");
@@ -636,9 +637,10 @@ function Dashboard({ location, navigate, user, lang, invitationRevision, persona
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
+    setLoadFailed(false);
     setError("");
     refreshDashboard(controller.signal).catch((err) => {
-      if (!controller.signal.aborted) setError(errorText(err, t));
+      if (!controller.signal.aborted) { setLoadFailed(true); setError(errorText(err, t)); }
     }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [retry, invitationRevision, personal]);
@@ -737,15 +739,15 @@ function Dashboard({ location, navigate, user, lang, invitationRevision, persona
     </header>
     {error && <p className="workspace-error" role="alert">{error} <button className="btn" onClick={() => setRetry((value) => value + 1)}>{t("إعادة المحاولة", "Retry")}</button></p>}
     {loading && <p role="status">{t("بنحمّل المشاريع…", "Loading projects…")}</p>}
-    {activity && <DashboardView key={project?.id ?? "empty"} path={path} projectId={project?.id} t={t} lang={lang}
+    {!loadFailed && activity && <DashboardView key={project?.id ?? "empty"} path={path} projectId={project?.id} t={t} lang={lang}
       reportLink={reportLink} activity={activity} projectCount={projects.length} projectScans={snapshot?.scans}
       activityEvents={(snapshot?.scans ?? []).slice(0, 4).map((item) => ({
         id: item.id, title: item.artifact.name, state: item.state, href: scanLink(project.id, item.id),
         detail: label(states, item.state, t) + " · " + new Date(item.updated_at ?? item.created_at)
           .toLocaleString(lang === "ar" ? "ar-EG" : "en", { dateStyle: "medium", timeStyle: "short" }),
       }))} />}
-    {!loading && inScan && <NewScan key={selected || "new"} projects={projects} project={project} choose={choose} navigate={navigate} lang={lang} personal={personal} />}
-    {inProjects && !project && !loading && (personal ?
+    {!loading && !loadFailed && inScan && <NewScan key={selected || "new"} projects={projects} project={project} choose={choose} navigate={navigate} lang={lang} personal={personal} />}
+    {inProjects && !project && !loading && !loadFailed && (personal ?
       <PersonalDirectory projects={projects} creating={params.has("new")} navigate={navigate}
         refresh={refreshPersonalProjects} submit={submit} busy={busy} lang={lang} />
       : <ProjectDirectory organizations={organizations} projects={projects}
@@ -763,7 +765,7 @@ function Dashboard({ location, navigate, user, lang, invitationRevision, persona
           aria-current={(inHistory ? "history" : view) === section ? "page" : undefined}>{name}</DirectoryLink>
       )}
     </nav>}
-    {!loading && inHistory && <Panel title={personal ? null : t("سجل الفحوصات", "Scan history")}>
+    {!loading && !loadFailed && inHistory && <Panel title={personal ? null : t("سجل الفحوصات", "Scan history")}>
       {projects.length && (!personal || !selection) ? <ProjectSelector projects={projects} value={project?.id} onChange={choose} t={t} />
         : !projects.length && <p>{t("سجل الفحوصات هيظهر لما يبقى عندك مشروع.", "Scan history appears after you have a project.")}</p>}
       {project && !snapshot && !error && <p role="status">{t("بنحمّل الفحوصات…", "Loading scans…")}</p>}
