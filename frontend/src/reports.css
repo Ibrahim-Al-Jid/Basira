@@ -110,6 +110,40 @@
   padding: clamp(15px, 3vw, 24px);
 }
 
+.reports-claim {
+  display: grid;
+  gap: 10px;
+  padding: clamp(15px, 3vw, 24px);
+}
+
+.reports-claim h2 {
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.reports-claim p {
+  margin: 0;
+}
+
+.reports-claim ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.reports-claim li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.reports-claim li small {
+  margin-inline-start: auto;
+}
+
 .reports-filters {
   display: grid;
   grid-template-columns: minmax(12rem, 2fr) repeat(auto-fit, minmax(9rem, 1fr));

@@ -65,6 +65,11 @@ const copy = {
     unavailable: "غير متاح",
     none: "بدون موديل",
     legacyCoverage: "تفاصيل التغطية لكل قاعدة غير متاحة للتقرير ده.",
+    claimTitle: "تقارير المختبر في جلستك",
+    claimIntro: "اتعملت في المختبر قبل تسجيل الدخول. احفظها في المشروع ده قبل ما الجلسة تنتهي.",
+    claimSave: "احفظ في المشروع",
+    claimSaving: "جاري الحفظ…",
+    claimError: "التقرير ما تحفظش في المشروع. جرّبي تاني.",
     noSteps: "أحداث التشغيل غير متاحة للتقرير ده.",
     line: "سطر",
     lines: "سطر",
@@ -230,6 +235,11 @@ const copy = {
     unavailable: "Unavailable",
     none: "No model",
     legacyCoverage: "Rule-by-rule coverage is unavailable for this report.",
+    claimTitle: "Lab reports in your session",
+    claimIntro: "Created in the lab before signing in. Save them into this project before the session ends.",
+    claimSave: "Save to project",
+    claimSaving: "Saving…",
+    claimError: "The report could not be saved to the project. Try again.",
     noSteps: "Execution events are unavailable for this report.",
     line: "Line",
     lines: "lines",
@@ -411,6 +421,59 @@ function reportPath(pathname, params, changes) {
   }
   const search = next.toString();
   return pathname + (search ? "?" + search : "");
+}
+
+
+function ClaimableLabReports({ projectApi, archiveReports, t, lang, onClaimed }) {
+  const [lab, setLab] = useState(null);
+  const [busy, setBusy] = useState("");
+  const [failed, setFailed] = useState("");
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchJson("/api/history", { signal: controller.signal }).then(
+      (data) => { if (!controller.signal.aborted) setLab(data.reports || []); },
+      () => { if (!controller.signal.aborted) setLab([]); },
+    );
+    return () => controller.abort();
+  }, [projectApi]);
+  const known = new Set((archiveReports || []).map((report) => report.id));
+  const items = (lab || []).filter((report) => !known.has(report.id));
+  if (!items.length) return null;
+  async function claim(reportId) {
+    setBusy(reportId);
+    setFailed("");
+    try {
+      const result = await fetch(`${projectApi}/${encodeURIComponent(reportId)}/claim`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirm: true }),
+      });
+      if (result.status === 201 || result.status === 409) {
+        onClaimed();
+      } else {
+        const body = await result.json().catch(() => null);
+        setFailed(typeof body?.detail === "string" ? body.detail : "claim");
+      }
+    } catch {
+      setFailed("claim");
+    }
+    setBusy("");
+  }
+  return (
+    <div className="reports-panel reports-claim">
+      <h2>{t.claimTitle}</h2>
+      <p>{t.claimIntro}</p>
+      <ul>
+        {items.map((report) => (
+          <li key={report.id}>
+            <bdi>{sourceLabel(t, report.source || report.input_artifact)}</bdi>
+            <small>{dateText(lang, report.created_at)}</small>
+            <button className="reports-button" type="button" disabled={busy === report.id}
+              onClick={() => claim(report.id)}>{busy === report.id ? t.claimSaving : t.claimSave}</button>
+          </li>
+        ))}
+      </ul>
+      {failed && <p role="alert" dir="auto">{lang === "ar" ? failed : t.claimError}</p>}
+    </div>
+  );
 }
 
 function Archive({ reports, t, lang, params, navigate }) {
@@ -1092,6 +1155,9 @@ export function Reports({ location, navigate, revision, lang: preferredLanguage 
           <button className="reports-button" onClick={() => reload((value) => value + 1)}>{t.retry}</button>
         </div>
       )}
+      {!id && projectApi && !personal && !guestProject && session.user &&
+        <ClaimableLabReports projectApi={projectApi} archiveReports={current?.data?.reports || []} t={t} lang={lang}
+          onClaimed={() => reload((value) => value + 1)} />}
       {current?.data && (id
         ? <ReportDetails key={id + ":" + (project || "")} report={current.data} t={t} lang={lang} params={params} pathname={pathname} hash={hash} navigate={navigate} reportApi={url} projectApi={projectApi} />
         : <Archive reports={current.data.reports || []} t={t} lang={lang} params={params} navigate={navigate} />)}
