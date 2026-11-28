@@ -1001,7 +1001,7 @@ export function Reports({ location, navigate, revision, lang: preferredLanguage 
   const badProject = Boolean((project || (personal && id && lookedUp)) && !projectApi);
   const guestProject = Boolean((projectApi || personal) && (session.user === null || projects?.guest));
   const archive = projectApi || (demoArchive && !badProject ? "/api/history" : null);
-  const url = guestProject || badProject ? null : id ? (projectApi || "/api/reports") + "/" + encodeURIComponent(id) : archive;
+  const url = guestProject || badProject || lookup ? null : id ? (projectApi || "/api/reports") + "/" + encodeURIComponent(id) : archive;
   const archiveRevision = id ? null : revision;
   const [state, setState] = useState(null);
   const [retry, reload] = useState(0);
