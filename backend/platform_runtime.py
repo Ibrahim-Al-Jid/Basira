@@ -664,6 +664,14 @@ def reserve_model_connection(org_id, project_id, scan_id, lease):
         return connection
 
 
+def purge_expired_rows():
+    # One owner for the expiry tables; the dispatcher runs it beside artifact expiry.
+    with platform_session() as db:
+        if db.bind.dialect.name == "postgresql":
+            return db.execute(sa.text("SELECT public.basira_purge_expired()")).scalar_one()
+        return 0
+
+
 def expire_pending_artifacts():
     # The dispatcher has execute-only permissions for this operation on PostgreSQL.
     with platform_session() as db:
