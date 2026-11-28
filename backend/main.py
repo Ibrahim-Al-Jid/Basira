@@ -83,6 +83,22 @@ async def validation_error(request, error):
     return JSONResponse({"detail": detail}, status_code=422)
 
 
+PAGE_POLICY = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+               "img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; "
+               "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'")
+
+
+def page_headers(response):
+    """Security headers for the single-page app shell; a route's own header wins."""
+    if not response.headers.get("content-type", "").startswith("text/html"):
+        return response
+    response.headers.setdefault("Content-Security-Policy", PAGE_POLICY)
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    return response
+
+
 @app.middleware("http")
 async def protect_requests(request, call_next):
     path = request.url.path.rstrip("/")
@@ -104,7 +120,12 @@ async def protect_requests(request, call_next):
         response.headers["Cache-Control"] = "no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
         return response
-    return await call_next(request)
+    response = await call_next(request)
+    if request.url.path.startswith("/assets/"):
+        # Vite emits content-hashed asset names, so a hit can never go stale.
+        response.headers.setdefault("Cache-Control", "public, max-age=31536000, immutable")
+        return response
+    return page_headers(response)
 
 
 @contextmanager
@@ -161,6 +182,9 @@ def session(request):
             return owner, None
         token = secrets.token_urlsafe(32)
         owner = owner_key(token)
+        # Expired rows are never read again; drop them before adding one, so the table
+        # tracks live sessions instead of every browser that ever loaded a page.
+        db.execute("DELETE FROM sessions WHERE expires_at IS NOT NULL AND expires_at <= ?", (int(time.time()),))
         db.execute("INSERT INTO sessions(owner, expires_at) VALUES(?,?)", (owner, int(time.time()) + SESSION_SECONDS))
     return owner, token
 
@@ -436,11 +460,8 @@ def product_mode():
 @app.get("/settings", include_in_schema=False)
 @app.get("/new-scan", include_in_schema=False)
 def frontend_page(request: Request):
-    page = FileResponse(ROOT / "frontend" / "dist" / "index.html", headers={"Cache-Control": "no-store"})
-    if personal_projects_enabled():
-        return page
-    _, token = session(request)
-    return set_session(page, token, request)
+    # A page view is not a session: the cookie is minted on the first API call that needs an owner.
+    return FileResponse(ROOT / "frontend" / "dist" / "index.html", headers={"Cache-Control": "no-store"})
 
 
 from .identity import install_identity

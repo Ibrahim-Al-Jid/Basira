@@ -62,7 +62,7 @@ def workspace(browser):
         "email": f"workspace-{uuid4().hex[:12]}@example.test",
         "password": str(uuid4()) + str(uuid4()),
     })
-    assert account.status == 201
+    assert account.status == 201, account.text()
     assert page.goto(ORIGIN + "/signin").ok
     page.wait_for_url("**/dashboard")
     org = context.request.post(ORIGIN + "/api/platform/organizations", data={"name": "Workspace QA"})

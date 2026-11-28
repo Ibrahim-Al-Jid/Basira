@@ -3,7 +3,7 @@ import {
   Activity, Braces, Bug, Cloud, FileCheck2, Folder, GitBranch, Globe2, Grid2X2, History,
   Layers3, ScanLine, Search, Settings, ShieldCheck, SlidersHorizontal, TriangleAlert, Workflow, Zap,
 } from "lucide-react";
-import { WorkspaceBrand, WorkspaceSidebarNote } from "./SiteHeader";
+import { WorkspaceBrand } from "./SiteHeader";
 import { CommandActivity, CommandMetrics, CoverageGauge, ReviewAgents, RiskDistribution } from "./CommandOverview";
 
 const domains = [
@@ -111,7 +111,6 @@ export function OverviewSidebar({ lang, follow, location, personal }) {
   const t = (ar, en) => lang === "ar" ? ar : en;
   const { pathname, hash } = location;
   const home = pathname === "/overview" || pathname === "/";
-  const viewingFixes = new URLSearchParams(location.search).get("focus") === "remediation";
   const scanPath = personal === false ? "/demo" : "/new-scan";
   const links = [
     [Grid2X2, "/overview", t("نظرة عامة", "Overview")],
@@ -120,8 +119,6 @@ export function OverviewSidebar({ lang, follow, location, personal }) {
     ...(home ? [
       [Workflow, "#agents", t("فريق المراجعة", "Review agents")],
     ] : []),
-    [Bug, "/findings", t("النتائج", "Findings")],
-    [SlidersHorizontal, "/reports?focus=remediation", t("الإصلاحات", "Remediation")],
     [FileCheck2, "/reports", t("التقارير", "Reports")],
     [History, "/scans", t("سجل الفحوصات", "Scan history")],
     [Settings, "/settings", t("الإعدادات", "Settings")],
@@ -133,14 +130,13 @@ export function OverviewSidebar({ lang, follow, location, personal }) {
         {links.map(([Icon, path, label]) => (
           <a key={path} href={path} aria-label={label} title={label}
             aria-current={path === hash ? "location"
-              : (viewingFixes ? path === "/reports?focus=remediation" : path === pathname && (!home || !hash)) ? "page" : undefined}
+              : (path === pathname && (!home || !hash)) ? "page" : undefined}
             onClick={path.startsWith("#") ? undefined : (event) => follow(event, path)}>
             <Icon size={18} aria-hidden="true" />
             <span>{label}</span>
           </a>
         ))}
       </nav>
-      <WorkspaceSidebarNote href="/overview#agents" follow={follow} lang={lang} />
     </aside>
   );
 }
