@@ -26,7 +26,7 @@ FastAPI بيخدم مسارات الواجهة المحددة صراحة. الت
 
 ## التحقق
 
-شغّل `npm test` و`npm run build`. لتجربة المتصفح استخدم Compose معزول ببيانات اختبار وبيئة حسابات محلية، وشغّل `python tests/browser_workspace.py` و`python tests/browser_password_login.py` و`python tests/browser_release.py --password-account`. لاختبار الحساب والدعوات والموديل، فعّل بوابة الموديل في بيئة الاختبار وشغّل `python tests/browser_account.py`. البيئة الافتراضية لاختبارات المشاريع على `127.0.0.1:8776`. اختبار `tests/browser_local_build.py` يستخدم جلسة مختبر منفصلة كما في خطوات اختبار المختبر. اختبارات المتصفح محتاجة Playwright: ثبّته مرة واحدة بـ`python -m pip install -r requirements-browser.txt` وبعدها `python -m playwright install chromium`.
+شغّل `npm test` و`npm run build`. لتجربة المتصفح استخدم Compose معزول ببيانات اختبار وبيئة حسابات محلية، وشغّل `python tests/browser_workspace.py` و`python tests/browser_password_login.py` و`python tests/browser_release.py --password-account`. لاختبار الحساب والدعوات والموديل، فعّل بوابة الموديل في بيئة الاختبار وشغّل `python tests/browser_account.py`. اختبارات المتصفح بتقرأ العنوان من متغيرات مختلفة: `BASIRA_QA_ORIGIN` (بدون قيمة افتراضية) لـ`browser_smoke.py` و`browser_personal_projects.py`، و`BASIRA_TEST_URL` (الافتراضي `http://127.0.0.1:8766`) لـ`browser_local_build.py`، و`BASIRA_TEST_PLATFORM_URL` (الافتراضي `http://127.0.0.1:8901`) لباقي الاختبارات. اختبار `tests/browser_local_build.py` بيسجّل حساب جديد وينشئ مشروع شخصي، ومفيش جلسة مختبر. اختبارات المتصفح محتاجة Playwright: ثبّته مرة واحدة بـ`python -m pip install -r requirements-browser.txt` وبعدها `python -m playwright install chromium`.
 
 ### سجل قبول مساحة العمل
 
