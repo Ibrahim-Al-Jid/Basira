@@ -66,7 +66,7 @@ export default function AgentLanes({ events, active, t, lang }) {
     <section className="agent-lanes" aria-label={t("الوكلاء", "Agents")}>
       <h3>{t("الوكلاء وشغلهم", "Agents and their work")}
         <span className="agent-lanes-count">{done}/{lanes.length}</span></h3>
-      <div className="agent-lanes-bar" role="progressbar" aria-valuemin="0" aria-valuemax={lanes.length}
+      <div className="agent-lanes-bar" role="progressbar" aria-label={t("تقدّم الوكلاء", "Agent progress")} aria-valuemin="0" aria-valuemax={lanes.length}
         aria-valuenow={done}><i style={{ inlineSize: `${(done / lanes.length) * 100}%` }} /></div>
       <p className="agent-lanes-now" role="status">
         {now ? t(`دلوقتي: ${now.ar}`, `Now: ${now.en}`) : active ? t("في الانتظار…", "Waiting…") : t("الفحص انتهى", "The scan has ended")}

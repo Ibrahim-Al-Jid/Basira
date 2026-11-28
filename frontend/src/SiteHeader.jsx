@@ -26,8 +26,7 @@ export const savePreference = (key, value) => {
 };
 
 export function WorkspaceBrand({ href, follow, lang }) {
-  return <a className="site-brand" href={href} onClick={(event) => follow(event, href)}
-    aria-label={lang === "ar" ? "بصيرة، الرئيسية" : "Basira home"}>
+  return <a className="site-brand" href={href} onClick={(event) => follow(event, href)}>
     <span className="site-brand-mark" aria-hidden="true"><ShieldCheck size={33} strokeWidth={1.7} /></span>
     <span className="site-brand-copy">
       <strong dir="ltr">BASIRA</strong>
@@ -104,7 +103,7 @@ export function SiteHeader({ pathname, follow, lang, authenticated, preferences 
     <header className="site-header">
       <div className="site-header-inner">
         <button type="button" className="command-search" onClick={() => setSearchOpen(true)}
-          aria-label={searchLabel} aria-keyshortcuts="Control+k Meta+k">
+          aria-keyshortcuts="Control+k Meta+k">
           <Search size={20} aria-hidden="true" /><span>{searchLabel}</span><kbd aria-hidden="true" dir="ltr">Ctrl K</kbd>
         </button>
         <div className="site-controls">
@@ -113,7 +112,7 @@ export function SiteHeader({ pathname, follow, lang, authenticated, preferences 
               onClick={() => preferences.setTheme(preferences.theme === "dark" ? "light" : "dark")}>
               <ThemeIcon size={17} aria-hidden="true" />
             </button>
-            <button className="site-icon" type="button" aria-label={t.language} title={t.language}
+            <button className="site-icon" type="button" aria-label={(lang === "ar" ? "EN, " : "ع, ") + t.language} title={t.language}
               onClick={() => preferences.setLang(lang === "ar" ? "en" : "ar")}>
               {lang === "ar" ? "EN" : "ع"}
             </button>
