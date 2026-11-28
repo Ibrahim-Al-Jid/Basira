@@ -225,6 +225,14 @@ def bind_owner(db, user_id):
         db.execute(text("SELECT set_config('basira.owner_user_id', :owner, true)"), {"owner": user_id})
 
 
+def bind_legacy_project_access(db):
+    """Open the membership-scoped path: those queries carry their own membership and grant checks."""
+    if personal_projects_enabled():
+        return
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(text("SELECT set_config('basira.legacy_project_access', '1', true)"))
+
+
 def bind_project(db, org_id, project_id, *, owner_user_id=None):
     """Bind trusted IDs for the current transaction; resetting happens on commit/rollback."""
     if db.get_bind().dialect.name == "postgresql":
