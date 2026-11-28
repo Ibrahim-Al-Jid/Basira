@@ -106,8 +106,14 @@ def compare(current, baseline, current_policy, baseline_policy):
         if not path:
             return True
         if report.input_paths is not None:
-            # Aggregate coverage cannot prove a rule ran on one particular file in a bundle.
-            return report.input_paths == [path] and report.input_artifact.kind == "html"
+            # The file list is the set of files the scan read, so a path in it was in scope for this scan.
+            # A path that is absent was not read, and its findings cannot be called new or resolved.
+            if path in report.input_paths:
+                return True
+            # A file missing from a complete archive listing did not exist in that snapshot, so it is new
+            # in the later one or removed from it. A full (200 entry) listing may be cut off, so it proves nothing.
+            listing = report.input_manifest
+            return listing is not None and len(listing) < 200 and path not in {row.path for row in listing}
         return report.input_artifact.kind == "html" and report.input_artifact.name == path
     for key in sorted(set(before) | set(after)):
         old, new = before.get(key), after.get(key)
