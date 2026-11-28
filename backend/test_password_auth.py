@@ -147,6 +147,16 @@ def test_signup_names_and_private_profile_updates(accounts):
     assert changed.json() == {**account, "username": "ibrahim.h"}
     assert owner.get(AUTH + "/me").json() == changed.json()
 
+    picture = "data:image/jpeg;base64,/9j/4AAQSkZJRg=="
+    assert other.put(AUTH + "/avatar", json={"image": picture}).status_code == 401
+    assert owner.put(AUTH + "/avatar", json={"image": "https://example.test/a.png"}).status_code == 422
+    assert owner.put(AUTH + "/avatar", json={"image": "data:image/svg+xml;base64,AAAA"}).status_code == 422
+    assert owner.put(AUTH + "/avatar", json={"image": picture}, headers={"Origin": "https://foreign.example.test"}).status_code == 403
+    saved = owner.put(AUTH + "/avatar", json={"image": picture})
+    assert saved.status_code == 200 and saved.json()["avatar"] == picture
+    assert owner.get(AUTH + "/me").json()["avatar"] == picture
+    assert owner.put(AUTH + "/avatar", json={"image": None}).json()["avatar"] == ""
+
     assert authenticate(other, "register", "other@example.test").status_code == 201
     assert other.put(AUTH + "/profile", json={**profile, "username": "IBRAHIM.h"}).status_code == 409
     assert other.get(AUTH + "/me").json()["display_name"] == ""
@@ -171,13 +181,13 @@ def test_existing_password_account_survives_profile_migration(monkeypatch, tmp_p
                 "VALUES (:id, 'urn:basira:password', :email, :email, '2025-01-01 10:00:00')"
             ), {"id": account_id, "email": EMAIL})
             conn.execute(credentials.insert().values(user_id=account_id, password_hash=HASHER.hash(PASSWORD)))
-        command.upgrade(config, "platform_profiles_0009")
+        command.upgrade(config, "head")
         with TestClient(app, base_url=BASE) as client:
             login = authenticate(client, "login")
             assert login.status_code == 200
             assert login.json() == {
                 "id": account_id, "display_name": "", "first_name": None, "last_name": None,
-                "username": None, "created_at": "2025-01-01T10:00:00+00:00",
+                "username": None, "avatar": "", "created_at": "2025-01-01T10:00:00+00:00",
             }
     finally:
         engine.dispose()
