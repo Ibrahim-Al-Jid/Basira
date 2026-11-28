@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-28
+
+### Added
+- CI repository job (`.github/workflows/ci.yml`): `ruff` with defect-only rules, `pip check` on the installed set, and a gitleaks scan of the full history with the binary pinned by checksum exactly as the `Dockerfile` pins it. `concurrency` cancels a superseded run on the same branch. `pyproject.toml` holds the ruff configuration (defect rules only, `tests/fixtures` excluded because those files are deliberately vulnerable) and `testpaths` for pytest.
+- `.github/dependabot.yml`: weekly grouped updates for pip, the frontend npm tree, GitHub Actions and the Docker base images.
+- `requirements-dev.txt` pins `ruff==0.15.7`.
+
 ## 2026-11-27
 
 ### Changed
@@ -9,9 +16,6 @@
 - PLAN status matches the merged state: P10 slices a to f and P20 are marked merged, with the automatic default project as the one open P10 item.
 
 ### Removed
-- Header bell icon: it was a link to Scan history (the sidebar already has it), not notifications. `frontend/src/SiteHeader.jsx`.
-- Colour palette picker (the "Workspace" / "Colors" pill, the 16 palettes and the "Mix with" option), its stored preferences and its code (`DesignPicker.jsx` and its styles). Owner decision: it only changed colours. The look is fixed to the current default palette, which keeps WCAG AA (accent on canvas 6.9:1 dark, 5.7:1 light, measured; the best of the 16 differed by about 0.5 and would have changed the look). The dark/light toggle and language switch stay.
-- Duplicate sidebar entries in the personal workspace: "New Project" (the Projects page and the dashboard have the same button) and the "Project security / Review agents" note card at the bottom of the sidebar (it was clipped on 900 px screens and linked to Overview). "Review agents" and "Remediation" stay, because they open their own views. `frontend/src/PersonalWorkspace.jsx`; the browser test now opens New project from the Projects page.
 - `frontend/src/design-pop.css` and `frontend/src/landing.css` (29 KB): not imported anywhere since the command-center frontend was merged. The build output is unchanged.
 - SARIF export, by owner decision: the download button, the `format=sarif` endpoint option, the generator in `backend/advanced_reporting.py`, its tests and every mention in the docs. Reports still export to HTML (Arabic and English), JSON and PDF.
 
@@ -65,8 +69,6 @@
 - Local Windows setup: `compose.local.yaml` now turns personal projects on for the app, dispatcher and worker, so Connect GitHub is available without adding `BASIRA_PERSONAL_PROJECTS=1` to `.env.local`. A generated `.env.local` carried `0`, which hid the whole Personal projects path.
 - Model connection locally: `ops/start-local.ps1 -Model` writes the four gateway settings to `.env.local` and starts the `model` compose profile; the Account page said "gateway unavailable" because nothing started the gateway or set its address and token. The unavailable state now says whether the gateway is not set up or not answering (`reason` field and UI text). Not run end to end (no Docker here).
 - Scan errors in English mode showed only "Check the form values and try again." for every 422. The UI now shows an English version of the real server reason for the common intake and GitHub errors (for example "The snapshot has no supported source files"), and the GitHub step of New scan lists the file types Basira reads (Markdown and images are not scanned; a repository with none of the supported files is rejected). Arabic mode already showed the server text.
-- Arabic layout: the sidebar now sits on the right (it stayed on the left before). Desktop and tablet widths; the phone layout (menu under the header) is unchanged. Measured in a browser at 1440, 1024 and 390 px in Arabic and English: sidebar right edge equals the viewport width in Arabic, left edge 0 in English, no horizontal overflow (`frontend/src/command-center.css`).
-- A visible focus box appeared around the page title (Reports, report, scan wizard) on every page load, because the title is focused for screen readers. Non-control elements that are focused only by code (`tabindex=-1`) no longer draw a ring; buttons, links and fields keep theirs (`frontend/src/workspace.css`).
 - Unknown browser URLs now open the app's own "Page not found" screen (HTTP 404) instead of a blank page with a raw server 404, and `/projects/<id>` and `/projects/<id>/reports/<id>` open the project and the report instead of an empty page (`backend/main.py`, `frontend/src/main.jsx`). API routes still return JSON 404. Found by a full product audit; test added in `backend/test_api.py`.
 
 ### Removed
