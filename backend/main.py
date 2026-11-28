@@ -1,5 +1,6 @@
 """Basira's same-origin HTTP API and React frontend."""
 import html
+import os
 from pathlib import Path
 import re
 
@@ -9,12 +10,15 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .artifact_review import catalog as rule_catalog
+from .evidence_text import localized_evidence
 from .taxonomy import public as taxonomy_public
 from .platform_db import personal_projects_enabled
 from .observability import install_observability
 
 ROOT = Path(__file__).resolve().parents[1]
-app = FastAPI(title="Basira Agent Lab", version="2.3")
+_API_DOCS = os.environ.get("BASIRA_API_DOCS") == "1"
+app = FastAPI(title="Basira Agent Lab", version="2.3", docs_url="/docs" if _API_DOCS else None,
+              redoc_url="/redoc" if _API_DOCS else None)
 
 
 @app.exception_handler(RequestValidationError)
@@ -35,10 +39,14 @@ async def validation_error(request, error):
         detail = " ".join(messages[field] for field in fields) or "راجع الحقول المطلوبة لإنشاء الحساب أو تسجيل الدخول."
         return JSONResponse({"detail": detail, "fields": fields}, status_code=422)
     if request.url.path.startswith("/api/platform/"):
-        detail = "راجع الحقول المطلوبة ونوع البيانات."
+        # Field names only: the submitted values may be secrets or source code.
+        fields = list(dict.fromkeys(
+            str(issue["loc"][-1]) for issue in error.errors() if len(issue["loc"]) > 1 and issue["loc"][0] in {"body", "header", "query"}
+        ))[:10]
+        detail = "راجع الحقول المطلوبة ونوع البيانات." + (f" الحقول: {', '.join(fields)}." if fields else "")
     else:
         detail = "راجع نوع وحجم مصدر HTML والحقول المدعومة."
-    return JSONResponse({"detail": detail}, status_code=422)
+    return JSONResponse({"detail": detail, **({"fields": fields} if request.url.path.startswith("/api/platform/") else {})}, status_code=422)
 
 
 PAGE_POLICY = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
@@ -178,7 +186,7 @@ def report_html(report, lang):
                      f'{esc(severity_labels.get(severity, severity) if ar else severity)} · '
                      f'{esc(finding["path"]) + " · " if finding.get("path") else ""}'
                      f'{t("السطر","Line")} {esc(finding["line"])}</small>'
-                     f'<pre><code>{esc(finding["evidence"])}</code></pre><p>{esc(advice)}</p>'
+                     f'<pre><code>{esc(localized_evidence(finding["evidence"], ar))}</code></pre><p>{esc(advice)}</p>'
                      f'{guidance_html(finding.get("guidance"), ar, t, esc)}</article>')
     if not report["findings"]:
         if report["coverage"] and all(row["status"] == "not_applicable" for row in report["coverage"]):
