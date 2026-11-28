@@ -280,9 +280,9 @@ Every change reaches `main` through a pull request (see [two-account-flow](two-a
 | #183 | Agent review shows a note when the agent run fell back | P10 |
 | #184 | Docs follow-up 8: #170, #172 to #177, #179, #181 | docs |
 | #185 | Frontend: accessible names match visible labels, agent progress bar named | P10 |
-| #187 | Docs follow-up 9: #178, #182, #183, #185, #188, #189 | docs |
 | #188 | Anonymous lab and its SQLite report store removed (v2) | P18 |
 | #189 | Scribe agent module: checked model-written summary (P4g), not wired into scans | P09 || #174 | End-to-end tests of the agent path with a scripted model (P4d) | P09 |
+| #194 | Docs follow-up 9: #178, #182, #183, #185, #188, #189 | docs |
 | #173 | Reports: separate "Agent review" section for `agent_findings` | P10 |
 | #170 | Scan timeline texts for the agent failed and fallback events | P10 |
 | #167 | Gateway `/chat` route for the Hunter loop with a per-scan call cap of 8 | P09 |
