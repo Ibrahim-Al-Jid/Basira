@@ -42,13 +42,20 @@ REPLY_LIMIT = 256 * 1024
 def fetch_limited(method, url, limit, **kwargs):
     """httpx.request with a cap on the body, for providers whose address a user chose. A plain request reads the
     whole body into memory, so a hostile endpoint could stream gigabytes inside the timeout."""
-    with httpx.stream(method, url, **kwargs) as response:
-        body = bytearray()
-        for chunk in response.iter_bytes():
-            body += chunk
-            if len(body) > limit:
-                raise ValueError("Provider response is too large")
-        return httpx.Response(response.status_code, request=response.request, content=bytes(body))
+    # httpx.stream() has no `extensions` argument, and the TLS server name of a pinned request travels there.
+    options = {name: kwargs.pop(name) for name in ("timeout", "trust_env", "verify", "follow_redirects") if name in kwargs}
+    with httpx.Client(**options) as client:
+        request = client.build_request(method, url, **kwargs)
+        response = client.send(request, stream=True)
+        try:
+            body = bytearray()
+            for chunk in response.iter_bytes():
+                body += chunk
+                if len(body) > limit:
+                    raise ValueError("Provider response is too large")
+            return httpx.Response(response.status_code, request=response.request, content=bytes(body))
+        finally:
+            response.close()
 
 
 @app.exception_handler(RequestValidationError)
@@ -216,17 +223,26 @@ def provider_models(key):
         raise HTTPException(503, "OpenRouter verification is unavailable") from None
 
 
+def pinned(provider, request):
+    """A custom provider's address is chosen by a user, so it is resolved and checked again at connect time."""
+    return llm_providers.pin_request(request) if provider == llm_providers.CUSTOM else request
+
+
+def extensions(request):
+    return {"extensions": request["extensions"]} if "extensions" in request else {}
+
+
 def other_provider_models(provider, key, base_url=None):
     """Model catalog for OpenAI, Anthropic, Google or a custom provider. Raises 422 for a rejected key
     and 503 when the provider cannot be reached. Redirects are never followed, so a key is only ever
     sent to the address that was validated for this request."""
     try:
-        request = llm_providers.models_request(provider, key, base_url)
+        request = pinned(provider, llm_providers.models_request(provider, key, base_url))
     except ValueError as error:
         raise HTTPException(422, str(error)) from None
     try:
         response = fetch_limited("GET", request["url"], CATALOG_LIMIT, headers=request["headers"], timeout=8.0,
-                                 trust_env=False, follow_redirects=False)
+                                 trust_env=False, follow_redirects=False, **extensions(request))
         if response.status_code in (401, 403):
             raise HTTPException(422, "The provider rejected the API key")
         response.raise_for_status()
@@ -241,12 +257,12 @@ def other_provider_models(provider, key, base_url=None):
 def other_provider_reply(provider, key, model, system, user, base_url=None):
     """One bounded completion from a non-OpenRouter provider; returns the reply text and the usage dict."""
     try:
-        request = llm_providers.chat_request(provider, key, model, system, user, MAX_OUTPUT_TOKENS, base_url)
+        request = pinned(provider, llm_providers.chat_request(provider, key, model, system, user, MAX_OUTPUT_TOKENS, base_url))
     except ValueError as error:
         raise HTTPException(422, str(error)) from None
     try:
         response = fetch_limited("POST", request["url"], REPLY_LIMIT, headers=request["headers"], json=request["body"],
-                                 timeout=12.0, trust_env=False, follow_redirects=False)
+                                 timeout=12.0, trust_env=False, follow_redirects=False, **extensions(request))
         response.raise_for_status()
         payload = response.json()
     except (ValueError, httpx.HTTPError, RecursionError):
