@@ -409,3 +409,5 @@
     border-inline-start: 1px solid var(--command-edge);
   }
 }
+/* Arabic: the header mirrors too (search on the right, controls on the left). */
+.workspace-layout:has(> main[dir="rtl"]) > .site-header .site-header-inner { direction: rtl; }

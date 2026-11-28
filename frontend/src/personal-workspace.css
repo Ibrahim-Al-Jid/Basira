@@ -186,3 +186,18 @@
   border: 1px solid var(--line);
 }
 .personal-links .personal-nav-add:hover, .personal-links .personal-nav-add:focus-visible { color: var(--ink); border-color: var(--accent); }
+
+/* Project cards: primary action on its own row, Rename and Delete share the next one. */
+.personal-project-list .personal-project-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.personal-project-list .personal-project-actions > .btn.primary { grid-column: 1 / -1; justify-content: center; }
+.personal-project-list .personal-project-actions > .btn { justify-content: center; }
+/* Project search field matches the other fields. */
+.personal-project-search input {
+  min-block-size: 2.6rem;
+  padding: .4rem .8rem;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--control-line);
+  border-radius: var(--control-radius);
+}
+.personal-project-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
