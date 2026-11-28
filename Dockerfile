@@ -45,7 +45,7 @@ EXPOSE 8000
 # a container that only looks up.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
     CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/product', timeout=3)"]
-CMD ["python", "-m", "uvicorn", "backend.main:app", "--no-access-log", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "backend.main:app", "--no-access-log", "--proxy-headers", "--host", "0.0.0.0", "--port", "8000"]
 
 FROM python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90 AS npm-advisories
 ADD --checksum=sha256:64021a51406b00b341f9b5b4e8428cec210404db3a857d4f9ff8cb2767091e24 https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip?generation=1795332791486905 /tmp/npm.zip
