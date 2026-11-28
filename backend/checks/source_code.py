@@ -72,6 +72,13 @@ UPLOAD_ONLY = frozenset({"upload", "path"})
 PHP_SUFFIXES = {".php", ".phtml", ".inc", ".php5", ".php7"}
 JS_SUFFIXES = {".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx"}
 PY_SUFFIXES = {".py"}
+# Code the taint checks do not parse. A snapshot with these and no supported file
+# reports the source rules as skipped instead of leaving them "not applicable".
+OTHER_CODE_SUFFIXES = frozenset({
+    ".go", ".rb", ".rs", ".java", ".kt", ".kts", ".cs", ".c", ".h", ".cc", ".cpp", ".cxx", ".hpp",
+    ".swift", ".scala", ".sh", ".bash", ".zsh", ".lua", ".pl", ".pm", ".ex", ".exs", ".erl", ".dart",
+    ".m", ".mm", ".vb", ".fs", ".groovy", ".clj", ".hs", ".r", ".jl", ".vue", ".svelte",
+})
 UPLOAD_GUARD = re.compile(
     r"allowed_file|allowed_ext|ALLOWED_EXTENSIONS|\.endswith\(|splitext|mimetype|content_type|imghdr|"
     r"getimagesize|finfo|mime_content_type|fileFilter|extname|\.mime\b|pathinfo|in_array|magic\.|filetype",
