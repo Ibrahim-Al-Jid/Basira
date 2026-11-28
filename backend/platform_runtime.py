@@ -42,6 +42,7 @@ scans = sa.Table(
     sa.Column("report", sa.JSON),
     sa.Column("report_index", sa.JSON),
     sa.Column("analysis_checkpoint", sa.JSON(none_as_null=True)),
+    sa.Column("analysis_mode", sa.String(16), nullable=False, server_default="rules"),
     sa.Column("attempt", sa.Integer, nullable=False, default=0),
     sa.Column("lease", sa.String(32)),
     sa.Column("lease_until", sa.DateTime),
@@ -56,6 +57,8 @@ scans = sa.Table(
                         name="uq_project_scans_project_request"),
     sa.Index("ix_project_scans_timeline", "org_id", "project_id", "created_at"),
     sa.Index("ix_project_scans_source_expiry", "source_expires_at"),
+    sa.CheckConstraint("analysis_mode IN ('rules', 'agents', 'hybrid')",
+                       name="ck_project_scans_analysis_mode"),
 )
 events = sa.Table(
     "project_scan_events", metadata,
