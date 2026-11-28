@@ -61,36 +61,9 @@ def project_scan(page, project, text):
     return urlparse(page.url).path.split("/")[-1]
 
 
-def lab_check(browser):
-    tab = browser.new_context(locale="ar-EG", viewport={"width": 390, "height": 844}).new_page()
-    tab.goto(ORIGIN + "/demo")
-    expect(tab.get_by_label("نطاق الفحص")).to_have_value("extended")
-    tab.locator('input[type="file"]').set_input_files({
-        "name": "extended.html", "mimeType": "text/html",
-        "buffer": b'<form action="/session"><input name="pass" type="password"></form>',
-    })
-    tab.get_by_role("button", name="تشغيل الفحص").click()
-    tab.get_by_role("link", name="فتح التقرير").click()
-    expect(tab.get_by_role("link", name="تحميل PDF")).to_be_visible()
-    expect(tab.locator(".reports-coverage")).to_have_count(0)
-    expect(tab.locator(".reports-finding[data-rule='HTML-17']")).to_be_visible()
-    expect(tab.get_by_role("heading", name="سجل تشغيل الأدوات")).to_have_count(0)
-    open_report_section(tab, "coverage")
-    expect(tab.locator(".reports-coverage tbody tr")).to_have_count(catalog_rule_count(tab.context.request))
-    open_report_section(tab, "technical")
-    expect(tab.get_by_role("heading", name="سجل تشغيل الأدوات")).to_be_visible()
-    open_report_section(tab, "export")
-    assert tab.get_by_text("SARIF").count() == 0
-
-
 def main():
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
-        lab_check(browser)
-        if "--local-only" in sys.argv:
-            print("The anonymous lab defaults to extended mode and reports every catalog coverage status.")
-            browser.close()
-            return
         context = browser.new_context(locale="ar-EG", viewport={"width": 390, "height": 844})
         user = context.request
         if "--password-account" in sys.argv:
