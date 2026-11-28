@@ -66,3 +66,31 @@ def test_validator_rejects_a_finding_outside_the_source_even_with_a_valid_finger
     with pytest.raises(InputError, match=workflow.INVALID_EVIDENCE):
         workflow.verify_evidence(altered, ({"views/index.html": html}, None, [], None),
                                  report["tool_selection"], {finding["rule"]})
+
+
+def test_an_unexpected_analysis_error_is_logged_without_its_message(monkeypatch, caplog):
+    monkeypatch.setenv("BASIRA_SOURCE_ADAPTERS", "")
+
+    def broken(*args, **kwargs):
+        raise KeyError("customer-secret-path.php")
+
+    monkeypatch.setattr(workflow, "prepare", broken)
+    with caplog.at_level("ERROR", logger="basira.worker"):
+        result = workflow.scan_payload(repository_payload("<p>x</p>"))
+    assert "error" in result
+    text = caplog.text
+    assert "analysis_failed" in text and "error=KeyError" in text and "at=" in text
+    assert "customer-secret-path" not in text
+
+
+def test_the_dispatcher_logs_why_delivery_failed(monkeypatch, caplog):
+    from . import platform_jobs
+
+    def broken():
+        raise RuntimeError("redis://:hunter2@broker")
+
+    monkeypatch.setattr(platform_jobs.store, "expire_pending_artifacts", broken)
+    monkeypatch.setattr(platform_jobs.time, "sleep", lambda _s: (_ for _ in ()).throw(StopIteration))
+    with caplog.at_level("ERROR", logger="basira.worker"), pytest.raises(StopIteration):
+        platform_jobs.dispatcher()
+    assert "dispatch_failed error=RuntimeError" in caplog.text and "hunter2" not in caplog.text
