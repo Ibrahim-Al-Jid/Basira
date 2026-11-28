@@ -101,6 +101,7 @@ App settings on GitHub: Contents read-only, Metadata read-only, expiring user to
 
 | Variable | Default | Effect |
 |---|---|---|
+| `BASIRA_API_DOCS` | `0` | `1` serves the interactive API page at `/docs` and `/redoc`. Off by default so a deployed instance does not publish its API map to anyone. `/openapi.json` is always served. |
 | `BASIRA_APPROVED_WEBSITE_PAGES` | `{}` | JSON map of project id to a list of full HTTPS page URLs the owner approved, for example `{"project_id":["https://example.com/"]}`. Remove an entry when the approval is withdrawn. At most three pages per origin are fetched, one GET each, 250,000 bytes per response. |
 
 ## Intake storage
