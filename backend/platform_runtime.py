@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 
 from .platform_db import Base, bind_job_project, bind_project_context, personal_projects_enabled, platform_session
 from .contracts import Report, history_item
+from .scan_events import ATTEMPT_RESUMED, ATTEMPT_STARTED, MESSAGES, event_key
 from .scan_contracts import (
     DEFAULT_INPUTS, PROFILE, RAW_RETENTION_MINUTES, Asset, FindingObservation, ScanProvenance,
     ScopeVersion, SourceSnapshot, analyzer_plan, json_digest,
@@ -174,8 +175,8 @@ evidence_records = sa.Table(
 TENANT_TABLES = (scans, events, settings, notes, findings, legacy, assets, provenance, evidence_records)
 TERMINAL = {"completed", "partial", "failed", "cancelled"}
 MAX_ATTEMPTS = 3
-EXPIRED_MESSAGE = "انتهت مدة الاحتفاظ بالمدخل قبل اكتمال الفحص."
-INVALID_PROVENANCE_MESSAGE = "تعذّر التحقق من مصدر الفحص أو النطاق المسجّل."
+EXPIRED_MESSAGE = MESSAGES["scan.failed_input_expired"]
+INVALID_PROVENANCE_MESSAGE = MESSAGES["scan.failed_provenance"]
 ANALYSIS_CHECKPOINT_VERSION = 1
 ANALYSIS_RESULT_FIELDS = {
     "status", "enrichment", "summary_source", "summary_ar", "summary_en", "findings", "coverage", "metrics",
@@ -202,6 +203,11 @@ def select_scan(db, org_id, project_id, scan_id, *, lock=False):
     if lock:
         query = query.with_for_update()
     return db.execute(query).mappings().first()
+
+
+def event_fields(detail):
+    key, params = event_key(detail)
+    return {"key": key, **({"params": params} if params else {})}
 
 
 def record(db, row, kind, detail):
@@ -358,7 +364,7 @@ def create_scan(ctx, envelope, raw, idempotency_key, *, scope_version=None, mode
                            source_sha256=hashlib.sha256(raw).hexdigest(),
                            scope=pinned_scope.model_dump(mode="json"), tools=tools))
                 db.execute(dispatch.insert().values(scan_id=data["id"], **ids, available_at=now()))
-                data["cursor"] = record(db, data, "queued", "تم تسجيل الطلب للفحص.")
+                data["cursor"] = record(db, data, "queued", MESSAGES["scan.queued"])
                 db.execute(scans.update().where(scans.c.id == data["id"]).values(cursor=data["cursor"]))
         except IntegrityError:
             found = find_existing()
@@ -464,7 +470,7 @@ def claim(org_id, project_id, scan_id):
         if not row or row["state"] in TERMINAL:
             return None
         if personal_projects_enabled() and row["user_id"] != project.owner_user_id:
-            close_scan(db, row, "cancelled", "اتلغى الفحص لأن صلاحية مقدم الطلب اتغيّرت.")
+            close_scan(db, row, "cancelled", MESSAGES["scan.cancelled_requester_changed"])
             return None
         if row["source_expires_at"] and row["source_expires_at"] <= now():
             close_scan(db, row, "failed", EXPIRED_MESSAGE)
@@ -475,14 +481,13 @@ def claim(org_id, project_id, scan_id):
             close_scan(db, row, "failed", INVALID_PROVENANCE_MESSAGE)
             return None
         if row["attempt"] >= MAX_ATTEMPTS:
-            close_scan(db, row, "failed", "وصلت المهمة للحد الأقصى لمحاولات التشغيل.")
+            close_scan(db, row, "failed", MESSAGES["scan.failed_retry_limit"])
             return None
         clock = now()
         lease = uuid4().hex
         number = row["attempt"] + 1
         checkpoint = restore_analysis_checkpoint(row)
-        detail = (f"استؤنفت محاولة التنفيذ رقم {number} من نتيجة التحليل المحفوظة."
-                  if checkpoint is not None else f"بدأت محاولة التنفيذ رقم {number}.")
+        detail = (ATTEMPT_RESUMED if checkpoint is not None else ATTEMPT_STARTED).format(number=number)
         cursor = record(db, row, "running", detail)
         db.execute(scans.update().where(scans.c.id == scan_id).values(
             state="running", attempt=number, lease=lease, lease_until=clock + timedelta(seconds=90),
@@ -604,7 +609,7 @@ def finish(org_id, project_id, scan_id, lease, *, report=None, message=None):
             close_scan(db, row, "failed", EXPIRED_MESSAGE)
             return False
         if report is None:
-            close_scan(db, row, "failed", message or "تعذّر تنفيذ الفحص.")
+            close_scan(db, row, "failed", message or MESSAGES["scan.failed"])
             return True
         if ((personal_projects_enabled() and row["user_id"] != project.owner_user_id)
                 or not intact_input(db, row) or not matches_source(row, report)):
@@ -622,7 +627,7 @@ def finish(org_id, project_id, scan_id, lease, *, report=None, message=None):
         statuses = {item["status"] for item in report["coverage"]}
         state = "partial" if statuses & {"error", "skipped"} else "completed"
         report["status"] = state
-        close_scan(db, row, state, "التقرير التجريبي جاهز." if state == "partial" else "اكتمل الفحص.", report)
+        close_scan(db, row, state, MESSAGES["scan.partial_ready"] if state == "partial" else MESSAGES["scan.completed"], report)
         from .advanced_reporting import points
         observations = points(Report.model_validate(report), row["policy"])
         if observations:
@@ -773,7 +778,7 @@ def cancel(ctx, scan_id):
             return None
         if row["state"] in TERMINAL:
             return scan_view(row)
-        return close_scan(db, row, "cancelled", "اتلغى الفحص.")
+        return close_scan(db, row, "cancelled", MESSAGES["scan.cancelled"])
 
 
 def scan_status(ctx, scan_id, after):
@@ -787,5 +792,5 @@ def scan_status(ctx, scan_id, after):
             events.c.sequence > after, events.c.sequence <= row["cursor"],
         ).order_by(events.c.sequence).limit(100)).mappings()
         return {**scan_view(row), "events": [
-            {**item, "occurred_at": timestamp(item["occurred_at"])} for item in entries
+            {**item, **event_fields(item["detail"]), "occurred_at": timestamp(item["occurred_at"])} for item in entries
         ]}
