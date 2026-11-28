@@ -1,5 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import { KeyRound, Languages, LogOut, Palette, Pencil, UserPlus, UserRound } from "lucide-react";
+import { Camera, KeyRound, Pencil, Trash2, UserPlus } from "lucide-react";
+import { Avatar, squareImage } from "./avatar";
+import { DirectoryLink } from "./ProjectDirectory";
+import { PersonalGitHub } from "./PersonalWorkspace";
 import { Modal } from "./Dialogs";
 import { GitHubConnections } from "./GitHubSources";
 import { ProviderSettings } from "./ProviderSettings";
@@ -75,6 +78,27 @@ function Profile({ lang, user, onProfileChange }) {
   const name = user.display_name || t("حساب بصيرة", "Basira account");
   const joined = user.created_at ? new Date(user.created_at) : null;
   const title = t("تعديل البروفايل", "Edit profile");
+  const [photoError, setPhotoError] = useState("");
+  const [photoSaved, setPhotoSaved] = useState(false);
+  const picture = user.avatar || "";
+  async function storePicture(image) {
+    onProfileChange(await action(api + "/auth/avatar", json("PUT", { image })));
+  }
+  async function setPicture(event) {
+    const file = event.target.files[0];
+    event.target.value = "";
+    if (!file) return;
+    setPhotoSaved(false);
+    if (!file.type.startsWith("image/") || file.size > 8_000_000) {
+      setPhotoError(t("اختار صورة أصغر من ٨ ميجا.", "Choose an image under 8 MB."));
+      return;
+    }
+    try {
+      await storePicture(await squareImage(file));
+      setPhotoError("");
+      setPhotoSaved(true);
+    } catch { setPhotoError(t("تعذّر قراءة الصورة.", "That image could not be read.")); }
+  }
 
   async function save(event) {
     event.preventDefault();
@@ -100,10 +124,20 @@ function Profile({ lang, user, onProfileChange }) {
   return <section className="card project-panel account-identity" aria-labelledby="account-profile-title">
     <h2 id="account-profile-title">{t("البروفايل", "Profile")}</h2>
     <div className="account-identity-person">
-      <span className="account-avatar" aria-hidden="true"><UserRound size={22} /></span>
+      <Avatar user={user} size={72} />
       <div>
         <strong><bdi>{name}</bdi></strong>
         {!user.display_name && <p>{t("ضيف اسمك عشان يظهر في نظرة عامة.", "Add your name so it appears in Overview.")}</p>}
+        <div className="account-avatar-actions">
+          <label className="btn">
+            <Camera size={16} aria-hidden="true" />{picture ? t("غيّر الصورة", "Change photo") : t("ارفع صورة", "Upload photo")}
+            <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="visually-hidden" onChange={setPicture} />
+          </label>
+          {picture && <button type="button" className="btn quiet" onClick={async () => { try { await storePicture(null); setPhotoError(""); setPhotoSaved(false); } catch { setPhotoError(t("تعذّر حذف الصورة.", "The photo could not be removed.")); } }}>
+            <Trash2 size={16} aria-hidden="true" />{t("إزالة الصورة", "Remove photo")}</button>}
+        </div>
+        {photoError && <p className="workspace-error" role="alert">{photoError}</p>}
+        {photoSaved && <p role="status">{t("اتحفظت الصورة على الجهاز ده.", "Photo saved on this device.")}</p>}
       </div>
     </div>
     <dl className="account-profile-facts">
@@ -362,44 +396,44 @@ function OrganizationConnections({ lang, revision }) {
   </section>;
 }
 
-export function AccountSettings({ lang, user, preferences, invitation, clearInvite, onJoined, onLogout, onProfileChange, personal }) {
+export function AccountSettings({ lang, user, invitation, clearInvite, onJoined, onLogout, onProfileChange, personal, location, navigate }) {
   const t = translate(lang);
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState(null);
   const [organizationsRevision, setOrganizationsRevision] = useState(0);
+  const requested = new URLSearchParams(location.search).get("tab") || (location.hash === "#model-connection" ? "model" : location.hash.startsWith("#invite=") ? "organization" : "");
+  const tabs = personal
+    ? [["profile", t("البروفايل", "Profile")], ["model", t("موديل الذكاء الاصطناعي", "AI model")], ["github", "GitHub"]]
+    : [["profile", t("البروفايل", "Profile")], ["organization", t("المؤسسات", "Organizations")]];
+  const tab = tabs.some(([id]) => id === requested) ? requested : "profile";
+  useEffect(() => {
+    if (tab === "model") document.getElementById("model-connection")?.scrollIntoView({ block: "start" });
+  }, [tab]);
   return <div className="project-workspace account-workspace">
-    <div className="project-header"><h1>{personal ? t("الإعدادات", "Settings") : t("الحساب", "Account")}</h1>
-      {!personal && <button className="btn" type="button" onClick={async () => {
-        if (pending) return;
-        setPending(true);
-        setFailure(null);
-        try { await action(api + "/auth/logout", { method: "POST" }); onLogout(); }
-        catch (error) { setFailure(error); }
-        finally { setPending(false); }
-      }} disabled={pending}><LogOut size={16} aria-hidden="true" />{t("تسجيل الخروج", "Sign out")}</button>}
-    </div>
+    <div className="project-header"><h1>{t("الإعدادات", "Settings")}</h1></div>
+    <nav className="project-section-nav" aria-label={t("أقسام الإعدادات", "Settings sections")}>
+      {tabs.map(([id, name]) => <DirectoryLink key={id} to={id === "profile" ? "/settings" : "/settings?tab=" + id} navigate={navigate}
+        aria-current={tab === id ? "page" : undefined}>{name}</DirectoryLink>)}
+    </nav>
     {failure && <p className="workspace-error" role="alert">{errorText(failure, t)}</p>}
-    <div className="account-settings-grid">
+    {tab === "profile" && <div className="account-settings-grid">
       <Profile lang={lang} user={user} onProfileChange={onProfileChange} />
-      <section className="card project-panel account-settings-preferences">
-      <h2>{t("التفضيلات", "Preferences")}</h2>
-      <div className="account-preferences">
-        <label><span><Languages size={19} aria-hidden="true" />{t("اللغة", "Language")}</span>
-          <select value={preferences.lang} onChange={(event) => preferences.setLang(event.target.value)}>
-            <option value="ar" lang="ar">العربية</option>
-            <option value="en" lang="en">English</option>
-          </select>
-        </label>
-        <label><span><Palette size={19} aria-hidden="true" />{t("المظهر", "Theme")}</span>
-          <select value={preferences.theme} onChange={(event) => preferences.setTheme(event.target.value)}>
-            <option value="dark">{t("داكن", "Dark")}</option>
-            <option value="light">{t("فاتح", "Light")}</option>
-          </select>
-        </label>
-      </div>
+      <section className="card project-panel account-session">
+        <h2>{t("الجلسة", "Session")}</h2>
+        <p>{t("اللغة والمظهر من قائمة الحساب في الشريط العلوي.", "Language and theme are in the account menu in the top bar.")}</p>
+        <button className="btn" type="button" disabled={pending} onClick={async () => {
+          if (pending) return;
+          setPending(true);
+          setFailure(null);
+          try { await action(api + "/auth/logout", { method: "POST" }); onLogout(); }
+          catch (error) { setFailure(error); }
+          finally { setPending(false); }
+        }}>{t("تسجيل الخروج", "Sign out")}</button>
       </section>
-    </div>
-    {personal ? <ProviderSettings lang={lang} /> : <><JoinOrganization invitation={invitation} clearInvite={clearInvite} lang={lang} onJoined={() => {
+    </div>}
+    {tab === "model" && <ProviderSettings lang={lang} />}
+    {tab === "github" && <PersonalGitHub lang={lang} embedded />}
+    {tab === "organization" && <><JoinOrganization invitation={invitation} clearInvite={clearInvite} lang={lang} onJoined={() => {
       setOrganizationsRevision((value) => value + 1);
       onJoined();
     }} />
