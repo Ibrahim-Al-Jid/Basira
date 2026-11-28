@@ -9,6 +9,7 @@
 - PLAN status matches the merged state: P10 slices a to f and P20 are marked merged, with the automatic default project as the one open P10 item.
 
 ### Removed
+- Header bell icon: it was a link to Scan history (the sidebar already has it), not notifications. The colour picker pill is now labelled "Colors" instead of "Workspace" (it only changes the palette). `frontend/src/SiteHeader.jsx`.
 - SARIF export, by owner decision: the download button, the `format=sarif` endpoint option, the generator in `backend/advanced_reporting.py`, its tests and every mention in the docs. Reports still export to HTML (Arabic and English), JSON and PDF.
 
 ### Added

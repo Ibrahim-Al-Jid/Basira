@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Bell, ChevronDown, FileText, Folder, Moon, Search, ShieldCheck, Sun, UserRound, Workflow } from "lucide-react";
+import { ChevronDown, FileText, Folder, Moon, Search, ShieldCheck, Sun, UserRound, Workflow } from "lucide-react";
 import { Modal } from "./Dialogs";
 import { action, api } from "./platformClient";
 
@@ -117,15 +117,13 @@ export function SiteHeader({ pathname, follow, lang, authenticated, designPicker
         </button>
         <div className="site-controls">
           <details className="command-theme">
-            <summary className="site-icon" aria-label={lang === "ar" ? "ألوان مساحة العمل" : "Workspace colors"}>
+            <summary className="site-icon" aria-label={lang === "ar" ? "ألوان الواجهة" : "Interface colors"}>
               <i className="command-workspace-dot" aria-hidden="true" />
-              <span>{lang === "ar" ? "مساحة العمل" : "Workspace"}</span>
+              <span>{lang === "ar" ? "الألوان" : "Colors"}</span>
               <ChevronDown size={16} aria-hidden="true" />
             </summary>
             {designPicker}
           </details>
-          <a className="site-icon command-history" href="/scans" aria-label={t.scans} title={t.scans}
-            onClick={(event) => follow(event, "/scans")}><Bell size={19} aria-hidden="true" /></a>
           <div className="command-preferences">
             <button className="site-icon" type="button" aria-label={themeLabel} title={themeLabel}
               onClick={() => preferences.setTheme(preferences.theme === "dark" ? "light" : "dark")}>
