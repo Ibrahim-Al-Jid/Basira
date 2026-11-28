@@ -27,6 +27,16 @@ pytest backend/test_quality_gate.py       # same gate through pytest; set BASIRA
 
 The baseline is `tests/fixtures/quality-baseline.json`. Improvements never fail. Raise the baseline in the same change that earns the improvement, with the printed numbers in the changelog line. Never lower it to make a change pass; a lower number needs the owner's decision recorded in the plan.
 
+## Browser suites
+
+Three Playwright suites run on every pull request, in the `Browser smoke and container acceptance` job in `.github/workflows/ci.yml`, against a real Compose deployment:
+
+- Account: invitations, access and credentials.
+- Workspace: routing and report scope.
+- Password: signup, sign-in and cross-account isolation, with password auth and self-signup switched on.
+
+They need Docker and Chromium, so they are not part of `pytest backend`. A suite that fails here blocks the merge.
+
 ## Flaky tests
 
 A test that fails and then passes with no code change is a defect, not noise.

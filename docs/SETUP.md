@@ -97,6 +97,8 @@ docker compose -p basira-local ps -a
 
 `migrate` runs Alembic and exits; `app`, `dispatcher`, `worker`, `scanner`, `db` and `broker` stay up. Then open http://127.0.0.1:8765/signin and choose "Create account" on a fresh install.
 
+`.env.local` is read for every setting Compose forwards, including `BASIRA_LOG_LEVEL` and the two lab run limits `BASIRA_LAB_RUN_LIMIT` and `BASIRA_LAB_RUN_CONCURRENCY` (defaults `INFO`, `30` and `8`). Change a value there and re-run the `up -d` command; no image rebuild is needed for these three.
+
 `compose.local.yaml` turns on personal projects, local password accounts and self sign-up, and mounts `./data` so the lab SQLite file survives a rebuild. Without it the email and password sign-in stays off.
 
 ### One command on Linux and macOS

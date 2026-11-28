@@ -138,13 +138,13 @@ Each phase is one small PR. The DB agent owns migrations: the `analysis_mode` co
 |---|---|---|
 | P0 | This section | Docs test passes; names match `agent_roles.py` |
 | P1 | `analysis_mode` setting, validation, contract fields, default `hybrid` with fallback to `rules` | Invalid value gives 422; old scans read as `rules`; hybrid without a model completes as `rules` with `fallback_reason`; contract round trip test |
-| P2 | Deterministic `ProjectMap` (Scout): languages, entry points, routes, config files, dependency manifests, trust boundaries, keyed by snapshot digest | Same input gives the same map; map holds paths and counts only, no file bodies; unit tests on the sample projects |
-| P3 | Auditor upgrade: location exists, quote present at the location, rule or deterministic check reproduces | Candidates with a missing file, line or quote are rejected with a reason code; the existing corpus recall does not drop |
+| P2 (**done**, #148) | Deterministic `ProjectMap` (Scout): languages, entry points, routes, config files, dependency manifests, trust boundaries, keyed by snapshot digest | Same input gives the same map; map holds paths and counts only, no file bodies; unit tests on the sample projects |
+| P3 (**done**, #150) | Auditor upgrade: location exists, quote present at the location, rule or deterministic check reproduces | Candidates with a missing file, line or quote are rejected with a reason code; the existing corpus recall does not drop |
 | P4 | Bounded Hunter tool loop behind a flag, rules as tools | Mocked model only in tests; budget exhaustion keeps the deterministic result; injected text in a snapshot never changes tool calls |
 | P5 | Interface selector and copy above | Both languages render; the selected mode shows in the report |
 | P6 | Benchmark runner mapping modes to C1, C2, C4 using recorded responses | Reproduces the recorded scores without network |
 
-`ProjectMap` shape (P2, data for the DB agent): `{digest, languages: {name: file_count}, entry_points: [path], routes: [{method, path, file}], config_files: [path], manifests: [path], boundaries: [{kind, file}]}`. Agent run record (P4): `{scan_id, role_id, status, steps, tokens_in, tokens_out, started_at, ended_at, reason_code}` where `role_id` is a stable id from section 1a.
+`ProjectMap` shape (P2, data for the DB agent). This is the shape `backend/project_map.py` returns today; the fuller schema in section 4 is the target and gains fields as P3 and P4 land. Fields: `{digest, languages: {name: file_count}, entry_points: [path], routes: [{method, path, file}], config_files: [path], manifests: [path], boundaries: [{kind, file}]}`. Agent run record (P4): `{scan_id, role_id, status, steps, tokens_in, tokens_out, started_at, ended_at, reason_code}` where `role_id` is a stable id from section 1a.
 
 ## 8. Prompt-injection and output defenses
 
