@@ -24,6 +24,7 @@ Related: [setup](SETUP.md) for the commands, [API](API.md) for the endpoints the
 | `BASIRA_ANALYSIS_SPOOL` | `/srv/basira/spool` in Compose | Shared directory between the worker and the isolated scanner. |
 | `BASIRA_SOURCE_ADAPTERS` | `gitleaks,osv-scanner` | Supplementary static adapters. Empty disables them; the report then shows the coverage they would have added as missing. |
 | `BASIRA_OSV_DB_DIRECTORY` | `/opt/basira-osv` | Offline OSV database shipped in the image. Do not point it at a downloaded copy at runtime. |
+| `BASIRA_AGENT_LOOP` | unset | Set to `1` to enable the Hunter tool loop module (`backend/hunter_loop.py`). Nothing in a scan calls it yet, so setting it changes no scan result today. Compose does not forward it. |
 | `BASIRA_ALLOW_INLINE_ANALYSIS` | unset | Development only. Runs analysis in the web process instead of the isolated worker. Never set this in a shared environment. |
 | `BASIRA_LAB_RUN_LIMIT` | `30` | Anonymous lab runs allowed per client IP in a fixed 15-minute window (`POST /api/run`). `0` or less disables the limit. Over the limit the endpoint answers 429 with `Retry-After`. |
 | `BASIRA_LAB_RUN_CONCURRENCY` | `8` | Anonymous lab runs allowed in flight at once in one process. `0` or less disables the limit. State is per process, so with several workers the real ceiling is the sum. |
