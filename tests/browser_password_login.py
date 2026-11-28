@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from playwright.sync_api import expect, sync_playwright
 
-from browser_release import ORIGIN, open_report_section, project_scan
+from browser_release import ORIGIN, catalog_rule_count, open_report_section, project_scan
 
 
 def main():
@@ -37,7 +37,7 @@ def main():
         report = project_scan(page, project, '<form action="/session"><input name="password" type="password"></form>')
         report_link = f"{ORIGIN}/reports/{report}?project={project}"
         open_report_section(page, "coverage")
-        expect(page.locator(".reports-coverage tbody tr")).to_have_count(100)
+        expect(page.locator(".reports-coverage tbody tr")).to_have_count(catalog_rule_count(context.request))
         page.goto(ORIGIN + "/settings")
         page.get_by_role("button", name="تسجيل الخروج").click()
         page.wait_for_url(ORIGIN + "/")
@@ -52,7 +52,7 @@ def main():
         expect(page.get_by_role("link", name="تحميل PDF")).to_be_visible()
         page.reload()
         open_report_section(page, "coverage")
-        expect(page.locator(".reports-coverage tbody tr")).to_have_count(100)
+        expect(page.locator(".reports-coverage tbody tr")).to_have_count(catalog_rule_count(context.request))
         assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
         browser.close()
     print("Password browser flow passed: signup, scoped project, upload, background scan, logout, login and report reload.")

@@ -70,7 +70,10 @@ def main():
         assert all(event["sequence"] > cursor for event in resumed["events"])
         assert resumed["events"][-1]["kind"] == "completed"
         report = checked(owner.get(path + "/reports/" + scan))
-        assert len([row for row in report["coverage"] if row["rule"] not in {"SRC-01", "SCA-01"}]) == 100
+        catalog = checked(owner.get("/api/catalog"))["rules"]
+        adapters = {"SRC-01", "SCA-01"}
+        static_rules = len([row for row in catalog if row["id"] not in adapters])
+        assert len([row for row in report["coverage"] if row["rule"] not in adapters]) == static_rules
         assert {entry["rule"] for entry in report["findings"]} >= {"INF-01", "INF-02"}
         enabled = set(os.environ.get("BASIRA_SOURCE_ADAPTERS", "").split(","))
         if "gitleaks" in enabled:
