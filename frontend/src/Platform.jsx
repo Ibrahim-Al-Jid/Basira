@@ -789,7 +789,7 @@ export function Platform({ location, navigate, lang, session, preferences, perso
   if (/^\/settings\/?$/.test(location.pathname)) return <AccountSettings lang={lang} user={user} personal={personal} location={location} navigate={navigate}
     onProfileChange={setUser}
     key={user.id} invitation={pendingInvite ? location.hash.slice("#invite=".length) : ""}
-    clearInvite={() => navigate("/settings", { replace: true })}
+    clearInvite={() => navigate("/settings?tab=organization", { replace: true })}
     onJoined={() => setInvitationRevision((current) => current + 1)}
     onLogout={() => { setUser(null); navigate("/", { replace: true }); }} />;
   return <Dashboard location={location} navigate={navigate} user={user} lang={lang} invitationRevision={invitationRevision}
