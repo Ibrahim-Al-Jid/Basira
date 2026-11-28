@@ -24,6 +24,7 @@ FUNCTIONS = (
     "basira_expire_artifacts()", "basira_purge_expired()",
     "basira_model_credential(text,text)", "basira_start_model_call(text,text,text,text,text,text)",
     "basira_start_account_model_call(text,text,text,text,text,text)",
+    "basira_login_identity(text,text)",
 )
 
 
@@ -177,6 +178,40 @@ def test_invitations_are_scoped_to_their_organization(db):
             "SELECT has_function_privilege('public', "
             "CAST(:signature AS regprocedure), 'EXECUTE')"),
             {"signature": "public.basira_invitation_org(text)"}).scalar_one()
+
+
+def test_people_are_scoped_to_their_organization(db):
+    """Accounts and memberships answer "me, plus the people in this organization", never the whole table."""
+    for table, policy in (("users", "organization_people_access"),
+                          ("memberships", "organization_membership_access")):
+        enabled, _ = db.connect().execute(sa.text(
+            "SELECT c.relrowsecurity, c.relforcerowsecurity FROM pg_class AS c "
+            "JOIN pg_namespace AS n ON n.oid = c.relnamespace "
+            "WHERE n.nspname = 'public' AND c.relname = :table"), {"table": table}).one()
+        assert enabled, f"{table} must enable row level security"
+        policies = db.connect().execute(sa.text(
+            "SELECT policyname, permissive FROM pg_policies "
+            "WHERE schemaname = 'public' AND tablename = :table"), {"table": table}).all()
+        assert (policy, "PERMISSIVE") in policies, f"{table} needs the {policy} policy"
+    with db.connect() as connection:
+        if not connection.execute(sa.text("SELECT 1 FROM pg_roles WHERE rolname = 'basira_app'")).first():
+            pytest.skip("basira_app role is not provisioned")
+        granted = connection.execute(sa.text(
+            "SELECT has_table_privilege('basira_app', 'users', 'SELECT'), "
+            "has_table_privilege('basira_app', 'users', 'INSERT'), "
+            "has_table_privilege('basira_app', 'users', 'UPDATE'), "
+            "has_table_privilege('basira_app', 'users', 'DELETE'), "
+            "has_table_privilege('basira_app', 'memberships', 'SELECT'), "
+            "has_table_privilege('basira_app', 'memberships', 'INSERT'), "
+            "has_table_privilege('basira_app', 'memberships', 'UPDATE'), "
+            "has_table_privilege('basira_app', 'memberships', 'DELETE')")).one()
+        assert granted == (True, True, True, False, True, True, True, False), (
+            "accounts and memberships are deactivated, never deleted")
+        # Sign-in reads the account before a session exists, so it goes through the definer function.
+        assert connection.execute(sa.text(
+            "SELECT has_function_privilege('basira_app', "
+            "CAST(:signature AS regprocedure), 'EXECUTE')"),
+            {"signature": "public.basira_login_identity(text,text)"}).scalar_one()
 
 
 def test_checkpoint_trigger_exists(db):
