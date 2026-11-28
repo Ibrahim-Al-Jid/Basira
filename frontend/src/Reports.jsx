@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { ArrowDownToLine, ArrowLeft, ArrowRight, FileCheck2, FileText, Search } from "lucide-react";
 import { agents, fetchJson } from "./data";
 import { FindingReview, ReportComparison, ReportDialog, ToolRuns } from "./ReportAdvanced";
-import { FileManifest, ImportedEvidence, LinkedEvidence } from "./ReportEvidence";
+import { AgentReview, FileManifest, ImportedEvidence, LinkedEvidence } from "./ReportEvidence";
 import "./reports.css";
 
 const PAGE_SIZE = 10;
@@ -966,6 +966,7 @@ function ReportDetails({ report, t, lang, params, pathname, hash, navigate, repo
           <FindingList findings={findings} coverage={report.coverage} imported={report.imported_evidence}
             priority={report.enrichment === "model" ? report.priority : null} t={t} lang={lang}
             params={params} pathname={pathname} hash={hash} navigate={navigate} />
+          <AgentReview findings={report.agent_findings} lang={lang} count={count} />
         </>}
         {section === "coverage" && <div className="reports-panel reports-section">
           <FileManifest entries={report.input_manifest} lang={lang} />

@@ -129,3 +129,20 @@ export function LinkedEvidence({ reportApi, hrefFor, follow, lang, count, format
       "There are no other matching reports for this site reference in the project.")}</p>}
   </section>;
 }
+
+export function AgentReview({ findings, lang, count }) {
+  if (!findings?.length) return null;
+  const t = translate(lang);
+  return <section className="reports-section reports-agent-review" aria-labelledby="agent-review-title">
+    <h2 id="agent-review-title">{t("مراجعة الوكلاء", "Agent review")} <span className="reports-agent-badge">{t("تحتاج مراجعة", "Review required")}</span></h2>
+    <p>{t("دي ملاحظات من الوكلاء راجعها المدقق في نسخة المصدر. هي ادّعاءات من موديل، مش نتائج مؤكدة، ومش محسوبة في النتائج أو التغطية.",
+      "These are places the agents pointed at and the Auditor re-read in the source snapshot. They are model claims, not confirmed findings, and are not counted in the findings or coverage.")}</p>
+    <ul className="reports-agent-list">
+      {findings.map((item) => <li key={item.fingerprint}>
+        <strong dir="ltr">{item.rule}</strong>
+        <span dir="ltr">{item.path}:{count(item.line)}</span>
+        <code dir="ltr">{item.quote}</code>
+      </li>)}
+    </ul>
+  </section>;
+}
