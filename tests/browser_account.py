@@ -121,6 +121,7 @@ def main():
         page.on("pageerror", lambda error: errors.append(str(error)))
         page.goto(ORIGIN + "/settings")
         account_layout(page)
+        page.goto(ORIGIN + "/settings?tab=organization")  # model connections live in the Organizations tab
         credential_ui(page, org)
         for path in ("/checks", "/checks/"):
             assert owner.request.get(ORIGIN + path).status == 404
