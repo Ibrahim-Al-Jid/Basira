@@ -17,7 +17,8 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from .identity import LOCAL_HOSTS, MANAGERS, require_membership, require_user
 from .platform_db import (
-    Base, Membership, Organization, User, personal_namespace_id, personal_projects_enabled, platform_session, utc_now,
+    Base, Membership, Organization, User, bind_org, personal_namespace_id, personal_projects_enabled,
+    platform_session, utc_now,
 )
 
 CONNECTION_ID = "openrouter-default"
@@ -241,6 +242,7 @@ def transport_guard(request, response):
 
 
 def require_manager(db, org_id, user_id, *, lock=False):
+    bind_org(db, org_id)
     if db.scalar(sa.select(Organization.personal_owner_id).where(Organization.id == org_id)) is not None:
         raise HTTPException(404, "الاتصال غير متاح.")
     if lock:

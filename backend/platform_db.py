@@ -206,6 +206,7 @@ def personal_projects_enabled():
 
 
 def personal_namespace_id(db, user_id, *, create=False):
+    bind_owner(db, user_id)
     if create and not db.scalar(select(User.id).where(
         User.id == user_id, User.disabled_at.is_(None),
     ).with_for_update()):
