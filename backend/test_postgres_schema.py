@@ -100,3 +100,22 @@ def test_app_role_cannot_write_immutable_evidence(db):
             "SELECT has_table_privilege('basira_app', 'project_assets', 'UPDATE'), "
             "has_table_privilege('basira_app', 'project_assets', 'SELECT')")).one()
         assert granted == (False, True)
+
+
+def test_app_role_has_no_access_to_the_ownership_queue_or_legacy_connections(db):
+    """docs/ERD.md promises both tables are not visible to the application account."""
+    with db.connect() as connection:
+        if not connection.execute(sa.text("SELECT 1 FROM pg_roles WHERE rolname = 'basira_app'")).first():
+            pytest.skip("basira_app role is not provisioned")
+        for table in ("project_ownership_reviews", "github_connections"):
+            granted = connection.execute(sa.text(
+                "SELECT has_table_privilege('basira_app', :table, 'SELECT'), "
+                "has_table_privilege('basira_app', :table, 'INSERT'), "
+                "has_table_privilege('basira_app', :table, 'UPDATE'), "
+                "has_table_privilege('basira_app', :table, 'DELETE')"), {"table": table}).one()
+            if table == "github_connections":
+                # The app reads legacy connections through one endpoint; it must not write them.
+                assert granted[0] is True, "basira_app must keep SELECT on github_connections"
+                assert granted[1:] == (False, False, False), f"basira_app must not write {table}"
+            else:
+                assert granted == (False, False, False, False), f"basira_app must have no access to {table}"
