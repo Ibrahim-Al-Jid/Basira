@@ -161,6 +161,7 @@ def dispatcher():
             if time.monotonic() >= next_cleanup:
                 next_cleanup = time.monotonic() + 30
                 store.expire_pending_artifacts()
+                store.purge_expired_rows()
             if dispatch_once():
                 continue
         except Exception:
