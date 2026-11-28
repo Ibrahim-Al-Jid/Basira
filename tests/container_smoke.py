@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 from backend import platform_runtime as store
 from backend.identity import SESSION_COOKIE, token_digest
-from backend.platform_db import AuthSession, User, bind_project, platform_session, utc_now
+from backend.platform_db import AuthSession, User, bind_owner, bind_project, new_id, platform_session, utc_now
 
 BASE = "http://127.0.0.1:8000"
 
@@ -21,7 +21,11 @@ BASE = "http://127.0.0.1:8000"
 def seed():
     token = secrets.token_urlsafe(32)
     with platform_session() as db:
-        user = User(display_name="Isolated acceptance account", issuer="https://qa.example.test", subject=uuid4().hex)
+        user = User(id=new_id(), display_name="Isolated acceptance account",
+                    issuer="https://qa.example.test", subject=uuid4().hex)
+        # Owner context must precede the insert: users is RLS-guarded
+        # (WITH CHECK id = basira.owner_user_id), so a seed without it is denied.
+        bind_owner(db, user.id)
         db.add(user)
         db.flush()
         db.add(AuthSession(token_digest=token_digest(token), user_id=user.id, created_at=utc_now(),
