@@ -302,8 +302,8 @@ Every change reaches `main` through a pull request (see [two-account-flow](two-a
 | #209 | Agent path reads configuration inputs | P09 |
 | #210 | Frontend: per-finding fix and verify guidance | P10 |
 | #211 | Frontend: accessible names contain the visible text | P10 |
+| #212 | Docs follow-up 9 final: #178, #182, #183, #185, #188 to #211 | docs |
 | #174 | End-to-end tests of the agent path with a scripted model (P4d) | P09 |
-| #194 | Docs follow-up 9: #178, #182, #183, #185, #188 to #211 | docs |
 | #173 | Reports: separate "Agent review" section for `agent_findings` | P10 |
 | #170 | Scan timeline texts for the agent failed and fallback events | P10 |
 | #167 | Gateway `/chat` route for the Hunter loop with a per-scan call cap of 8 | P09 |
