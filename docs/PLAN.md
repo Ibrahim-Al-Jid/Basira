@@ -248,6 +248,7 @@ Every change reaches `main` through a pull request (see [two-account-flow](two-a
 | #140 | Docs follow-up: run modes, analysis_mode, figures | docs |
 | #141 | Guard anonymous lab runs with per-IP and concurrency limits | P18 |
 | #142 | CI: run the workspace browser suite on every pull request | P18 |
+| #143 | Frontend: claim lab reports into a project from the reports archive | P10 |
 
 Order of work, set by the agent as the expert (27 Nov 2026): P21 (provider settings, done), P09 model lane (done), P10 redesign slices a to f (merged), then P20 (replay and budget check, merged), P19 (source-code checks, the biggest measured gap), P11, P17 and P23 (measured evaluation with precision, when the free-tier cap allows), P13, P16, P15, P22, P07 gaps, P12, P24, P18. P14 follows decision A and ships before P17 if approved, so evaluation covers it.
 
