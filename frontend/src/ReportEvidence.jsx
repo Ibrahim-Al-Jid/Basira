@@ -140,9 +140,52 @@ const fallbackReasons = {
   budget_time: ["خلص الوقت المسموح", "the time budget ran out"],
 };
 
+const roleNames = {
+  maestro: ["المنسّق (Maestro)", "Maestro (planner)"],
+  scout: ["الكشّاف (Scout)", "Scout"],
+  hunter: ["الصيّاد (Hunter)", "Hunter"],
+  scribe: ["الكاتب (Scribe)", "Scribe (summary)"],
+};
+const phaseStatuses = {
+  completed: ["اكتملت", "completed"],
+  fell_back: ["رجعت للقواعد", "fell back to rules"],
+  skipped: ["اتخطّت", "skipped"],
+};
+const phaseReasons = {
+  ...fallbackReasons,
+  not_planned: ["المنسّق ما خططش للمرحلة دي", "the planner did not schedule it"],
+  empty: ["مفيش مخرجات", "it returned nothing"],
+};
+
+// Why a hybrid scan ran rules only. The backend sets fallback_reason when the agent path could not start:
+// it needs a repository upload, a model connection on the scan, and the agent loop enabled on the server.
+export function ModeFallbackNote({ artifact, lang }) {
+  if (artifact?.fallback_reason !== "agent_path_unavailable") return null;
+  const t = translate(lang);
+  const reason = artifact.kind === "repository"
+    ? t("مسار الوكلاء مش متاح للفحص ده: محتاج اتصال موديل على الفحص ومسار الوكلاء مفعّل على السيرفر.",
+      "The agent path was not available for this scan: it needs a model connection on the scan and the agent path enabled on the server.")
+    : t("الوكلاء بيقرأوا رفع المستودعات بس، ونوع المدخل ده بيتفحص بالقواعد.",
+      "The agents read repository uploads only, so this input type is checked with rules.");
+  return <p className="reports-agent-note" role="status" data-agent-fallback="agent_path_unavailable">
+    <strong>{t("الفحص ده اتعمل بالقواعد بس (الوضع الهجين رجع للقواعد).", "This scan ran rules-only (hybrid mode fell back to rules).")}</strong>{" "}{reason}
+  </p>;
+}
+
+function AgentPhases({ phases, t }) {
+  if (!phases?.length) return null;
+  return <ol className="reports-agent-phases" aria-label={t("مراحل تشغيل الوكلاء", "Agent run phases")}>
+    {phases.map((phase) => <li key={phase.role}>
+      <strong>{t(...(roleNames[phase.role] || [phase.role, phase.role]))}</strong>{": "}
+      {t(...(phaseStatuses[phase.status] || [phase.status, phase.status]))}
+      {phase.reason_code && " (" + t(...(phaseReasons[phase.reason_code] || [phase.reason_code, phase.reason_code])) + ")"}
+    </li>)}
+  </ol>;
+}
+
 export function AgentReview({ findings, run, lang, count }) {
   const fellBack = run?.status === "fell_back";
-  if (!findings?.length && !fellBack) return null;
+  if (!findings?.length && !fellBack && !run?.phases?.length) return null;
   const t = translate(lang);
   const reason = fallbackReasons[run?.reason_code];
   return <section className="reports-section reports-agent-review" aria-labelledby="agent-review-title">
@@ -154,6 +197,7 @@ export function AgentReview({ findings, run, lang, count }) {
       {reason ? " (" + t(reason[0], reason[1]) + ")" : ""}.
       {!findings?.length && " " + t("مفيش ملاحظات من الوكلاء في التقرير ده.", "There are no agent observations in this report.")}
     </p>}
+    <AgentPhases phases={run?.phases} t={t} />
     {findings?.length > 0 && <ul className="reports-agent-list">
       {findings.map((item) => <li key={item.fingerprint}>
         <strong dir="ltr">{item.rule}</strong>

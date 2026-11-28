@@ -3,7 +3,7 @@ import { ArrowDownToLine, ArrowLeft, ArrowRight, FileCheck2, FileText, Search } 
 import { agents, fetchJson } from "./data";
 import { FindingReview, ReportComparison, ReportDialog, ToolRuns } from "./ReportAdvanced";
 import { modelOrderNote, suggestedPriority } from "./modelOrder";
-import { AgentReview, AgentSummary, FileManifest, ImportedEvidence, LinkedEvidence } from "./ReportEvidence";
+import { AgentReview, AgentSummary, ModeFallbackNote, FileManifest, ImportedEvidence, LinkedEvidence } from "./ReportEvidence";
 import "./reports.css";
 
 const PAGE_SIZE = 10;
@@ -892,6 +892,7 @@ function ReportDetails({ report, t, lang, params, pathname, hash, navigate, repo
         <p className="reports-overview-scope">{report.input_artifact ? t.projectScope : t.scopeText}</p>
         {!!coverageGaps && <p className="reports-caution">{t.incompleteCoverage}</p>}
         {!coverage.length && summary && <p className="reports-copy" dir="auto">{summary}</p>}
+        <ModeFallbackNote artifact={report.input_artifact} lang={lang} />
         <AgentSummary summary={report.agent_summary} lang={lang} count={count} />
       </section>
       <nav className="reports-section-nav" aria-label={t.sections}>

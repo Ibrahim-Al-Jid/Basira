@@ -906,6 +906,7 @@
 .reports-agent-list span { color: var(--muted); font-size: .9rem; }
 .reports-agent-list code { white-space: pre-wrap; }
 .reports-agent-note { margin: .75rem 0 0; padding: .6rem .9rem; border-inline-start: 3px solid var(--accent); background: var(--tint, transparent); border-radius: 6px; }
+.reports-agent-phases { margin: .75rem 0 0; padding-inline-start: 1.25rem; display: grid; gap: .25rem; }
 .reports-agent-summary { grid-column: 1 / -1; margin: .75rem 0 0; padding: .8rem 1rem; border: 1px dashed var(--line); border-radius: 10px; display: grid; gap: .4rem; }
 .reports-agent-summary h3 { margin: 0; font-size: 1rem; }
 .reports-agent-summary p { margin: 0; overflow-wrap: anywhere; }
