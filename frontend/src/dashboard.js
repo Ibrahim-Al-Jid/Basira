@@ -1,5 +1,4 @@
 // Dashboard helpers (P10 slice e): pure functions, no React, no network.
-export const SEVERITY_ORDER = ["high", "medium", "low"];
 export const BAR_MAX_PERCENT = 100;
 
 // Bar height in percent for each scan, scaled to the largest count; a scan with findings never rounds to zero.

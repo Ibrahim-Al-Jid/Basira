@@ -31,9 +31,4 @@
 .workspace-wizard .scan-kind { min-block-size: 5.1rem; border-radius: var(--panel-radius); }
 .workspace-wizard .workspace-upload { min-block-size: 6.5rem; }
 
-@container (min-width: 41rem) {
-  .personal-shell .workspace-wizard .scan-source-options {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: .85rem;
-  }
-}
+

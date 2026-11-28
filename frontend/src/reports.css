@@ -7,7 +7,7 @@
   min-width: 0;
   padding-block: var(--workspace-top) 3rem;
 }
-.personal-shell .reports-workspace { padding-block-start: 0; }
+
 
 .reports-workspace h1 {
   font-size: var(--page-title-size);
@@ -334,9 +334,7 @@
   overflow-wrap: anywhere;
 }
 
-.reports-metrics dd {
-  font-size: 1.12rem;
-}
+
 
 .reports-copy {
   color: var(--muted);

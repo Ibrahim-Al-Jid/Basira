@@ -29,7 +29,7 @@ main:has(.signin-page) {
   margin-inline: auto;
   padding-block: clamp(1rem, 2.4vw, 1.9rem);
 }
-.signin-skip { position: absolute; inset-inline-start: .75rem; inset-block-start: .75rem; }
+
 .signin-brand {
   display: inline-flex;
   align-items: center;
