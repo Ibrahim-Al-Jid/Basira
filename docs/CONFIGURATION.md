@@ -25,6 +25,7 @@ Related: [setup](SETUP.md) for the commands, [API](API.md) for the endpoints the
 | `BASIRA_SOURCE_ADAPTERS` | `gitleaks,osv-scanner` | Supplementary static adapters. Empty disables them; the report then shows the coverage they would have added as missing. |
 | `BASIRA_OSV_DB_DIRECTORY` | `/opt/basira-osv` | Offline OSV database shipped in the image. Do not point it at a downloaded copy at runtime. |
 | `BASIRA_ALLOW_INLINE_ANALYSIS` | unset | Development only. Runs analysis in the web process instead of the isolated worker. Never set this in a shared environment. |
+| `BASIRA_LOG_LEVEL` | `INFO` | Level of the request access log (`DEBUG`, `INFO`, `WARNING`, `ERROR`). The log writes one line per request with a request id, the method, the path without its query string, the status and the duration, and the response carries the same id as `X-Request-ID`. |
 
 ## Accounts and projects
 
@@ -127,3 +128,14 @@ docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file 
 ```
 
 `options` reports `password` and `registration` booleans, which is the fastest way to confirm that `compose.local.yaml` actually applied.
+
+## Limits the gateway enforces
+
+These are constants in `backend/model_gateway.py`, not settings; they exist because a provider address can be chosen by a user.
+
+| Limit | Value | What it stops |
+|---|---|---|
+| `CATALOG_LIMIT` | 4 MiB | A provider catalogue response larger than this is refused instead of read into memory. |
+| `REPLY_LIMIT` | 256 KiB | Same cap for a provider reply. |
+| `ADVISOR_EVIDENCE_LIMIT` | 12 | More than twelve evidence items in an advisor request is rejected. |
+| `ADVISOR_HINT_LIMIT` | 3 | More than three planning or validation hints is rejected. |
