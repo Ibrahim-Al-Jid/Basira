@@ -6,11 +6,12 @@
 # rows. A restore that silently drops a policy is a restore that hands one tenant another tenant's
 # rows, and nothing in the application would notice.
 #
-# Usage (all three URLs are libpq connection strings):
+# Usage (all three URLs are libpq connection strings). The file is checked in without the
+# executable bit, so run it through sh:
 #   BASIRA_RESTORE_SOURCE_URL=postgresql://.../basira \
 #   BASIRA_RESTORE_ADMIN_URL=postgresql://.../postgres \
 #   BASIRA_RESTORE_TARGET_URL=postgresql://.../basira_restore_check \
-#   ops/verify_restore.sh
+#   sh ops/verify_restore.sh
 #
 # The scratch database is dropped and recreated, so point TARGET at a database nobody else uses.
 # Set PG_DUMP and PG_RESTORE when the default binaries do not match the server major version.
