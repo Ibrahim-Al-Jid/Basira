@@ -288,6 +288,35 @@ Published comparisons with other systems use only their own published numbers, w
 
 Basira reads untrusted files and sends parts of them to language models, so it is itself a target. Work: run Basira on its own repository and fix real findings; tests where scanned content contains instructions aimed at the agents (the agents must treat it as data and never change tools, scope or output format because of it); review the key store (encryption, masking, no logging), the custom-provider URL checks at request time (DNS rebinding), upload limits and export paths; write the threat model in ARCHITECTURE. Done when the tests exist, pass and are part of CI.
 
+### P25 Identity table row level security (planned)
+
+`projects` is covered: `platform_projects_rls_0023` enables row level security there with one policy
+keyed on the legacy membership flag or the bound owner. The identity tables around it are not. On a
+database migrated to head, `users`, `organizations`, `memberships`, `project_grants`, `auth_sessions`,
+`password_credentials`, `password_attempt_limits`, `organization_invitations` and `scan_dispatch_outbox`
+report `relrowsecurity = false`, hold no policy, and `basira_app` has SELECT, INSERT, UPDATE and DELETE
+on every one of them; isolation there is the application's WHERE clauses alone.
+
+They cannot be closed the way `projects` was, because the first read in several flows happens before
+any owner is known: the session lookup by `auth_sessions.token_digest`, the password login by
+`users.issuer`/`users.subject` joined to `password_credentials`, the attempt limiter keyed on the
+email-derived scope, and invitation acceptance by `organization_invitations.token_digest`.
+`scan_dispatch_outbox` is written and drained by `basira_dispatch`, which acts for no user at all.
+
+Plan, one small change at a time:
+
+1. Move each pre-identity read into a SECURITY DEFINER function with `search_path = pg_catalog`,
+   EXECUTE revoked from PUBLIC and granted only to the roles that need it, the way
+   `basira_project_owner` already resolves the dispatch owner.
+2. Then add a policy per table: `users` by `id = current_setting('basira.owner_user_id')`;
+   `organizations`, `memberships` and `project_grants` by the bound org or owner; the session,
+   credential, attempt-limit and invitation tables readable only through their functions.
+3. Extend `backend/test_postgres_schema.py` to assert each policy, and run the login, session-expiry,
+   invitation and dispatch lifecycles as `basira_app` before each merge.
+
+Done when a session bound to one owner cannot read another account's rows from any of these tables and
+those four lifecycles still pass end to end as the application role.
+
 ### P23 Quality gates
 
 Detection rate alone rewards noisy tools. Each evaluation run also records precision and false-positive rate per configuration; the one-agent run already flagged 5 of 13 fixed files, so this matters. A CI gate compares the stored baseline and fails on a drop; the evaluation script reproduces every published number from pinned inputs; flaky tests are fixed or quarantined with an owner.

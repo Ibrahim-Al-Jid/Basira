@@ -546,6 +546,33 @@ def agent_activity(result):
     return rows
 
 
+def claim_dispatch(db, delay=100):
+    """Take one due dispatch row and push its next attempt forward.
+
+    On PostgreSQL the queue is not readable by the application role, so the claim and the delay both
+    happen inside `basira_dispatch_claim`; the policy on the table only covers the enqueue and the
+    delete, which run with a bound project.
+    """
+    if db.get_bind().dialect.name == "postgresql":
+        return db.execute(sa.text(
+            "SELECT scan_id, org_id, project_id FROM public.basira_dispatch_claim(:delay)"),
+            {"delay": delay}).mappings().first()
+    row = db.execute(dispatch.select().where(dispatch.c.available_at <= now())
+                     .order_by(dispatch.c.available_at).limit(1)
+                     .with_for_update(skip_locked=True)).mappings().first()
+    if row:
+        db.execute(dispatch.update().where(dispatch.c.scan_id == row["scan_id"])
+                   .values(available_at=now() + timedelta(seconds=delay)))
+    return row
+
+
+def release_dispatch(db, scan_id):
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(sa.text("SELECT public.basira_dispatch_release(:scan_id)"), {"scan_id": scan_id})
+    else:
+        db.execute(dispatch.update().where(dispatch.c.scan_id == scan_id).values(available_at=now()))
+
+
 def close_scan(db, row, state, detail, report=None):
     cursor = record(db, row, state, detail)
     summary = history_item(Report.model_validate(report)).model_dump(mode="json") if report else None

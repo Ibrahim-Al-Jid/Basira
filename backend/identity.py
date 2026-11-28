@@ -28,7 +28,8 @@ except ImportError:
 
 from .platform_db import (
     AuthSession, Membership, Organization, PlatformUnavailable, Project, ProjectGrant,
-    User, personal_projects_enabled, platform_database_url, platform_session, utc_now,
+    User, bind_legacy_project_access, bind_owner, personal_projects_enabled, platform_database_url,
+    platform_session, revoke_session, session_owner, utc_now,
 )
 
 router = APIRouter(prefix="/api/platform", tags=["Project identity"])
@@ -200,10 +201,11 @@ def session_digest(request):
 def issue_session(db, user_id, old_digest):
     now = utc_now()
     token = secrets.token_urlsafe(32)
+    # The new row needs the owner bound: auth_sessions is owner-scoped once RLS is on, and the old
+    # digest is revoked through the definer function because the row may belong to another login.
+    bind_owner(db, user_id)
     if old_digest:
-        db.execute(update(AuthSession).where(
-            AuthSession.token_digest == old_digest, AuthSession.revoked_at.is_(None),
-        ).values(revoked_at=now))
+        revoke_session(db, old_digest)
     db.add(AuthSession(token_digest=token_digest(token), user_id=user_id,
                        created_at=now, expires_at=now + SESSION_TTL))
     return token
@@ -230,13 +232,10 @@ def require_user(request):
 def require_session_user(request, digest):
     if digest:
         with platform_session() as db:
-            user = db.scalar(
-                select(User).join(AuthSession, AuthSession.user_id == User.id).where(
-                    AuthSession.token_digest == digest, AuthSession.revoked_at.is_(None),
-                    AuthSession.expires_at > utc_now(), User.disabled_at.is_(None),
-                )
-            )
-            if user and (user.issuer != PASSWORD_ISSUER or password_auth_enabled(request)):
+            user_id = session_owner(db, digest)
+            user = db.get(User, user_id) if user_id else None
+            if (user and user.disabled_at is None
+                    and (user.issuer != PASSWORD_ISSUER or password_auth_enabled(request))):
                 return user
     raise HTTPException(401, "سجّل الدخول للوصول للمشاريع.")
 
@@ -250,10 +249,12 @@ def require_membership(db, org_id, user_id):
 
 def project_access(db, project_id, user_id):
     if personal_projects_enabled():
+        bind_owner(db, user_id)
         return db.execute(select(Project.org_id, literal("owner").label("role")).join(
             User, User.id == Project.owner_user_id,
         ).where(Project.id == project_id, Project.owner_user_id == user_id,
                 Project.deleted_at.is_(None), User.disabled_at.is_(None))).one_or_none()
+    bind_legacy_project_access(db)
     return db.execute(
         select(Project.org_id, Membership.role).join(
             Membership, and_(Membership.org_id == Project.org_id, Membership.user_id == user_id,
@@ -370,9 +371,7 @@ def logout(request: Request):
     digest = session_digest(request)
     if digest:
         with platform_session() as db:
-            db.execute(update(AuthSession).where(
-                AuthSession.token_digest == digest, AuthSession.revoked_at.is_(None),
-            ).values(revoked_at=utc_now()))
+            revoke_session(db, digest)
     response = Response(status_code=204)
     response.delete_cookie(SESSION_COOKIE, httponly=True, samesite="strict")
     return response
@@ -452,6 +451,7 @@ def create_project(org_id: str, body: NamedResource, request: Request):
         if member.role not in MANAGERS:
             raise HTTPException(403, "إنشاء المشروع يتطلب صلاحية إدارة المؤسسة.")
         project = Project(org_id=org_id, name=body.name)
+        bind_legacy_project_access(db)
         db.add(project)
         db.flush()
         return {"id": project.id, "org_id": org_id, "name": project.name, "role": member.role}
@@ -465,6 +465,7 @@ def list_projects(request: Request, archived: bool = False):
 
         return list_owned(user.id, archived)
     with platform_session() as db:
+        bind_legacy_project_access(db)
         items = db.execute(select(Project.id, Project.org_id, Project.name, Membership.role).join(
             Membership, and_(Membership.org_id == Project.org_id, Membership.user_id == user.id,
                              Membership.revoked_at.is_(None)),

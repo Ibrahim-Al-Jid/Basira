@@ -1,7 +1,9 @@
+from contextlib import closing
 import json
 import os
 from pathlib import Path
 import time
+import sqlite3
 from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
@@ -193,3 +195,67 @@ class SessionTableTests(unittest.TestCase):
         owners = {row["owner"] for row in self.rows()}
         assert "expired" not in owners and "live" in owners
         assert len(owners) == 2
+class PageHeaderTests(unittest.TestCase):
+    def setUp(self):
+        tmp = self.enterContext(TemporaryDirectory())
+        self.enterContext(patch.dict(os.environ, {"BASIRA_DB_PATH": str(Path(tmp) / "headers.sqlite3")}))
+        self.client = self.enterContext(TestClient(main.app))
+
+    def shell(self, path):
+        return self.client.get(path, headers={"accept": "text/html"})
+
+    def test_app_shell_sets_the_full_content_security_policy(self):
+        for path in ("/", "/dashboard", "/no-such-page"):
+            page = self.shell(path)
+            assert page.headers["content-security-policy"] == main.PAGE_POLICY, path
+            assert "script-src 'self'" in main.PAGE_POLICY
+            assert "object-src 'none'" in main.PAGE_POLICY
+            assert "base-uri 'self'" in main.PAGE_POLICY
+            assert page.headers["x-frame-options"] == "DENY"
+            assert page.headers["referrer-policy"] == "no-referrer"
+            assert page.headers["x-content-type-options"] == "nosniff"
+            assert page.headers["cache-control"] == "no-store"
+
+    def test_api_responses_keep_their_own_headers(self):
+        response = self.client.get("/api/product")
+        assert "content-security-policy" not in response.headers
+        assert response.headers["x-content-type-options"] == "nosniff"
+        assert response.headers["cache-control"] == "no-store"
+
+    def test_hashed_assets_are_cached_for_a_year(self):
+        response = self.client.get("/assets/app-abc12345.js")
+        assert response.headers["cache-control"] == "public, max-age=31536000, immutable"
+
+    def test_report_html_keeps_its_own_policy(self):
+        response = main.page_headers(main.HTMLResponse("<p>report</p>", headers={
+            "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'"}))
+        assert response.headers["content-security-policy"] == "default-src 'none'; style-src 'unsafe-inline'"
+        assert "frame-ancestors" not in response.headers["content-security-policy"]
+
+
+class DatabasePreparationTests(unittest.TestCase):
+    def test_schema_is_prepared_once_per_database_path(self):
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "once.sqlite3"
+            with patch.dict(os.environ, {"BASIRA_DB_PATH": str(path)}):
+                before = main.prepared_database.cache_info()
+                with main.database() as db:
+                    db.execute("SELECT count(*) FROM reports").fetchone()
+                with main.database() as db:
+                    db.execute("SELECT count(*) FROM reports").fetchone()
+                after = main.prepared_database.cache_info()
+        self.assertEqual(after.misses, before.misses + 1)
+        self.assertGreaterEqual(after.hits, before.hits + 1)
+
+    def test_legacy_sessions_table_gains_expiry_once(self):
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "legacy.sqlite3"
+            with closing(sqlite3.connect(path)) as db, db:
+                db.execute("CREATE TABLE sessions(owner TEXT PRIMARY KEY)")
+                db.execute("INSERT INTO sessions(owner) VALUES('legacy-owner')")
+            with patch.dict(os.environ, {"BASIRA_DB_PATH": str(path)}):
+                with main.database() as db:
+                    columns = {row["name"] for row in db.execute("PRAGMA table_info(sessions)")}
+                    window = db.execute("SELECT ends_at FROM legacy_session_window WHERE id=1").fetchone()
+        self.assertIn("expires_at", columns)
+        self.assertIsNotNone(window)

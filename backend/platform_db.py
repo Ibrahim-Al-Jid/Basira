@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from sqlalchemy import (
     CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, LargeBinary, String,
-    UniqueConstraint, create_engine, event, func, select, text,
+    UniqueConstraint, create_engine, event, func, select, text, update,
 )
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
@@ -225,6 +225,41 @@ def bind_owner(db, user_id):
         db.execute(text("SELECT set_config('basira.owner_user_id', :owner, true)"), {"owner": user_id})
 
 
+def session_owner(db, digest):
+    """Resolve an active session's user before any owner context exists."""
+    if db.get_bind().dialect.name == "postgresql":
+        return db.scalar(text("SELECT user_id FROM public.basira_session_owner(:digest)"),
+                         {"digest": digest})
+    return db.scalar(select(AuthSession.user_id).where(
+        AuthSession.token_digest == digest, AuthSession.revoked_at.is_(None),
+        AuthSession.expires_at > utc_now(),
+    ))
+
+
+def revoke_session(db, digest):
+    """Revoke a session by token digest. The digest alone identifies the row, so no owner is needed."""
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(text("SELECT public.basira_revoke_session(:digest)"), {"digest": digest})
+    else:
+        db.execute(update(AuthSession).where(
+            AuthSession.token_digest == digest, AuthSession.revoked_at.is_(None),
+        ).values(revoked_at=utc_now()))
+
+
+def bind_org(db, org_id):
+    """Bind the organization for the tables that are scoped by organization rather than by project."""
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(text("SELECT set_config('basira.org_id', :org_id, true)"), {"org_id": org_id})
+
+
+def bind_legacy_project_access(db):
+    """Open the membership-scoped path: those queries carry their own membership and grant checks."""
+    if personal_projects_enabled():
+        return
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(text("SELECT set_config('basira.legacy_project_access', '1', true)"))
+
+
 def bind_project(db, org_id, project_id, *, owner_user_id=None):
     """Bind trusted IDs for the current transaction; resetting happens on commit/rollback."""
     if db.get_bind().dialect.name == "postgresql":
@@ -241,7 +276,18 @@ def bind_project_context(db, context):
 
 
 def bind_job_project(db, org_id, project_id, *, lock=False):
-    # The queue contains IDs only. Resolve ownership from the project in the database.
+    # The queue contains IDs only, so ownership comes from the project row. On PostgreSQL that read
+    # happens before any owner is bound, which means it cannot go through row level security: the
+    # definer function `basira_project_owner` resolves it, and only then is the context bound.
+    if db.get_bind().dialect.name == "postgresql":
+        row = db.execute(text("SELECT owner_user_id FROM public.basira_project_owner(:org_id, :project_id)"),
+                         {"org_id": org_id, "project_id": project_id}).first()
+        if row is None:
+            return None
+        if personal_projects_enabled() and not row[0]:
+            return None
+        bind_project(db, org_id, project_id, owner_user_id=row[0])
+        return db.get(Project, project_id, with_for_update=lock) if lock else db.get(Project, project_id)
     project = db.get(Project, project_id, with_for_update=lock)
     if not project or project.org_id != org_id or project.deleted_at is not None:
         return None

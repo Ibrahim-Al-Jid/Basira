@@ -77,6 +77,108 @@ def test_security_definer_functions_are_not_public(db):
         assert not granted, f"{signature} must not be executable by PUBLIC"
 
 
+def test_projects_table_is_owner_scoped(db):
+    """The records are gated by a policy over `projects`, so the table itself must be gated too."""
+    enabled, forced = db.connect().execute(sa.text(
+        "SELECT c.relrowsecurity, c.relforcerowsecurity FROM pg_class AS c "
+        "JOIN pg_namespace AS n ON n.oid = c.relnamespace "
+        "WHERE n.nspname = 'public' AND c.relname = 'projects'")).one()
+    assert enabled, "projects must enable row level security"
+    # Not forced on purpose: basira_project_owner reads projects as the deploy role's definer, and
+    # row_security = off raises for an owner that is subject to RLS.
+    assert not forced, "projects must stay unforced so the definer owner lookup keeps working"
+    policies = db.connect().execute(sa.text(
+        "SELECT policyname, permissive FROM pg_policies "
+        "WHERE schemaname = 'public' AND tablename = 'projects'")).all()
+    assert ("personal_project_access", "PERMISSIVE") in policies
+
+
+def test_dispatch_queue_is_claimed_through_a_definer_function(db):
+    """The queue holds no payload, but the app role must not be able to read another tenant's rows."""
+    enabled, _ = db.connect().execute(sa.text(
+        "SELECT c.relrowsecurity, c.relforcerowsecurity FROM pg_class AS c "
+        "JOIN pg_namespace AS n ON n.oid = c.relnamespace "
+        "WHERE n.nspname = 'public' AND c.relname = 'scan_dispatch_outbox'")).one()
+    assert enabled, "scan_dispatch_outbox must enable row level security"
+    policies = db.connect().execute(sa.text(
+        "SELECT policyname, permissive FROM pg_policies "
+        "WHERE schemaname = 'public' AND tablename = 'scan_dispatch_outbox'")).all()
+    assert ("personal_project_access", "PERMISSIVE") in policies
+    with db.connect() as connection:
+        if not connection.execute(sa.text("SELECT 1 FROM pg_roles WHERE rolname = 'basira_app'")).first():
+            pytest.skip("basira_app role is not provisioned")
+        granted = connection.execute(sa.text(
+            "SELECT has_table_privilege('basira_app', 'scan_dispatch_outbox', 'SELECT'), "
+            "has_table_privilege('basira_app', 'scan_dispatch_outbox', 'UPDATE'), "
+            "has_table_privilege('basira_app', 'scan_dispatch_outbox', 'INSERT'), "
+            "has_table_privilege('basira_app', 'scan_dispatch_outbox', 'DELETE')")).one()
+        # SELECT stays for the DELETE that reads scan_id; the policy scopes the rows it can see.
+        assert granted == (True, False, True, True), "the queue is claimed through the function only"
+        for signature in ("basira_dispatch_claim(integer)", "basira_dispatch_release(text)"):
+            assert connection.execute(sa.text(
+                "SELECT has_function_privilege('basira_app', CAST(:signature AS regprocedure), 'EXECUTE')"),
+                {"signature": "public." + signature}).scalar_one()
+
+
+def test_sessions_are_resolved_through_definer_functions(db):
+    """The session lookup happens before any owner is known, so the table must not be readable."""
+    enabled, _ = db.connect().execute(sa.text(
+        "SELECT c.relrowsecurity, c.relforcerowsecurity FROM pg_class AS c "
+        "JOIN pg_namespace AS n ON n.oid = c.relnamespace "
+        "WHERE n.nspname = 'public' AND c.relname = 'auth_sessions'")).one()
+    assert enabled, "auth_sessions must enable row level security"
+    policies = db.connect().execute(sa.text(
+        "SELECT policyname, permissive FROM pg_policies "
+        "WHERE schemaname = 'public' AND tablename = 'auth_sessions'")).all()
+    assert ("personal_session_access", "PERMISSIVE") in policies
+    with db.connect() as connection:
+        if not connection.execute(sa.text("SELECT 1 FROM pg_roles WHERE rolname = 'basira_app'")).first():
+            pytest.skip("basira_app role is not provisioned")
+        granted = connection.execute(sa.text(
+            "SELECT has_table_privilege('basira_app', 'auth_sessions', 'SELECT'), "
+            "has_table_privilege('basira_app', 'auth_sessions', 'UPDATE'), "
+            "has_table_privilege('basira_app', 'auth_sessions', 'DELETE'), "
+            "has_table_privilege('basira_app', 'auth_sessions', 'INSERT')")).one()
+        assert granted == (False, False, False, True), "sign-in inserts; lookup and revoke go through functions"
+        for signature in ("basira_session_owner(text)", "basira_revoke_session(text)"):
+            assert connection.execute(sa.text(
+                "SELECT has_function_privilege('basira_app', CAST(:signature AS regprocedure), 'EXECUTE')"),
+                {"signature": "public." + signature}).scalar_one()
+            assert not connection.execute(sa.text(
+                "SELECT has_function_privilege('public', CAST(:signature AS regprocedure), 'EXECUTE')"),
+                {"signature": "public." + signature}).scalar_one()
+
+
+def test_invitations_are_scoped_to_their_organization(db):
+    """An invitation token is a credential: no session may read another organization's rows."""
+    enabled, _ = db.connect().execute(sa.text(
+        "SELECT c.relrowsecurity, c.relforcerowsecurity FROM pg_class AS c "
+        "JOIN pg_namespace AS n ON n.oid = c.relnamespace "
+        "WHERE n.nspname = 'public' AND c.relname = 'organization_invitations'")).one()
+    assert enabled, "organization_invitations must enable row level security"
+    policies = db.connect().execute(sa.text(
+        "SELECT policyname, permissive FROM pg_policies "
+        "WHERE schemaname = 'public' AND tablename = 'organization_invitations'")).all()
+    assert ("organization_invitation_access", "PERMISSIVE") in policies
+    with db.connect() as connection:
+        if not connection.execute(sa.text("SELECT 1 FROM pg_roles WHERE rolname = 'basira_app'")).first():
+            pytest.skip("basira_app role is not provisioned")
+        granted = connection.execute(sa.text(
+            "SELECT has_table_privilege('basira_app', 'organization_invitations', 'SELECT'), "
+            "has_table_privilege('basira_app', 'organization_invitations', 'INSERT'), "
+            "has_table_privilege('basira_app', 'organization_invitations', 'UPDATE'), "
+            "has_table_privilege('basira_app', 'organization_invitations', 'DELETE')")).one()
+        assert granted == (True, True, True, False), "invitations are closed, never deleted"
+        assert connection.execute(sa.text(
+            "SELECT has_function_privilege('basira_app', "
+            "CAST(:signature AS regprocedure), 'EXECUTE')"),
+            {"signature": "public.basira_invitation_org(text)"}).scalar_one()
+        assert not connection.execute(sa.text(
+            "SELECT has_function_privilege('public', "
+            "CAST(:signature AS regprocedure), 'EXECUTE')"),
+            {"signature": "public.basira_invitation_org(text)"}).scalar_one()
+
+
 def test_checkpoint_trigger_exists(db):
     assert scalar(db, "SELECT count(*) FROM pg_trigger WHERE tgname = 'basira_clear_analysis_checkpoint'") == 1
 
@@ -100,3 +202,22 @@ def test_app_role_cannot_write_immutable_evidence(db):
             "SELECT has_table_privilege('basira_app', 'project_assets', 'UPDATE'), "
             "has_table_privilege('basira_app', 'project_assets', 'SELECT')")).one()
         assert granted == (False, True)
+
+
+def test_app_role_has_no_access_to_the_ownership_queue_or_legacy_connections(db):
+    """docs/ERD.md promises both tables are not visible to the application account."""
+    with db.connect() as connection:
+        if not connection.execute(sa.text("SELECT 1 FROM pg_roles WHERE rolname = 'basira_app'")).first():
+            pytest.skip("basira_app role is not provisioned")
+        for table in ("project_ownership_reviews", "github_connections"):
+            granted = connection.execute(sa.text(
+                "SELECT has_table_privilege('basira_app', :table, 'SELECT'), "
+                "has_table_privilege('basira_app', :table, 'INSERT'), "
+                "has_table_privilege('basira_app', :table, 'UPDATE'), "
+                "has_table_privilege('basira_app', :table, 'DELETE')"), {"table": table}).one()
+            if table == "github_connections":
+                # The app reads legacy connections through one endpoint; it must not write them.
+                assert granted[0] is True, "basira_app must keep SELECT on github_connections"
+                assert granted[1:] == (False, False, False), f"basira_app must not write {table}"
+            else:
+                assert granted == (False, False, False, False), f"basira_app must have no access to {table}"
