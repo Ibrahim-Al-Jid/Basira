@@ -539,6 +539,7 @@ def add_grant(project_id: str, body: GrantInput, request: Request):
 def remove_grant(project_id: str, user_id: str, request: Request):
     context = require_project(request, project_id, "manage")
     with platform_session() as db:
+        bind_org(db, context.org_id)
         db.execute(update(ProjectGrant).where(
             ProjectGrant.org_id == context.org_id, ProjectGrant.project_id == context.project_id,
             ProjectGrant.user_id == user_id, ProjectGrant.revoked_at.is_(None),

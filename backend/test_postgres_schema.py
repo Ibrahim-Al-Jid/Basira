@@ -311,6 +311,35 @@ def test_credentials_are_scoped_and_attempts_are_definer_only(db):
             {"signature": "public.basira_reserve_attempt(text,bigint,integer)"}).scalar_one()
 
 
+def test_organizations_and_grants_are_scoped(db):
+    """An organization name and a project grant both name people: neither may be read across tenants."""
+    with db.connect() as connection:
+        for table, policy in (("organizations", "organization_access"),
+                              ("project_grants", "project_grant_access")):
+            enabled, _ = connection.execute(sa.text(
+                "SELECT c.relrowsecurity, c.relforcerowsecurity FROM pg_class AS c "
+                "JOIN pg_namespace AS n ON n.oid = c.relnamespace "
+                "WHERE n.nspname = 'public' AND c.relname = :table"), {"table": table}).one()
+            assert enabled, f"{table} must enable row level security"
+            policies = connection.execute(sa.text(
+                "SELECT policyname, permissive FROM pg_policies "
+                "WHERE schemaname = 'public' AND tablename = :table"), {"table": table}).all()
+            assert (policy, "PERMISSIVE") in policies, f"{table} needs the {policy} policy"
+        if not connection.execute(sa.text("SELECT 1 FROM pg_roles WHERE rolname = 'basira_app'")).first():
+            pytest.skip("basira_app role is not provisioned")
+        granted = connection.execute(sa.text(
+            "SELECT has_table_privilege('basira_app', 'organizations', 'SELECT'), "
+            "has_table_privilege('basira_app', 'organizations', 'INSERT'), "
+            "has_table_privilege('basira_app', 'organizations', 'UPDATE'), "
+            "has_table_privilege('basira_app', 'organizations', 'DELETE'), "
+            "has_table_privilege('basira_app', 'project_grants', 'SELECT'), "
+            "has_table_privilege('basira_app', 'project_grants', 'INSERT'), "
+            "has_table_privilege('basira_app', 'project_grants', 'UPDATE'), "
+            "has_table_privilege('basira_app', 'project_grants', 'DELETE')")).one()
+        assert granted == (True, True, True, False, True, True, True, False), (
+            "organizations are never dropped and grants are revoked, never deleted")
+
+
 def test_no_connection_is_left_checked_out(db):
     """A leaked connection here exhausts the pool the rest of the suite shares."""
     assert db.pool.checkedout() == 0

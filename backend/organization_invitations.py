@@ -57,6 +57,7 @@ def require_owner(db, org_id, user_id):
 
 
 def lock_organization(db, org_id):
+    bind_org(db, org_id)
     return db.scalar(select(Organization).where(Organization.id == org_id).with_for_update())
 
 
