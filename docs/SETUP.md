@@ -1,6 +1,6 @@
 # Setup and run guide
 
-Every command on this page was checked against `main` at commit `6499000` on 28 November 2026 (Linux, Python 3.13.18, Node 22.23.5). The last section states what was not run, so nothing here is claimed beyond its evidence.
+Every command on this page was checked against `main` at commit `7071ae9` on 28 November 2026 (Linux, Python 3.13.18, Node 22.23.5). The last section states what was not run, so nothing here is claimed beyond its evidence.
 
 Related: [configuration](CONFIGURATION.md) for every environment variable, [API](API.md) for the HTTP surface, [troubleshooting](TROUBLESHOOTING.md) when a step fails, [PLATFORM.md](PLATFORM.md) for the Arabic operations notes and the ownership migration.
 
@@ -178,8 +178,8 @@ After the app is installed, open Settings, then GitHub, press "Connect GitHub" a
 | Step | Command | Result |
 |---|---|---|
 | Install | `python -m venv .venv`, `pip install -r requirements-dev.txt` | ok, Python 3.13.18 |
-| Frontend | `npm --prefix frontend ci`, `npm run build` | ok, Vite build 650 ms |
-| Backend suite | `.venv/bin/python -m pytest backend -q` | 540 passed, 22 skipped, 8 subtests, 31.6 s |
+| Frontend | `npm --prefix frontend ci`, `npm run build` | ok, Vite build 683 ms |
+| Backend suite | `.venv/bin/python -m pytest backend -q` | 540 passed, 22 skipped, 8 subtests, 31.3 s |
 | Frontend unit tests | `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs` | 8 pass |
 | App start | `python -m uvicorn backend.main:app --host 127.0.0.1 --port 8765` | `/`, `/demo`, `/signin`, `/projects`, `/api/taxonomy`, `/api/product` all 200 |
 
