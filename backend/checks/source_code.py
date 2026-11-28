@@ -517,7 +517,6 @@ def php_sinks(path, text, prepared, line, flow, results, state):
             results.add("SRC-11", path, line, "PHP request input reaches unserialize().")
     for name, args, _ in calls(prepared, ("header",), method=False):
         first = split_args(args)[0]
-        location = re.match(r"\s*[\"']?\s*location\s*:(.*)$", re.sub(r"\s+", " ", text[text.find(args):]).strip() and first, re.I | re.S)
         raw_first = first
         if re.match(r"[\"']\s*location\s*:", raw_first.strip(), re.I) or re.match(r"[\"']\s*location\s*:", re.sub(r"'", "'", text[text.find("header"):]).split("(", 1)[-1].strip(), re.I):
             if "redirect" in flow.classes(first, prepared=True):
