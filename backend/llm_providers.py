@@ -68,6 +68,32 @@ def custom_base(url, resolver=socket.getaddrinfo):
     return f"https://{parts.netloc.lower()}{parts.path.rstrip('/')}"
 
 
+def pin_request(request, resolver=None):
+    """Connect-time check for a custom provider (DNS rebinding). custom_base() resolved the name when the request was
+    built, but the HTTP client would resolve it again, and an attacker's DNS can answer differently the second time.
+    Resolve once here, require every address to be public, and send the request to one of those addresses. The Host
+    header and the TLS server name stay the original host, so the certificate is still checked against the name."""
+    resolver = resolver or socket.getaddrinfo
+    parts = urlsplit(request["url"])
+    host = parts.hostname or ""
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        pass
+    else:
+        return request
+    try:
+        addresses = sorted({item[4][0] for item in resolver(host, 443, type=socket.SOCK_STREAM)})
+    except OSError:
+        raise ValueError("Base URL host does not resolve") from None
+    if not addresses or not all(_public_address(value) for value in addresses):
+        raise ValueError("Base URL must resolve to public addresses only")
+    address = ipaddress.ip_address(addresses[0])
+    netloc = f"[{address}]" if address.version == 6 else str(address)
+    return {**request, "url": parts._replace(netloc=netloc).geturl(), "headers": {**request["headers"], "Host": host},
+            "extensions": {"sni_hostname": host}}
+
+
 def _headers(provider, key):
     if provider in ("openrouter", "openai", CUSTOM):
         return {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
