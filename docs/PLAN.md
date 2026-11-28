@@ -256,7 +256,7 @@ Every change reaches `main` through a pull request (see [two-account-flow](two-a
 | #149 | Compose: forward `BASIRA_LOG_LEVEL` and the lab-run guard limits to the `app` service | P18 |
 | #150 | Auditor candidate check (P3): path, line and quote re-read from the snapshot, fixed reason codes | P09 |
 | #152 | CI: personal-projects browser suite on every pull request | P18 |
-| #151 | Hunter bounded tool loop (P4), flag `BASIRA_AGENT_LOOP`, not wired into scans yet | P09 |
+| #151 | Hunter bounded tool loop (P4), module only, not wired into scans yet (the flag is documented with the wiring PR) | P09 |
 | #153 | Frontend: remove dead CSS and the unused `SEVERITY_ORDER` export | P10 |
 | #155 | CI: source-intake browser suite on every pull request | P18 |
 | #156 | Scan events carry a translation key and params; stored text stays the fallback (frontend switch to keys queued) | P10 |
