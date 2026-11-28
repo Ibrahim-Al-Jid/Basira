@@ -230,7 +230,7 @@ The owner asked for a radical redesign: easier flows, less manual work, more aut
 
 **Slice (f) status (27 Nov 2026).** Landing and sign-in redesigned in Pop: the landing gains an evidence section (three tiles and a limits note) and a footer with theme and language toggles; sign-in is its own page with a stage panel and the form card, in Arabic and English, light and dark, with the account form moved out of `Platform.jsx` into `SignIn.jsx`. Screenshots checked by eye in all four combinations; the Playwright suites were not re-run and there was no contrast audit.
 
-**Teammate integration (28 Nov 2026).** Branch `ahmed` (command-center look, palette picker, new sidebar and overview) was merged onto main for review. It no longer loads `design-pop.css`; the owner decides whether Pop or this look is the shipped design (28 Nov 2026: the owner chose to continue on this look, and the unused `design-pop.css` and `landing.css` were deleted; the Pop paragraph above is history, not the shipped design). Verified: backend suite, build, personal-projects acceptance, all sidebar routes. Not verified: org-mode browser suites, contrast of the 16 palettes.
+**Teammate integration (28 Nov 2026).** Branch `ahmed` (command-center look, palette picker, new sidebar and overview) was merged onto main for review. It no longer loads `design-pop.css`. The owner settled the direction in his own channel on 28 November 2026, 08:11 (WhatsApp, Egyptian Arabic): continue on what exists now, overhaul the current design in place, no new paradigm, and the round-3 design concepts are reference only. The unused `design-pop.css` and `landing.css` were deleted (#53); the Pop paragraph above is history, not the shipped design. Verified: backend suite, build, personal-projects acceptance, all sidebar routes. Not verified: org-mode browser suites, contrast of the 16 palettes.
 
 **Slices, each a small PR to main.** (a) tokens and shared components; (b) single-screen Scan flow; (c) live view and auto-open; (d) decision-first report; (e) dashboard; (f) landing and sign-in. After each slice: screenshots in Arabic and English, dark and light, and a before/after action count.
 
@@ -395,9 +395,11 @@ What makes this graduation-worthy, in priority order: (1) live multi-agent view 
 | C | One tracker, this file; blueprint and repository phase IDs retired | decided 27 November 2026 |
 | D | Initial user is the individual developer, local first | decided |
 | E | Patch drafting stays behind a flag until gates A3 and A4 pass | decided |
-| G | Keep the current look (the teammate command-center frontend); no new design language. Recorded 28 November 2026; the Pop work stays in history and `design-pop.css` is deleted | decided 28 November 2026 (recorded in PR #53) |
-| H | Remove the header colour palette picker and the notification bell; the look is fixed to the default palette, with the dark/light and language toggles kept | decided 28 November 2026 (recorded in PR #56, open at the time of this entry) |
-| I | Every change lands through a pull request reviewed by a second account; authorship and review stay on separate accounts | decided 28 November 2026 ([two-account-flow](two-account-flow.md), PR #51) |
+| G | Keep the current look (the teammate command-center frontend); no new design language, overhaul in place. The round-3 design concepts are reference only | owner, 28 November 2026, 08:11 (WhatsApp, his own words) |
+| H | Remove the header colour palette picker and the Workspace pill (they only chose colours and shape), and the bell; the look is fixed to the default palette, with the dark/light and language toggles kept | owner, 28 November 2026, 08:26 (WhatsApp) |
+| I | Every change lands through a pull request reviewed by a second account; authorship and review stay on separate accounts, and the owner gave full autonomy to merge his pull requests through that flow | owner, 28 November 2026, 08:33 (WhatsApp); flow in [two-account-flow](two-account-flow.md) |
+| K | Arabic layout: the sidebar sits on the right | owner, 28 November 2026, 08:25 (WhatsApp); merged as #57 |
+| L | Standing mandate: where something is wrong or a better option exists, decide as the expert | owner, 28 November 2026, 08:25 (WhatsApp) |
 | J | No paid model spend; model configurations use one free OpenRouter model | decided 27 November 2026 |
 
 ## 11. Conventions
