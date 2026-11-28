@@ -160,9 +160,6 @@ def session(request):
             return owner, None
         token = secrets.token_urlsafe(32)
         owner = owner_key(token)
-        # Minting a session is also the moment to drop the rows that already expired, so the
-        # table stays bounded by live sessions instead of growing with every anonymous request.
-        db.execute("DELETE FROM sessions WHERE expires_at IS NOT NULL AND expires_at <= ?", (int(time.time()),))
         db.execute("INSERT INTO sessions(owner, expires_at) VALUES(?,?)", (owner, int(time.time()) + SESSION_SECONDS))
     return owner, token
 
@@ -438,8 +435,11 @@ def product_mode():
 @app.get("/settings", include_in_schema=False)
 @app.get("/new-scan", include_in_schema=False)
 def frontend_page(request: Request):
-    # A page view never mints a session: the first API call that needs one creates it.
-    return FileResponse(ROOT / "frontend" / "dist" / "index.html", headers={"Cache-Control": "no-store"})
+    page = FileResponse(ROOT / "frontend" / "dist" / "index.html", headers={"Cache-Control": "no-store"})
+    if personal_projects_enabled():
+        return page
+    _, token = session(request)
+    return set_session(page, token, request)
 
 
 from .identity import install_identity
