@@ -139,3 +139,87 @@ main.site-landing-main { padding: 0; max-width: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+:root[data-design] :is(
+  button, summary, select, input:is([type="button"], [type="submit"], [type="reset"]),
+  [role="button"], [role="tab"],
+  a[href]:is(.btn, .site-icon, .subtle, .overview-primary, .overview-text-link,
+    .reports-button, .reports-back, .reports-row, .workspace-back, .workspace-scan-title,
+    .signin-control, .signin-secondary, .site-brand, .signin-brand, .command-rail-note,
+    .personal-project-card),
+  nav a[href], .report-language a[href], .command-search-results a[href],
+  .command-panel-head > a[href], .command-activity a[href],
+  .directory-org-list a[href], .directory-project-list a[href],
+  .workspace-upload:has(input[type="file"]:enabled)
+):not(:disabled, [aria-disabled="true"]) {
+  @media (prefers-reduced-motion: no-preference) {
+    transition: background-color 160ms var(--ease), border-color 160ms var(--ease), color 160ms var(--ease),
+      box-shadow 160ms var(--ease);
+    &:is(.command-search, .btn.primary, .launch, .overview-primary, .reports-primary, .signin-submit, .personal-new-project) {
+      transition-property: border-color, color, box-shadow;
+    }
+  }
+
+  @media (any-hover: hover) {
+    &:hover:not(:active) {
+      background-color: light-dark(#f5bd55, #ffd27a);
+      background-image: none;
+      border-color: light-dark(#9c5c07, #ffc45c);
+      color: #2d1906;
+      box-shadow: 0 0 .85rem #f5ad3d55;
+
+      & > svg { color: inherit; }
+    }
+  }
+}
+
+@media (any-hover: hover) {
+  :root[data-design] input[type="file"]:enabled:hover:not(:active)::file-selector-button {
+    background: light-dark(#f5bd55, #ffd27a);
+    border-color: light-dark(#9c5c07, #ffc45c);
+    color: #2d1906;
+  }
+}
+
+:where(:has(> .button-ripple)) {
+  position: relative;
+  animation: button-tap 360ms cubic-bezier(.2, .75, .25, 1) both;
+}
+.button-ripple {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.button-ripple::before {
+  content: "";
+  position: absolute;
+  top: var(--ripple-y);
+  left: var(--ripple-x);
+  inline-size: calc(var(--ripple-radius) * 2);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  translate: -50% -50%;
+  background: radial-gradient(circle,
+    color-mix(in srgb, currentColor 18%, transparent) 20%,
+    color-mix(in srgb, currentColor 13%, transparent) 56%,
+    transparent 63%,
+    color-mix(in srgb, currentColor 62%, transparent) 68%,
+    color-mix(in srgb, currentColor 30%, transparent) 70%,
+    transparent 73%);
+  animation: button-ripple 600ms cubic-bezier(.2, .64, .3, 1) both;
+}
+
+@keyframes button-tap {
+  0%, 100% { scale: 1; }
+  24% { scale: .95; }
+  62% { scale: 1.025; }
+}
+
+@keyframes button-ripple {
+  0% { scale: .04; opacity: .95; }
+  45% { opacity: .72; }
+  100% { scale: 1.45; opacity: 0; }
+}

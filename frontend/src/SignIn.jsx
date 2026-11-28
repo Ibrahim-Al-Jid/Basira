@@ -157,10 +157,11 @@ export function SignIn({ onAuthenticated, lang, personal, startInRegister, navig
     <div className="signin-page">
       <div className="signin-topbar">
         <a className="signin-brand" href="/" onClick={home} aria-label={copy.homeLabel}>
-          <span className="signin-brand-mark" aria-hidden="true"><i /><i /><i /></span>
+          <span className="signin-brand-mark" aria-hidden="true"><ShieldCheck size={26} strokeWidth={1.7} /></span>
           <span dir="ltr">BASIRA</span>
         </a>
         <div className="signin-controls">
+          {preferences?.designPicker}
           {preferences && (
             <>
               <button type="button" className="signin-control" aria-pressed={preferences.theme === "dark"}

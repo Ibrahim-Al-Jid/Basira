@@ -1,0 +1,126 @@
+:root[data-design][data-theme="light"] {
+  --surface: color-mix(in srgb, #fff 97%, var(--canvas));
+  --surface-alt: color-mix(in srgb, #fff 87%, var(--accent-secondary));
+  --rail-surface: color-mix(in srgb, #fff 68%, var(--canvas));
+  --ink: #10243e;
+  --muted: #465d77;
+  --line: color-mix(in srgb, var(--accent-secondary) 18%, white);
+  --control-line: color-mix(in srgb, var(--accent-secondary) 34%, white);
+  --tint: color-mix(in srgb, white 87%, var(--accent));
+  --command-edge: color-mix(in srgb, var(--accent-secondary) 25%, white);
+  --command-glass: linear-gradient(152deg, #fff 42%, color-mix(in srgb, white 94%, var(--accent-secondary)));
+  --command-glow: 0 8px 26px color-mix(in srgb, var(--accent-secondary) 8%, transparent), 0 1px 2px #102d4710;
+  --shadow-1: var(--command-glow);
+  --shadow-2: 0 16px 36px color-mix(in srgb, var(--accent-secondary) 17%, transparent);
+}
+
+[data-theme="light"] .workspace-layout > .site-header {
+  background: #fbfdff;
+  box-shadow: 0 3px 18px #15355309;
+}
+[data-theme="light"] .workspace-layout > main,
+[data-theme="light"] :is(.security-overview, .dash, .project-workspace, .reports-workspace, .command-metric, .command-panel) {
+  color: var(--ink);
+}
+[data-theme="light"] .workspace-layout > :is(.overview-sidebar, .personal-sidebar) {
+  background: linear-gradient(180deg, white 13%, var(--rail-surface) 74%, var(--surface-alt));
+}
+[data-theme="light"] .workspace-layout > :is(.overview-sidebar, .personal-sidebar)::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: 16rem;
+  pointer-events: none;
+  background: url("/basira-network-globe.webp") 63% center / cover no-repeat;
+  filter: invert(1) hue-rotate(180deg) saturate(.85);
+  mix-blend-mode: multiply;
+  mask-image: linear-gradient(transparent, #000 57%);
+  opacity: .36;
+}
+[data-theme="light"] :is(.site-brand-mark, .signin-page .signin-brand-mark) {
+  background: white;
+  box-shadow: 0 5px 17px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+[data-theme="light"] :is(.overview-nav a[aria-current], .personal-links [aria-current]) {
+  color: var(--accent-text);
+  background: linear-gradient(90deg, var(--tint), color-mix(in srgb, var(--surface) 90%, var(--accent-secondary)));
+  box-shadow: inset 4px 0 var(--accent-secondary), 0 3px 12px color-mix(in srgb, var(--accent-secondary) 13%, transparent);
+}
+[data-theme="light"] .command-rail-note { background: color-mix(in srgb, white 89%, var(--accent)); }
+[data-theme="light"] .command-search {
+  background: var(--rail-surface);
+  box-shadow: inset 0 1px 4px color-mix(in srgb, var(--accent-secondary) 6%, transparent);
+}
+[data-theme="light"] .site-controls :is(.site-icon, .command-preferences) {
+  background: var(--rail-surface);
+  border-color: var(--command-edge);
+}
+[data-theme="light"] .command-workspace-dot { background: #007f74; }
+[data-theme="light"] .command-theme > .palette-controls { background: #fff; }
+[data-theme="light"] .command-search kbd { color: var(--muted); }
+
+[data-theme="light"] .workspace-layout > main:has(.command-hero)::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset-block-start: 0;
+  right: 0;
+  inline-size: min(68%, 55rem);
+  block-size: clamp(15rem, 29vw, 23rem);
+  background: url("/basira-network-globe.webp") 85% 12% / cover no-repeat;
+  filter: invert(1) hue-rotate(180deg) saturate(1.14);
+  mix-blend-mode: multiply;
+  mask-image: linear-gradient(to right, transparent, #000 28%), linear-gradient(to bottom, #000 14%, transparent 96%);
+  mask-composite: intersect;
+  opacity: .62;
+  pointer-events: none;
+}
+[data-theme="light"] .command-hero :is(.overview-primary, .btn.primary) {
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--accent-secondary) 25%, transparent), inset 0 1px #fff4;
+}
+[data-theme="light"] .command-metric {
+  background: linear-gradient(153deg, color-mix(in srgb, white 91%, var(--metric-color)), white 58%);
+  box-shadow: var(--command-glow);
+}
+[data-theme="light"] .command-icon {
+  background: color-mix(in srgb, white 90%, var(--metric-color, var(--accent)));
+}
+[data-theme="light"] .command-sparkline { opacity: .92; }
+[data-theme="light"] .command-donut::after { background: #fff; }
+[data-theme="light"] .command-table thead th { background: color-mix(in srgb, white 90%, var(--accent-secondary)); }
+[data-theme="light"] .command-table tbody tr:nth-child(even) { background: color-mix(in srgb, white 96%, var(--accent-secondary)); }
+[data-theme="light"] .command-activity li[data-state="completed"] .command-activity-icon { color: #007c6f; }
+[data-theme="light"] .overview-chart-plot, [data-theme="light"] .dash-bars {
+  background: repeating-linear-gradient(to top, transparent 0 calc(25% - 1px), var(--line) calc(25% - 1px) 25%),
+    linear-gradient(to top, color-mix(in srgb, white 92%, var(--accent-secondary)), transparent);
+}
+
+:root[data-design][data-theme="light"] :is(.reports-decision, .reports-decision-fixes li, .reports-decision-sev) {
+  color: var(--ink);
+  border: 1px solid var(--command-edge);
+  border-radius: var(--panel-radius);
+}
+[data-theme="light"] .reports-decision {
+  background: linear-gradient(130deg, var(--surface-alt), var(--surface) 82%);
+  box-shadow: var(--command-glow);
+}
+[data-theme="light"] .reports-decision[data-clear] { background: linear-gradient(130deg, var(--positive-bg), var(--surface) 82%); }
+[data-theme="light"] .reports-decision-fixes li::before { color: var(--on-accent); background: var(--accent); }
+[data-theme="light"] .signin-page {
+  background: radial-gradient(ellipse at 80% 0%, var(--surface-alt), transparent 56%), var(--canvas);
+}
+[data-theme="light"] .signin-page :is(.signin-card, .signin-stage) { background: var(--command-glass); }
+[data-theme="light"] .signin-page .signin-points li { background: color-mix(in srgb, white 93%, var(--accent)); }
+[data-theme="light"] .signin-page .signin-input { background: white; }
+[data-theme="light"] .modal { color: var(--ink); background: white; }
+[data-theme="light"] .modal::backdrop { background: #0c264266; }
+
+@media (max-width: 760px) {
+  [data-theme="light"] .workspace-layout > :is(.overview-sidebar, .personal-sidebar)::after { display: none; }
+}
+@media (max-width: 600px) {
+  [data-theme="light"] .workspace-layout > main:has(.command-hero)::before { inline-size: 100%; opacity: .34; }
+}
+

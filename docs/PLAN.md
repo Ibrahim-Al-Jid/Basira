@@ -170,6 +170,8 @@ The owner asked for a radical redesign: easier flows, less manual work, more aut
 
 **Slice (f) status (27 Nov 2026).** Landing and sign-in redesigned in Pop: the landing gains an evidence section (three tiles and a limits note) and a footer with theme and language toggles; sign-in is its own page with a stage panel and the form card, in Arabic and English, light and dark, with the account form moved out of `Platform.jsx` into `SignIn.jsx`. Screenshots checked by eye in all four combinations; the Playwright suites were not re-run and there was no contrast audit.
 
+**Teammate integration (28 Nov 2026).** Branch `ahmed` (command-center look, palette picker, new sidebar and overview) was merged onto main for review. It no longer loads `design-pop.css`; the owner decides whether Pop or this look is the shipped design. Verified: backend suite, build, personal-projects acceptance, all sidebar routes. Not verified: org-mode browser suites, contrast of the 16 palettes.
+
 **Slices, each a small PR to main.** (a) tokens and shared components; (b) single-screen Scan flow; (c) live view and auto-open; (d) decision-first report; (e) dashboard; (f) landing and sign-in. After each slice: screenshots in Arabic and English, dark and light, and a before/after action count.
 
 Done when: the 3-action flow passes the browser test in both languages, every route has screenshots in both languages and both themes, keyboard use works on the Scan, live and report screens, and each dashboard number reconciles with its scan records. Not claimed: any accessibility audit by a tool, unless one is run and recorded.
