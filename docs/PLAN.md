@@ -72,8 +72,8 @@ A future addition may be started early only if Release 1 is complete, or if it b
 
 Phases P01 to P08 are built; this plan has 24 phases (P01 to P24). P09 has its live view and model lane in place; P10 slices a to f and P20 are merged, and the design question is closed (28 November 2026: keep the current look, no new design); open: the automatic default project (scan flow is 4 actions, target 3), then future additions. Release 1 scope is defined above; everything else is a future addition. Section 3b lists every merged pull request, which is where the evidence for a status lives.
 
-Verified on 28 November 2026 at commit `192fddf`, Linux, Python 3.13.18, Node 22.23.5 (the merges after it, #145 included, change documentation only):
-- Backend suite: `python -m pytest backend -q` gave 443 passed, 19 skipped, 8 subtests in 20.9 s. The frontend build ran first, as `backend/test_api.py` serves `frontend/dist`.
+Verified on 28 November 2026 at commit `b267b40`, Linux, Python 3.13.18, Node 22.23.5:
+- Backend suite: `python -m pytest backend -q` gave 450 passed, 20 skipped, 8 subtests in 16.1 s. The frontend build ran first, as `backend/test_api.py` serves `frontend/dist`.
 - Frontend: `npm --prefix frontend ci` and `npm run build` succeed; `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs` gave 8 pass.
 - App start: `/`, `/demo`, `/signin`, `/projects`, `GET /api/taxonomy` and `GET /api/product` returned 200.
 - Documentation set: [SETUP](SETUP.md), [CONFIGURATION](CONFIGURATION.md), [API](API.md) and [TROUBLESHOOTING](TROUBLESHOOTING.md) added, with the commands they contain checked in the same run.
@@ -250,6 +250,11 @@ Every change reaches `main` through a pull request (see [two-account-flow](two-a
 | #142 | CI: run the workspace browser suite on every pull request | P18 |
 | #143 | Frontend: claim lab reports into a project from the reports archive | P10 |
 | #145 | Docs follow-up: lab run guard, claim panel, CI suites, figures | docs |
+| #147 | Docs: cross-reference sweep for the merges since #120 (lab guard 429, Compose settings, PLAN row) | docs |
+| #148 | Deterministic project map (Scout): languages, entry points, routes, config files, manifests, trust boundaries | P09 |
+| #144 | CI: password-login browser suite on every pull request; migration 0032 fixes `basira_login_identity` | P18 |
+| #149 | Compose: forward `BASIRA_LOG_LEVEL` and the lab-run guard limits to the `app` service | P18 |
+| #150 | Auditor candidate check (P3): path, line and quote re-read from the snapshot, fixed reason codes | P09 |
 
 Order of work, set by the agent as the expert (27 Nov 2026): P21 (provider settings, done), P09 model lane (done), P10 redesign slices a to f (merged), then P20 (replay and budget check, merged), P19 (source-code checks, the biggest measured gap), P11, P17 and P23 (measured evaluation with precision, when the free-tier cap allows), P13, P16, P15, P22, P07 gaps, P12, P24, P18. P14 follows decision A and ships before P17 if approved, so evaluation covers it.
 
