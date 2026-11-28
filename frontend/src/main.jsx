@@ -38,7 +38,6 @@ import { Reports } from "./Reports";
 import { Platform, usePlatformSession } from "./Platform";
 import { Landing, OverviewSidebar } from "./Landing";
 import { SiteHeader, readPreference, savePreference } from "./SiteHeader";
-import { applyPalette, DesignPicker, validDesign } from "./DesignPicker";
 import { PersonalSidebar } from "./PersonalWorkspace";
 import { action } from "./platformClient";
 import "./style.css";
@@ -94,9 +93,6 @@ function App() {
   });
   const [theme, setTheme] = useState(() => readPreference("reference-theme", "dark") === "light" ? "light" : "dark");
   const preferences = { lang, setLang, theme, setTheme };
-  const [design, setDesign] = useState(() => validDesign(readPreference("reference-design", "original")));
-  const [mix, setMix] = useState(() => validDesign(readPreference("reference-mix", "auto"), "auto"));
-  const designPicker = <DesignPicker lang={lang} design={design} mix={mix} onChange={setDesign} onMix={setMix} />;
   const landingPage = location.pathname === "/";
   const signingInPage = /^\/signin\/?$/.test(location.pathname);
   const [product, setProduct] = useState(null);
@@ -184,13 +180,8 @@ function App() {
     savePreference("reference-theme", theme);
   }, [lang, theme]);
   useEffect(() => {
-    const root = document.documentElement;
-    root.dataset.design = design;
-    const canvas = applyPalette(root, design, mix, theme);
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", canvas);
-    savePreference("reference-design", design);
-    savePreference("reference-mix", mix);
-  }, [design, mix, theme]);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "light" ? "#edf5fd" : "#000b19");
+  }, [theme]);
   useEffect(() => {
     document.title = landingPage ? "BASIRA | Web Security Workspace"
       : demoPage ? "BASIRA | Demo" : "BASIRA | Workspace";
@@ -270,7 +261,7 @@ function App() {
     <>
       <div className={signingInPage ? undefined : "workspace-layout"} dir={signingInPage ? undefined : "ltr"}>
       {!signingInPage && <SiteHeader pathname={location.pathname} follow={follow} lang={lang} authenticated={Boolean(session.user)}
-        designPicker={designPicker} preferences={preferences} />}
+        preferences={preferences} />}
       {personalWorkspace && <PersonalSidebar key={session.user.id} location={location} navigate={navigate} lang={lang}
         follow={follow} revision={projectRevision} onLogout={() => { session.setUser(null); navigate("/", { replace: true }); }} />}
       {!signingInPage && !personalWorkspace && <OverviewSidebar lang={lang} follow={follow} location={location} personal={personal} />}
@@ -284,7 +275,7 @@ function App() {
           : findingsPage ? <p role="status">{t("جاري فتح التقارير…", "Opening reports…")}</p>
           : projectsPage ? <Platform location={location} navigate={navigate} lang={lang} session={session}
             personal={personal} onProjectsChanged={() => setProjectRevision((revision) => revision + 1)}
-            preferences={{ ...preferences, designPicker: signingInPage ? designPicker : null }} />
+            preferences={preferences} />
           : demoPage ? (
           <>
             <div className="heading">
