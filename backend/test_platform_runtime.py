@@ -285,3 +285,17 @@ def test_gateway_keeps_raw_input_and_memory_out_of_provider(monkeypatch, tmp_pat
         assert service.post("/priority", headers=headers, json=facts).status_code == 503
     assert seen == [("https://openrouter.ai/api/v1/chat/completions", '{"http-form": 1}', f"Bearer {label}")
                     for label in ("first-fake-key", "rotated-fake-key")]
+
+
+def test_dispatch_delivers_after_the_claim_transaction_commits(platform):
+    owner, stranger, ctx = platform
+    scan_id = submit(owner, ctx).json()["id"]
+    claimed = []
+
+    def inline_delivery(org_id, project_id, scan):
+        # A delivery that runs the task inline (eager mode, tests, one-process SQLite
+        # deployments) writes to the same database the dispatcher is holding open.
+        claimed.append(store.claim(org_id, project_id, scan))
+
+    assert jobs.dispatch_once(inline_delivery)
+    assert claimed and claimed[0] is not None

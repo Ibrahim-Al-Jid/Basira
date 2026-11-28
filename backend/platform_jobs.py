@@ -147,10 +147,20 @@ def dispatch_once(deliver=None):
                          .with_for_update(skip_locked=True)).mappings().first()
         if not due:
             return False
-        deliver(due["org_id"], due["project_id"], due["scan_id"])
+        target = (due["org_id"], due["project_id"], due["scan_id"])
         # Retain the outbox until a terminal DB transaction commits; duplicate delivery is safe.
         db.execute(store.dispatch.update().where(store.dispatch.c.scan_id == due["scan_id"])
                    .values(available_at=store.now() + timedelta(seconds=100)))
+    # Deliver after the claim commits. A delivery can run the task inline (eager mode, tests,
+    # single-process deployments), and that task writes to the same database: delivering
+    # inside the claim transaction deadlocks the writer on SQLite.
+    try:
+        deliver(*target)
+    except Exception:
+        with store.platform_session() as db:
+            db.execute(store.dispatch.update().where(store.dispatch.c.scan_id == target[2])
+                       .values(available_at=store.now()))
+        raise
     return True
 
 
