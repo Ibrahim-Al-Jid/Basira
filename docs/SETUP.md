@@ -39,7 +39,7 @@ Open http://127.0.0.1:8765/demo, choose an HTML file or paste markup, and run th
 Checks that should pass:
 
 ```bash
-.venv/bin/python -m pytest backend -q            # 434 passed, 18 skipped on 28 Nov 2026
+.venv/bin/python -m pytest backend -q            # 443 passed, 19 skipped on 28 Nov 2026
 node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs   # 8 pass
 ```
 
@@ -171,7 +171,7 @@ After the app is installed, open Settings, then GitHub, press "Connect GitHub" a
 |---|---|---|
 | Install | `python -m venv .venv`, `pip install -r requirements-dev.txt` | ok, Python 3.13.18 |
 | Frontend | `npm --prefix frontend ci`, `npm run build` | ok, Vite build 444 ms |
-| Backend suite | `.venv/bin/python -m pytest backend -q` | 434 passed, 18 skipped, 8 subtests, 20.9 s |
+| Backend suite | `.venv/bin/python -m pytest backend -q` | 443 passed, 19 skipped, 8 subtests, 20.9 s |
 | Frontend unit tests | `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs` | 8 pass |
 | App start | `python -m uvicorn backend.main:app --host 127.0.0.1 --port 8765` | `/`, `/demo`, `/signin`, `/projects`, `/api/taxonomy`, `/api/product` all 200 |
 
