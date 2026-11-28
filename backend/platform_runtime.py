@@ -31,7 +31,7 @@ scans = sa.Table(
     sa.Column("id", sa.String(32), primary_key=True),
     sa.Column("org_id", sa.String(32), nullable=False),
     sa.Column("project_id", sa.String(32), nullable=False),
-    sa.Column("user_id", sa.String(32), nullable=False),
+    sa.Column("user_id", sa.String(32), sa.ForeignKey("users.id"), nullable=False),
     sa.Column("idempotency_key", sa.String(100), nullable=False),
     sa.Column("request_digest", sa.String(64), nullable=False),
     sa.Column("state", sa.String(16), nullable=False),
@@ -52,7 +52,8 @@ scans = sa.Table(
     sa.Column("cursor", sa.Integer, nullable=False, default=0),
     sa.ForeignKeyConstraint(("org_id", "project_id"), ("projects.org_id", "projects.id")),
     sa.UniqueConstraint("org_id", "project_id", "id", name="uq_project_scans_scope"),
-    sa.UniqueConstraint("org_id", "user_id", "idempotency_key", name="uq_project_scans_request"),
+    sa.UniqueConstraint("org_id", "project_id", "user_id", "idempotency_key",
+                        name="uq_project_scans_project_request"),
     sa.Index("ix_project_scans_timeline", "org_id", "project_id", "created_at"),
     sa.Index("ix_project_scans_source_expiry", "source_expires_at"),
 )
@@ -96,7 +97,7 @@ notes = sa.Table(
     sa.Column("title", sa.String(160), nullable=False),
     sa.Column("reference", sa.String(500), nullable=False),
     sa.Column("note", sa.String(2000), nullable=False),
-    sa.Column("reviewer_id", sa.String(32), nullable=False),
+    sa.Column("reviewer_id", sa.String(32), sa.ForeignKey("users.id"), nullable=False),
     sa.Column("created_at", sa.DateTime, nullable=False),
     sa.Column("revoked_at", sa.DateTime),
     sa.ForeignKeyConstraint(("org_id", "project_id"), ("projects.org_id", "projects.id")),
@@ -120,7 +121,7 @@ legacy = sa.Table(
     sa.Column("legacy_id", sa.String(32), primary_key=True),
     sa.Column("org_id", sa.String(32), nullable=False),
     sa.Column("project_id", sa.String(32), nullable=False),
-    sa.Column("user_id", sa.String(32), nullable=False),
+    sa.Column("user_id", sa.String(32), sa.ForeignKey("users.id"), nullable=False),
     sa.Column("report", sa.JSON, nullable=False),
     sa.Column("report_index", sa.JSON, nullable=False),
     sa.Column("claimed_at", sa.DateTime, nullable=False),
@@ -661,6 +662,14 @@ def reserve_model_connection(org_id, project_id, scan_id, lease):
             return None
         db.execute(scans.update().where(scans.c.id == scan_id).values(enrichment_reserved_at=now()))
         return connection
+
+
+def purge_expired_rows():
+    # One owner for the expiry tables; the dispatcher runs it beside artifact expiry.
+    with platform_session() as db:
+        if db.bind.dialect.name == "postgresql":
+            return db.execute(sa.text("SELECT public.basira_purge_expired()")).scalar_one()
+        return 0
 
 
 def expire_pending_artifacts():
