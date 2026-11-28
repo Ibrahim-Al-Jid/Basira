@@ -120,6 +120,35 @@ def test_dispatch_queue_is_claimed_through_a_definer_function(db):
                 {"signature": "public." + signature}).scalar_one()
 
 
+def test_sessions_are_resolved_through_definer_functions(db):
+    """The session lookup happens before any owner is known, so the table must not be readable."""
+    enabled, _ = db.connect().execute(sa.text(
+        "SELECT c.relrowsecurity, c.relforcerowsecurity FROM pg_class AS c "
+        "JOIN pg_namespace AS n ON n.oid = c.relnamespace "
+        "WHERE n.nspname = 'public' AND c.relname = 'auth_sessions'")).one()
+    assert enabled, "auth_sessions must enable row level security"
+    policies = db.connect().execute(sa.text(
+        "SELECT policyname, permissive FROM pg_policies "
+        "WHERE schemaname = 'public' AND tablename = 'auth_sessions'")).all()
+    assert ("personal_session_access", "PERMISSIVE") in policies
+    with db.connect() as connection:
+        if not connection.execute(sa.text("SELECT 1 FROM pg_roles WHERE rolname = 'basira_app'")).first():
+            pytest.skip("basira_app role is not provisioned")
+        granted = connection.execute(sa.text(
+            "SELECT has_table_privilege('basira_app', 'auth_sessions', 'SELECT'), "
+            "has_table_privilege('basira_app', 'auth_sessions', 'UPDATE'), "
+            "has_table_privilege('basira_app', 'auth_sessions', 'DELETE'), "
+            "has_table_privilege('basira_app', 'auth_sessions', 'INSERT')")).one()
+        assert granted == (False, False, False, True), "sign-in inserts; lookup and revoke go through functions"
+        for signature in ("basira_session_owner(text)", "basira_revoke_session(text)"):
+            assert connection.execute(sa.text(
+                "SELECT has_function_privilege('basira_app', CAST(:signature AS regprocedure), 'EXECUTE')"),
+                {"signature": "public." + signature}).scalar_one()
+            assert not connection.execute(sa.text(
+                "SELECT has_function_privilege('public', CAST(:signature AS regprocedure), 'EXECUTE')"),
+                {"signature": "public." + signature}).scalar_one()
+
+
 def test_checkpoint_trigger_exists(db):
     assert scalar(db, "SELECT count(*) FROM pg_trigger WHERE tgname = 'basira_clear_analysis_checkpoint'") == 1
 
