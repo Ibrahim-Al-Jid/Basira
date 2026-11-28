@@ -89,7 +89,7 @@
       "kind": "config",
       "name": "checkout.json",
       "artifact": {"files": {"checkout/settings.py": "# Fictional credential-shaped fixture\napi_key = \"basira_fixture_Q7vN4sB9xR2mK6pT8qW3\"\n"}},
-      "expected": [["SRC-01", "checkout/settings.py", 2]]
+      "expected": [["SEC-01", "checkout/settings.py", 2]]
     },
     {
       "id": "dependency-advisory-metadata",

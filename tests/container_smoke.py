@@ -75,13 +75,13 @@ def main():
         assert resumed["events"][-1]["kind"] == "completed"
         report = checked(owner.get(path + "/reports/" + scan))
         catalog = checked(owner.get("/api/catalog"))["rules"]
-        adapters = {"SRC-01", "SCA-01"}
+        adapters = {"SEC-01", "SCA-01"}
         static_rules = len([row for row in catalog if row["id"] not in adapters])
         assert len([row for row in report["coverage"] if row["rule"] not in adapters]) == static_rules
         assert {entry["rule"] for entry in report["findings"]} >= {"INF-01", "INF-02"}
         enabled = set(os.environ.get("BASIRA_SOURCE_ADAPTERS", "").split(","))
         if "gitleaks" in enabled:
-            assert any(item["rule"] == "SRC-01" and item["path"] == "sample.py" and item["line"] == 2
+            assert any(item["rule"] == "SEC-01" and item["path"] == "sample.py" and item["line"] == 2
                        for item in report["findings"])
         if "osv-scanner" in enabled:
             assert any(item["rule"] == "SCA-01" and item["path"] == "requirements.txt"

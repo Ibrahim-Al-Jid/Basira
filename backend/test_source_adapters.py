@@ -285,3 +285,10 @@ def test_actual_tools_offline_against_fixed_positive_and_negative(monkeypatch):
         "gitleaks", "osv-scanner",
     }]
     assert not (NEW_RULES & {item["rule"] for item in negative["findings"]})
+
+
+def test_adapter_rule_ids_never_reuse_a_native_rule_id():
+    from .artifact_review import EXTENDED_IDS
+    from .rules import RULES
+    native = set(EXTENDED_IDS) | RULES.keys()
+    assert not {tool.rule for tool in adapters.SOURCE_TOOLS} & native
