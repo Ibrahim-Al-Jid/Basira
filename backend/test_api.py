@@ -193,3 +193,39 @@ class SessionTableTests(unittest.TestCase):
         owners = {row["owner"] for row in self.rows()}
         assert "expired" not in owners and "live" in owners
         assert len(owners) == 2
+class PageHeaderTests(unittest.TestCase):
+    def setUp(self):
+        tmp = self.enterContext(TemporaryDirectory())
+        self.enterContext(patch.dict(os.environ, {"BASIRA_DB_PATH": str(Path(tmp) / "headers.sqlite3")}))
+        self.client = self.enterContext(TestClient(main.app))
+
+    def shell(self, path):
+        return self.client.get(path, headers={"accept": "text/html"})
+
+    def test_app_shell_sets_the_full_content_security_policy(self):
+        for path in ("/", "/dashboard", "/no-such-page"):
+            page = self.shell(path)
+            assert page.headers["content-security-policy"] == main.PAGE_POLICY, path
+            assert "script-src 'self'" in main.PAGE_POLICY
+            assert "object-src 'none'" in main.PAGE_POLICY
+            assert "base-uri 'self'" in main.PAGE_POLICY
+            assert page.headers["x-frame-options"] == "DENY"
+            assert page.headers["referrer-policy"] == "no-referrer"
+            assert page.headers["x-content-type-options"] == "nosniff"
+            assert page.headers["cache-control"] == "no-store"
+
+    def test_api_responses_keep_their_own_headers(self):
+        response = self.client.get("/api/product")
+        assert "content-security-policy" not in response.headers
+        assert response.headers["x-content-type-options"] == "nosniff"
+        assert response.headers["cache-control"] == "no-store"
+
+    def test_hashed_assets_are_cached_for_a_year(self):
+        response = self.client.get("/assets/app-abc12345.js")
+        assert response.headers["cache-control"] == "public, max-age=31536000, immutable"
+
+    def test_report_html_keeps_its_own_policy(self):
+        response = main.page_headers(main.HTMLResponse("<p>report</p>", headers={
+            "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'"}))
+        assert response.headers["content-security-policy"] == "default-src 'none'; style-src 'unsafe-inline'"
+        assert "frame-ancestors" not in response.headers["content-security-policy"]
