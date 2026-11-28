@@ -29,6 +29,7 @@ from .artifact_review import RULESET_VERSION, catalog as rule_catalog, redact_la
 from .offline_worker import scan_payload
 from .taxonomy import public as taxonomy_public
 from .platform_db import personal_projects_enabled
+from .observability import install_observability
 
 ROOT = Path(__file__).resolve().parents[1]
 COOKIE = "basira_session"
@@ -452,6 +453,7 @@ from .personal_github import router as personal_github_router
 from .personal_intake import router as personal_intake_router
 
 install_identity(app)
+install_observability(app)
 app.include_router(platform_router)
 app.include_router(evidence_links_router)
 app.include_router(github_import_router)
