@@ -39,7 +39,7 @@ Open http://127.0.0.1:8765/demo, choose an HTML file or paste markup, and run th
 Checks that should pass:
 
 ```bash
-.venv/bin/python -m pytest backend -q            # 407 passed, 2 skipped on 28 Nov 2026
+.venv/bin/python -m pytest backend -q            # 431 passed, 18 skipped on 28 Nov 2026
 node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs   # 8 pass
 ```
 
@@ -98,6 +98,18 @@ docker compose -p basira-local ps -a
 `migrate` runs Alembic and exits; `app`, `dispatcher`, `worker`, `scanner`, `db` and `broker` stay up. Then open http://127.0.0.1:8765/signin and choose "Create account" on a fresh install.
 
 `compose.local.yaml` turns on personal projects, local password accounts and self sign-up, and mounts `./data` so the lab SQLite file survives a rebuild. Without it the email and password sign-in stays off.
+
+### One command on Linux and macOS
+
+`bash ops/start-local.sh` does steps 1 to 3 for you: it writes `.env.local` the first time (random passwords and a GitHub credential key; values already there are never overwritten), starts the local profile and waits until the app answers.
+
+```bash
+bash ops/start-local.sh                              # http://127.0.0.1:8765
+bash ops/start-local.sh --port 9000 --model          # another port, with the model gateway profile
+bash ops/start-local.sh --github-client-id <id> --github-app-slug <slug>
+```
+
+The script is not executable in the repository (mode 644), so run it with `bash`. Run here: `bash ops/start-local.sh --help` prints that usage, `--port 80` is refused with `--port must be between 1024 and 65535.`, and with no Docker engine it stops with `Install Docker and start it, then run this script again.` The stack itself was not started (no Docker in this environment).
 
 Optional profiles:
 
@@ -159,7 +171,7 @@ After the app is installed, open Settings, then GitHub, press "Connect GitHub" a
 |---|---|---|
 | Install | `python -m venv .venv`, `pip install -r requirements-dev.txt` | ok, Python 3.13.18 |
 | Frontend | `npm --prefix frontend ci`, `npm run build` | ok, Vite build 444 ms |
-| Backend suite | `.venv/bin/python -m pytest backend -q` | 407 passed, 2 skipped, 8 subtests, 20.9 s |
+| Backend suite | `.venv/bin/python -m pytest backend -q` | 431 passed, 18 skipped, 8 subtests, 20.9 s |
 | Frontend unit tests | `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs` | 8 pass |
 | App start | `python -m uvicorn backend.main:app --host 127.0.0.1 --port 8765` | `/`, `/demo`, `/signin`, `/projects`, `/api/taxonomy`, `/api/product` all 200 |
 
@@ -169,3 +181,31 @@ Not run in this environment, and therefore not claimed:
 - The Docker image build, `docker compose up`, and `tests/container_smoke.py` (no Docker here). An earlier acceptance record in [RELEASE.md](RELEASE.md) covers an earlier environment.
 - The Playwright browser suites in `tests/` (they need a running stack with test data).
 - Live provider calls to OpenAI, Anthropic or Gemini, and S3 or MinIO intake.
+
+## The five agents
+
+The interface shows these names; the id in the table is what rows, events and tool allow-lists store and never changes (`backend/agent_roles.py`).
+
+| Id | Name | Arabic | Job |
+|---|---|---|---|
+| `orchestrator` | Maestro | المايسترو | Plans the run, sets budgets and routes work |
+| `planning` | Scout | الكشّاف | Reads the whole project and maps it |
+| `analysis` | Hunter | الصيّاد | Finds vulnerabilities with the rules, scanners and tools |
+| `validation` | Auditor | المدقّق | Re-checks every finding against the evidence |
+| `reporting` | Scribe | الكاتب | Writes the report from validated findings only |
+
+## Backup and restore
+
+Two scripts, both plain standard library plus the PostgreSQL client binaries.
+
+```bash
+# A dump plus a readability check; a corrupt archive fails here, not at restore time.
+BASIRA_PLATFORM_MIGRATION_URL=postgresql://postgres@host/basira python ops/backup-platform.py --output-dir backups
+
+# Dump, restore into a scratch database, then compare shape and posture between the two.
+bash ops/verify_restore.sh
+```
+
+`ops/verify_restore.sh` compares two things and fails on any difference: shape (public tables, policies, functions, tables with row level security, and the `alembic_version` row) and posture (whether `basira_app` can delete from `users`, whether it can read `password_attempt_limits`, whether it can execute `basira_login_identity`, and how many definer functions PUBLIC may execute). The security posture is part of the backup here: a restore that drops a policy hands one tenant another tenant's rows and nothing in the application would notice.
+
+Not run here: neither script was run in this environment (no PostgreSQL server or client). The behaviour above is read from the scripts and from the pull requests that added them (#82, #129).
