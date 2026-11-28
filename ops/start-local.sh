@@ -10,11 +10,13 @@
 #
 #   bash ops/start-local.sh                      # http://127.0.0.1:8765
 #   bash ops/start-local.sh --port 9000 --model
+#   bash ops/start-local.sh --agent-loop   (also starts the model gateway)
 #   bash ops/start-local.sh --github-client-id <id> --github-app-slug <slug>
 set -euo pipefail
 
 port=8765
 with_model=0
+agent_loop=0
 github_client_id=""
 github_app_slug=""
 
@@ -26,6 +28,7 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --port) port="${2:?--port needs a value}"; shift 2 ;;
         --model) with_model=1; shift ;;
+        --agent-loop) agent_loop=1; shift ;;
         --github-client-id) github_client_id="${2:?--github-client-id needs a value}"; shift 2 ;;
         --github-app-slug) github_app_slug="${2:?--github-app-slug needs a value}"; shift 2 ;;
         -h|--help) usage; exit 0 ;;
@@ -137,6 +140,14 @@ if [ -n "$missing" ]; then
     echo "Warning: GitHub connection is not configured yet. Empty in .env.local:$missing. Fill them and run this script again; the app starts without GitHub until then." >&2
 fi
 
+if [ "$agent_loop" = 0 ] && [ "$(get_setting BASIRA_AGENT_LOOP)" = "1" ]; then
+    agent_loop=1
+fi
+if [ "$agent_loop" = 1 ]; then
+    # The agent path needs a model connection, so it brings the model profile with it.
+    with_model=1
+    set_setting BASIRA_AGENT_LOOP 1
+fi
 if [ "$with_model" = 0 ] && [ "$(get_setting BASIRA_PROJECT_MODEL_ENABLED)" = "1" ]; then
     with_model=1
 fi
