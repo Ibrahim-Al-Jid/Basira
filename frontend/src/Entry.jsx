@@ -76,7 +76,7 @@ export function Entry({ follow, lang, preferences }) {
         <section className="entry-hero" aria-labelledby="entry-title">
           <div className="entry-copy">
             <p className="entry-eyebrow"><ScanSearch size={16} aria-hidden="true" />{t("مراجعة أمان المشاريع", "Project security review")}</p>
-            <h1 id="entry-title">{t("اعرف إيه الخطر في مشروعك قبل ما يتسلّم.", "See what is risky in your project before it ships.")}</h1>
+            <h1 id="entry-title">{t("رؤية كاملة لمشروعك، دليل على كل نقطة.", "A full view of your project, evidence for every point.")}</h1>
             <p className="entry-lead">{t("ارفع ملف ZIP أو اربط المستودع. بصيرة بتفحصه وتوريك الدليل على كل نتيجة، وتطلّعلك تقرير واضح.",
               "Upload a ZIP or connect a repository. Basira checks it, shows the evidence for every finding and gives you a clear report.")}</p>
             <div className="entry-actions">
@@ -88,7 +88,6 @@ export function Entry({ follow, lang, preferences }) {
           </div>
           <figure className="entry-visual">
             <div className="entry-globe" aria-hidden="true"><DeferredGlobe /></div>
-            <figcaption className="entry-tagline">{t("رؤية كاملة لمشروعك، دليل على كل نقطة.", "A full view of your project, evidence for every point.")}</figcaption>
           </figure>
         </section>
         <section className="entry-section reveal" aria-labelledby="entry-does">
