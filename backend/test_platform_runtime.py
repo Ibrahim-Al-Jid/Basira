@@ -330,3 +330,21 @@ def test_reports_stored_before_run_modes_read_as_rules():
     info = ArtifactInfo(kind="html", name="old.html", bytes=10).model_dump()
     assert (info["analysis_mode"], info["mode_effective"]) == ("rules", "rules")
     assert "fallback_reason" not in info
+
+
+def test_scan_events_carry_stable_translation_keys_and_keep_the_stored_text(platform):
+    from .scan_events import MESSAGES, event_key
+    owner, _, ctx = platform
+    created = submit(owner, ctx, key="event-keys")
+    scan_id = created.json()["id"]
+    jobs.execute_scan(ctx.org_id, ctx.project_id, scan_id)
+    events = owner.get(f"/api/platform/projects/{ctx.project_id}/scans/{scan_id}").json()["events"]
+    by_kind = {row["kind"]: row for row in events}
+    assert by_kind["queued"]["key"] == "scan.queued" and by_kind["queued"]["detail"] == MESSAGES["scan.queued"]
+    assert by_kind["completed"]["key"] == "scan.completed"
+    assert by_kind["running"]["key"] == "scan.attempt_started" and by_kind["running"]["params"] == {"attempt": 1}
+    assert all("key" in row for row in events)
+    assert by_kind["agent_start"]["key"] is None and "params" not in by_kind["agent_start"]
+    assert event_key("نص غير معروف") == (None, None)
+    assert event_key("استؤنفت محاولة التنفيذ رقم 3 من نتيجة التحليل المحفوظة.") == ("scan.attempt_resumed", {"attempt": 3})
+    assert len(set(MESSAGES.values())) == len(MESSAGES)

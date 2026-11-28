@@ -12,6 +12,7 @@ from .platform_db import (
     personal_projects_enabled, platform_session, utc_now,
 )
 from .scan_contracts import Identifier
+from .scan_events import MESSAGES
 
 router = APIRouter(prefix="/api/platform", tags=["Personal projects"])
 
@@ -105,7 +106,7 @@ def archive_project(project_id: Identifier, request: Request):
             store.scans.c.state.in_(("queued", "running")),
         ).order_by(store.scans.c.id).with_for_update()).mappings().all()
         for scan in pending:
-            store.close_scan(db, scan, "cancelled", "اتلغى الفحص بعد حذف المشروع.")
+            store.close_scan(db, scan, "cancelled", MESSAGES["scan.cancelled_project_deleted"])
         project.deleted_at = project.updated_at = utc_now()
 
 
