@@ -83,6 +83,22 @@ async def validation_error(request, error):
     return JSONResponse({"detail": detail}, status_code=422)
 
 
+PAGE_POLICY = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+               "img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; "
+               "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'")
+
+
+def page_headers(response):
+    """Security headers for the single-page app shell; a route's own header wins."""
+    if not response.headers.get("content-type", "").startswith("text/html"):
+        return response
+    response.headers.setdefault("Content-Security-Policy", PAGE_POLICY)
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    return response
+
+
 @app.middleware("http")
 async def protect_requests(request, call_next):
     path = request.url.path.rstrip("/")
@@ -104,7 +120,12 @@ async def protect_requests(request, call_next):
         response.headers["Cache-Control"] = "no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
         return response
-    return await call_next(request)
+    response = await call_next(request)
+    if request.url.path.startswith("/assets/"):
+        # Vite emits content-hashed asset names, so a hit can never go stale.
+        response.headers.setdefault("Cache-Control", "public, max-age=31536000, immutable")
+        return response
+    return page_headers(response)
 
 
 @contextmanager
