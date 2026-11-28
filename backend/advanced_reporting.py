@@ -33,7 +33,7 @@ reviews = sa.Table(
 activities = sa.Table(
     "finding_review_activity", metadata, *scoped_columns(pk=False),
     sa.Column("id", sa.String(32), primary_key=True),
-    sa.Column("author_id", sa.String(32), nullable=False),
+    sa.Column("author_id", sa.String(32), sa.ForeignKey("users.id"), nullable=False),
     sa.Column("author", sa.String(200), nullable=False),
     sa.Column("created_at", sa.DateTime, nullable=False),
     sa.Column("action", sa.String(12), nullable=False),
@@ -219,4 +219,3 @@ def change_review(ctx, report_id, action):
                    status=action.status, previous=status if action.status else None,
                    body=(action.body if action.action == "comment" else action.reason).strip()))
         return review_items(db, ctx, {action.fingerprint: point})[action.fingerprint]
-
