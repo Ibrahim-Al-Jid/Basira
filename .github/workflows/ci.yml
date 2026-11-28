@@ -106,10 +106,7 @@ jobs:
           python -m playwright install --with-deps chromium
       - name: Browser smoke (signup, real ZIP scan, 9 pages in English and Arabic)
         run: BASIRA_QA_ORIGIN=http://127.0.0.1:8901 python tests/browser_smoke.py
-      # RLS, worker path and report generation against the isolated Compose project.
-      - name: Container acceptance
-        run: docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file .env.local exec -T app python - < tests/container_smoke.py
-      - name: Compose state and logs
+      - name: Compose state and logs (personal mode)
         if: always()
         # Guarded: when the boot step never ran there is no .env.local, and an
         # unguarded compose call fails and buries the real error.
@@ -120,9 +117,27 @@ jobs:
           else
             echo "deployment never started; nothing to dump"
           fi
-      - name: Stop the deployment
+      - name: Stop the personal deployment
         if: always()
         run: |
           if [ -f .env.local ]; then
             docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file .env.local down
           fi
+      # container_smoke.py exercises team-mode routes (organizations, grants,
+      # cross-org RLS) that the personal-mode middleware deliberately 404s, so
+      # it needs its own deployment without compose.local.yaml. This also gives
+      # the team-mode deployment shape its first automated coverage. The test
+      # mints sessions in the database itself, so password auth is not needed.
+      - name: Start the team-mode deployment
+        run: docker compose -p basira-team -f compose.yaml --env-file .env.local up -d --build --wait
+      # RLS, worker path and report generation against the isolated Compose project.
+      - name: Container acceptance
+        run: docker compose -p basira-team -f compose.yaml --env-file .env.local exec -T app python - < tests/container_smoke.py
+      - name: Compose state and logs (team mode)
+        if: always()
+        run: |
+          docker compose -p basira-team -f compose.yaml --env-file .env.local ps || true
+          docker compose -p basira-team -f compose.yaml --env-file .env.local logs --tail=150 || true
+      - name: Stop the team deployment
+        if: always()
+        run: docker compose -p basira-team -f compose.yaml --env-file .env.local down || true
