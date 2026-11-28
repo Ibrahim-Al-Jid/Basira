@@ -54,6 +54,7 @@ OIDC is the alternative to local passwords, for a team install:
 | `BASIRA_PROJECT_MODEL_ENABLED` | `0` | Lets scans use a model connection. `1` also makes the start script launch the `model` profile. |
 | `BASIRA_GATEWAY_URL` | empty | Gateway address as seen from the app. `http://model-gateway:8001` inside Compose. |
 | `BASIRA_GATEWAY_TOKEN` | empty | Shared secret between app and gateway. Random, independent of every password. |
+| `BASIRA_AGENT_LOOP` | `0` | `1` lets the worker run the Hunter tool loop for scans whose effective mode is `agents` or `hybrid`. Every turn goes through the gateway `/chat` route, which holds the key and caps calls per scan. Off by default; with it off, every scan runs the rules. |
 | `BASIRA_MODEL_DB_PASSWORD` | empty | Password for the gateway's database role. 24 to 128 letters or digits; the start script refuses anything else. |
 | `BASIRA_MODEL_MASTER_KEY_FILE` | `/srv/basira/model-secrets/master.key` | Master key file that encrypts stored provider keys. Created by the `model-secrets` service. |
 | `BASIRA_MODEL_DAILY_LIMIT` | unset | Overrides the per-model daily request cap. A `:free` model defaults to 50 requests a day; a paid model has no default cap. `0` blocks the model, a negative value means no cap. |

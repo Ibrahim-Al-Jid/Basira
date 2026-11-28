@@ -14,6 +14,8 @@ MESSAGES = {
     "scan.failed_provenance": "تعذّر التحقق من مصدر الفحص أو النطاق المسجّل.",
     "scan.failed_retry_limit": "وصلت المهمة للحد الأقصى لمحاولات التشغيل.",
     "scan.failed": "تعذّر تنفيذ الفحص.",
+    "scan.agent_failed": "تعذّر تشغيل وضع الوكلاء، فمتّحسبش النتيجة كفحص وكلاء.",
+    "scan.agent_fallback": "مسار الوكلاء ما اكتملش، وكمّلنا بالقواعد.",
 }
 BY_TEXT = {text: key for key, text in MESSAGES.items()}
 ATTEMPT_STARTED = "بدأت محاولة التنفيذ رقم {number}."

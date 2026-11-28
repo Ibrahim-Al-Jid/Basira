@@ -7,11 +7,12 @@ import time
 
 from celery import Celery
 
-from . import model_budget, platform_runtime as store
+from . import agent_scan, hunter_loop, model_budget, platform_runtime as store
 from .artifact_review import RULESET_VERSION
 from .contracts import Report
 from .model_gateway import enrich
 from .observability import log_failure
+from .scan_events import MESSAGES
 from .offline_worker import scan_payload, write_json
 
 broker = os.environ.get("BASIRA_REDIS_URL", "redis://127.0.0.1:6379/0")
@@ -90,7 +91,20 @@ def execute_scan(org_id, project_id, scan_id):
             if data is None:
                 return
         connection = None
-        if row["input_meta"].get("model_connection") and data["findings"]:
+        hunted = False
+        if hunter_loop.enabled() and row["input_meta"].get("mode_effective") in ("agents", "hybrid"):
+            mode = row["input_meta"]["mode_effective"]
+            hunter = store.reserve_model_connection(org_id, project_id, scan_id, row["lease"])
+            outcome = agent_scan.run_hunter(row, hunter, mode) if hunter else None
+            if outcome is None or outcome.status != "ok":
+                if mode == "agents":
+                    # An agents scan must not quietly become a rules scan.
+                    store.finish(org_id, project_id, scan_id, row["lease"], message=MESSAGES["scan.agent_failed"])
+                    return
+                store.record_stage(org_id, project_id, scan_id, row["lease"], "model_skipped",
+                                   MESSAGES["scan.agent_fallback"])
+            hunted = hunter is not None
+        if row["input_meta"].get("model_connection") and data["findings"] and not hunted:
             if os.environ.get("BASIRA_GATEWAY_URL") and os.environ.get("BASIRA_GATEWAY_TOKEN"):
                 verdict = model_budget.decide(
                     model_budget.daily_limit(row["input_meta"].get("connection_model")),
