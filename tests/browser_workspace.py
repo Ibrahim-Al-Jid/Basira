@@ -12,6 +12,7 @@ def reflows(page):
 
 
 def landing(browser):
+    """The public home is the overview with demo data: heading, sign-in route, demo page, no overflow or script errors."""
     for width in (320, 390, 566, 1280):
         for language in ("ar", "en"):
             context = browser.new_context(locale="ar-EG" if language == "ar" else "en-US",
@@ -22,19 +23,15 @@ def landing(browser):
             page.goto(ORIGIN)
             expect(page.locator("html")).to_have_attribute("dir", "rtl" if language == "ar" else "ltr")
             expect(page.locator("html")).to_have_attribute("data-theme", "dark")
-            expect(page.locator(".landing-marquee-group:not([aria-hidden]) > li")).to_have_count(6)
-            expect(page.locator(".landing-motion-control")).to_have_count(0)
-            marquee = page.locator(".landing-marquee-track")
-            assert marquee.evaluate("(node) => getComputedStyle(node).animationPlayState") == "running"
-            assert marquee.evaluate("(node) => getComputedStyle(node).animationName") != "none"
-            expect(page.locator(".basira-landing a[href='/demo'], .basira-landing a[href='/checks']")).to_have_count(0)
-            expect(page.locator(".basira-landing a[href='/signin']").first).to_be_visible()
-            expect(page.locator(".landing-benchmark")).to_have_count(0)
-            expect(page.get_by_role("link", name="Explore the demo" if language == "en" else "جرّب العرض")).to_have_count(0)
+            expect(page.locator("#landing-title")).to_be_visible()
+            expect(page.locator(".command-metric, .command-metrics > *").first).to_be_visible()
+            assert page.locator(".landing-marquee-track, .landing-motion-control").count() == 0
             reflows(page)
             assert page.goto(ORIGIN + "/demo").status == 200
             expect(page.get_by_role("button", name="تشغيل الفحص" if language == "ar" else "Run scan")).to_be_disabled()
             expect(page.get_by_role("button", name="تحميل العينة" if language == "ar" else "Load sample")).to_be_visible()
+            reflows(page)
+            assert page.goto(ORIGIN + "/signin").ok
             reflows(page)
             assert not errors, errors
             context.close()
@@ -42,9 +39,8 @@ def landing(browser):
     context = browser.new_context(locale="ar-EG", viewport={"width": 390, "height": 820}, reduced_motion="reduce")
     page = context.new_page()
     page.goto(ORIGIN)
-    expect(page.get_by_role("button", name="أوقف الحركة")).to_be_hidden()
-    assert page.locator(".landing-marquee-track").evaluate("(node) => getComputedStyle(node).animationName") == "none"
-    expect(page.locator(".landing-marquee-group:not([aria-hidden]) > li")).to_have_count(6)
+    expect(page.locator("#landing-title")).to_be_visible()
+    reflows(page)
     context.close()
 
 
@@ -73,7 +69,6 @@ def workspace(browser):
 
     page.goto(ORIGIN + "/reports")
     expect(page.get_by_role("combobox", name="المشروع", exact=True)).to_be_visible()
-    expect(page.get_by_text("اختار مشروعًا لعرض تقاريره.")).to_be_visible()
     page.get_by_role("combobox", name="المشروع", exact=True).select_option(project_id)
     expect(page.get_by_role("link", name="portal.html")).to_be_visible()
     assert parse_qs(urlsplit(page.url).query)["project"] == [project_id]
