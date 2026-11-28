@@ -23,3 +23,41 @@ def test_parse_findings_accepts_wrapped_json_and_rejects_garbage():
     from .detection_agents import parse_findings
     assert parse_findings('text {"findings":[{"subdomain":"D04.1"}]} end') == [{"subdomain": "D04.1"}]
     assert parse_findings("no json") == [] and parse_findings('{"findings": 3}') == []
+
+
+def test_fetch_sources_caches_by_digest_and_still_verifies(tmp_path, monkeypatch):
+    from hashlib import sha256
+    import pytest
+    from . import detection_experiment
+
+    class FakeResponse:
+        def __init__(self, body):
+            self.body = body
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return self.body
+
+    manifest = {"commit": "abc123", "cases": [
+        {"id": "a", "path": "x.php", "sha256": sha256(b"one").hexdigest(), "vulnerable": True, "subdomain": "D04.1"},
+        {"id": "b", "path": "y.php", "sha256": sha256(b"two").hexdigest(), "vulnerable": False, "subdomain": "D04.1"},
+    ]}
+    bodies = {"x.php": b"one", "y.php": b"two"}
+    calls = []
+
+    def fake_urlopen(url, timeout):
+        calls.append(url)
+        return FakeResponse(bodies[url.rsplit("/", 1)[-1]])
+
+    monkeypatch.setattr(detection_experiment, "urlopen", fake_urlopen)
+    first = detection_experiment.fetch_sources(manifest, tmp_path)
+    assert first == {"a": "one", "b": "two"} and len(calls) == 2
+    assert detection_experiment.fetch_sources(manifest, tmp_path) == first and len(calls) == 2
+    (tmp_path / manifest["cases"][0]["sha256"]).write_bytes(b"poisoned")
+    with pytest.raises(ValueError):
+        detection_experiment.fetch_sources(manifest, tmp_path)
