@@ -211,6 +211,10 @@ def prepare(kind, name, raw, *, archive_metrics=None):
     if kind == "config":
         package = read_object(raw, limit=MAX_ARTIFACT)
         entries = package.get("files")
+        if entries is None:
+            # A submitted configuration document is reviewed as itself. The bundle envelope
+            # ({"files": {...}}) stays supported for the synthetic corpus and its tests.
+            return {safe_path(name): plain_text(raw)}, None, [], None
         advisories = package.get("advisories", [])
         if (not isinstance(entries, dict) or not 0 < len(entries) <= MAX_FILES
                 or not all(isinstance(text, str) for text in entries.values())
