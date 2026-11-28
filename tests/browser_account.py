@@ -14,6 +14,18 @@ FORBIDDEN_COPY = re.compile(
 )
 
 
+
+def set_language(page, language):
+    if page.locator("html").get_attribute("lang") == language:
+        return
+    page.locator(".account-menu .menu-trigger").click()
+    page.get_by_role("menuitem", name=re.compile("^(Language|اللغة)")).click()
+
+
+def set_theme(page, theme):
+    page.locator(".account-menu .menu-trigger").click()
+    page.get_by_role("menuitem", name=re.compile("Light mode|الوضع الفاتح" if theme == "light" else "Dark mode|الوضع الغامق")).click()
+
 def register(context):
     email = f"account-{uuid4().hex[:16]}@example.test"
     response = context.request.post(API + "/auth/password/register", data={
@@ -28,21 +40,22 @@ def account_layout(page):
     for width in (320, 566, 1280):
         page.set_viewport_size({"width": width, "height": 850})
         for language in ("ar", "en"):
-            page.locator(".account-preferences select").first.select_option(language)
+            set_language(page, language)
             expect(page.locator("html")).to_have_attribute("lang", language)
             expect(page.locator("html")).to_have_attribute("dir", "rtl" if language == "ar" else "ltr")
             assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
-            expect(page.locator(".site-account")).to_have_count(1)
+            expect(page.locator(".account-menu")).to_have_count(1)
             expect(page.locator("header select")).to_have_count(0)
             expect(page.locator("body")).not_to_contain_text(FORBIDDEN_COPY)
-    page.get_by_label("Theme").select_option("light")
+    set_theme(page, "light")
     page.reload()
     expect(page.locator("html")).to_have_attribute("data-theme", "light")
-    page.get_by_label("Theme").select_option("dark")
+    set_theme(page, "dark")
     page.set_viewport_size({"width": 566, "height": 850})
     nav = page.get_by_role("navigation", name="Main navigation")
     expect(nav).to_be_visible()
-    expect(nav.get_by_role("link", name="Reports")).to_be_visible()
+    expect(nav.get_by_role("link", name="Projects")).to_be_visible()
+    expect(nav.get_by_role("link", name="Reports")).to_have_count(0)
     assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
 
 
@@ -144,7 +157,8 @@ def main():
         page.get_by_role("button", name="Revoke invitation").click()
         expect(page.get_by_text("Invitation revoked.")).to_be_visible()
 
-        page.get_by_role("link", name="Account", exact=True).click()
+        page.get_by_role("button", name="Account menu").click()
+        page.get_by_role("menuitem", name="Settings", exact=True).click()
         page.get_by_role("button", name="Sign out", exact=True).click()
         expect(page.get_by_role("button", name="Sign out", exact=True)).to_have_count(0)
         assert owner.request.get(project_api + "/scan-profile").status == 401
