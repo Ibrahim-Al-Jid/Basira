@@ -4,22 +4,36 @@ Status: design. Section 1 describes what runs today and was checked against the 
 
 ## 1. What runs today
 
-| Role | Code | What it does |
+| Role (id) | Code | What it does |
 |---|---|---|
-| Orchestrator | `backend/offline_worker.py` `orchestrate` | Decodes the envelope, routes the input kind, pins the source digest and trace id. |
-| Planning | `plan` | Normalizes files, computes the inventory digest, resolves which checks apply. |
-| Analysis | `review_prepared` in `backend/artifact_review.py` | Runs the fixed check catalog (114 rules: 100 for HTML, HAR, configuration and dependencies and 14 for PHP, JavaScript and Python source), the OpenAPI and ZAP document rules, gitleaks and osv-scanner. |
-| Validation | `review` and `verify_evidence` | Checks coverage counts, that each line exists in its file, fingerprints, and tool versions. |
-| Reporting | `report` | Checks both summaries exist and projects the report. |
+| Maestro (`orchestrator`) | `backend/offline_worker.py` `orchestrate` | Decodes the envelope, routes the input kind, pins the source digest and trace id. |
+| Scout (`planning`) | `plan` | Normalizes files, computes the inventory digest, resolves which checks apply. |
+| Hunter (`analysis`) | `review_prepared` in `backend/artifact_review.py` | Runs the fixed check catalog (114 rules: 100 for HTML, HAR, configuration and dependencies and 14 for PHP, JavaScript and Python source), the OpenAPI and ZAP document rules, gitleaks and osv-scanner. |
+| Auditor (`validation`) | `review` and `verify_evidence` | Checks coverage counts, that each line exists in its file, fingerprints, and tool versions. |
+| Scribe (`reporting`) | `report` | Checks both summaries exist and projects the report. |
 
 Facts that matter for the design:
 
-- The five roles are deterministic Python functions chained in LangGraph. None calls a model. `ROLE_TOOLS` in `backend/scan_contracts.py` is an allow-list per role, enforced before each step.
+- On the platform scan path the five roles are deterministic Python functions chained in LangGraph, and none calls a model. A second, separate implementation, the HTML demo graph in `backend/graph.py`, reuses the same role names and lets a model choose the layout and the order of check groups from element counts. README, the thesis pages and `docs/ARCHITECTURE.md` describe that demo graph, not the platform path. Step 2 of the order below removes the duplication. `ROLE_TOOLS` in `backend/scan_contracts.py` is an allow-list per role, enforced before each step.
 - The only model call comes after analysis (`backend/model_gateway.py`). It receives rule ids, severities and counts, never source text or evidence, and its answer is validated against enums and the supplied evidence ids. It reorders priorities. It cannot add, remove or rewrite a finding.
 - Memory today: a lease-protected checkpoint of the analysis, and review decisions (triaged, resolved, accepted) carried to a later scan of the identical source digest for the same owner within 90 days (`backend/scan_memory.py`).
 - Inputs: ZIP, GitHub import, exact operator-approved HTTPS pages captured as HAR (at most 3 pages, passive), OpenAPI and ZAP files.
 - Measured detection (`docs/research/detection-experiment.md`, 13 labeled DVWA modules): static checks found 8 of 13 and flagged 1 of 13 fixed files (a development score, the rules were written after reading these files). One agent without tools found 8 of 13 and flagged 5 of 13 fixed files. The team and team-with-tools configurations are coded in `backend/detection_agents.py` and have no result yet.
 - `docs/ARCHITECTURE.md` describes an orchestrator that chooses split or combined analysis and an analysis role that compares local matches with model candidates. The code does neither. That page needs correcting when the first implementation PR lands.
+
+## 1a. Names
+
+The five roles have one stable id and one display name each. The id is what rows, events, contracts and tool allow-lists store, and it never changes, so existing data stays valid. The name is what the interface and the docs show. The registry is `backend/agent_roles.py`, and `backend/test_agent_roles.py` fails if the interface or the docs drift from it.
+
+| Id (stored) | English | Arabic | Job |
+|---|---|---|---|
+| `orchestrator` | Maestro | المايسترو | Plans the run, sets budgets and routes work |
+| `planning` | Scout | الكشّاف | Reads the whole project and maps it |
+| `analysis` | Hunter | الصيّاد | Finds vulnerabilities with the rules, scanners and tools |
+| `validation` | Auditor | المدقّق | Re-checks every finding against the evidence |
+| `reporting` | Scribe | الكاتب | Writes the report from validated findings only |
+
+The names avoid the membership roles (Owner, Admin, Analyst, Viewer), which the old "Analyst" label collided with.
 
 ## 2. Decision: hybrid
 
@@ -33,17 +47,17 @@ Each role has one job, a typed input and output, a tool allow-list, a step budge
 
 | Agent | Input | Output | Tools |
 |---|---|---|---|
-| 0 Orchestrator | submission, policy, budget | `ScanPlan`: stages, per-agent budgets, stop conditions | envelope decode, router, budget ledger |
-| 1 Project understanding | normalized snapshot | `ProjectMap`: files and languages, entry points, routes, auth boundaries, dependencies, config, trust boundaries | list_files, read_file (bounded), manifest parsers |
-| 2 Vulnerability finder | `ProjectMap`, snapshot or captured evidence | `Candidate[]`: taxonomy id, location or request/response, evidence quote, hypothesis | rule catalog, gitleaks, osv, search_code, read_file, domain collector |
-| 3 Validator | `Candidate[]`, snapshot | `Verdict[]`: accepted, rejected or needs_human, with the check that decided it | re-run rule, read_file, search_code, taint and context checks |
-| 4 Report writer | accepted findings only | report, bilingual summaries, per-finding remediation | remediation catalog, template |
+| Maestro | submission, policy, budget | `ScanPlan`: stages, per-agent budgets, stop conditions | envelope decode, router, budget ledger |
+| Scout | normalized snapshot | `ProjectMap`: files and languages, entry points, routes, auth boundaries, dependencies, config, trust boundaries | list_files, read_file (bounded), manifest parsers |
+| Hunter | `ProjectMap`, snapshot or captured evidence | `Candidate[]`: taxonomy id, location or request/response, evidence quote, hypothesis | rule catalog, gitleaks, osv, search_code, read_file, domain collector |
+| Auditor | `Candidate[]`, snapshot | `Verdict[]`: accepted, rejected or needs_human, with the check that decided it | re-run rule, read_file, search_code, taint and context checks |
+| Scribe | accepted findings only | report, bilingual summaries, per-finding remediation | remediation catalog, template |
 
 Rules for the roles:
 
-- Agent 3 gets the candidate's evidence reference, not Agent 2's reasoning, and uses a separate prompt and context. It must re-derive the evidence itself.
-- Agent 4 can only describe accepted findings. It cannot create or promote one.
-- Agent 0 can repeat a stage or stop early inside the budget. It cannot widen scope, add tools, or open the network.
+- The Auditor gets the candidate's evidence reference, not the Hunter's reasoning, and uses a separate prompt and context. It must re-derive the evidence itself.
+- The Scribe can only describe accepted findings. It cannot create or promote one.
+- The Maestro can repeat a stage or stop early inside the budget. It cannot widen scope, add tools, or open the network.
 
 ## 4. Schemas (summary)
 
@@ -80,14 +94,14 @@ Memory never crosses organizations or owners. A rejection reason is stored so th
 
 ## 6. Validation loop
 
-1. Agent 2 emits candidates with evidence references.
-2. Agent 3 checks each: location exists, the quoted evidence is present at that location, the rule or deterministic check reproduces, and the context supports it (for example the value is user-controlled and reaches the sink, or the control is absent in the effective configuration).
+1. The Hunter emits candidates with evidence references.
+2. The Auditor checks each: location exists, the quoted evidence is present at that location, the rule or deterministic check reproduces, and the context supports it (for example the value is user-controlled and reaches the sink, or the control is absent in the effective configuration).
 3. Rejected candidates are counted and logged with a reason code. Needs-human candidates carry the assessment `review_required`, as in the current schema.
-4. Agent 0 may send rejected candidates back once, with the validator's reason code, if budget remains. Then it stops.
+4. The Maestro may send rejected candidates back once, with the validator's reason code, if budget remains. Then it stops.
 
 ## 7. Budgets, failures, timeouts
 
-- Each agent has a maximum number of tool calls, input and output tokens, and wall time. Agent 0 holds the ledger.
+- Each agent has a maximum number of tool calls, input and output tokens, and wall time. The Maestro holds the ledger.
 - A model failure, an over-budget agent, or a schema-invalid answer drops that agent's output and the scan continues with the deterministic result. This is today's behavior and the floor: the hybrid can only add validated findings.
 - A scan that cannot finish records which stage failed through the existing coverage statuses (`skipped`, `error`) with a fixed reason code, never a free-text model message.
 - Background failures are logged with exception class and location only.
@@ -113,6 +127,6 @@ A fixed benchmark scores every configuration on the same files:
 1. Correct `docs/ARCHITECTURE.md` and land this design.
 2. `ProjectMap` built deterministically, no model. Analysis consumes it for cross-file checks (include chains, route to handler, absent controls). Targets the cases the rules miss today.
 3. Validator that re-checks context, not only structure, still deterministic. Adds reason codes.
-4. Agent loop for Agent 2 and Agent 3 behind a flag, with the budget ledger and the deterministic fallback. Run C3, C4, C5 on the benchmark.
+4. Agent loop for the Hunter and the Auditor behind a flag, with the budget ledger and the deterministic fallback. Run C3, C4, C5 on the benchmark.
 5. Domain collector as a tool for the site input, then per-subdomain findings, with the new rule groups and remediation text.
 6. Report writer with per-finding remediation (before and after example and a verify step).
