@@ -58,6 +58,9 @@ Available only while `BASIRA_PERSONAL_PROJECTS=0`. With personal projects on, th
 | GET | `/api/catalog` | The rule catalog: rules, tools, ruleset version. |
 | GET | `/api/taxonomy` | The vulnerability taxonomy (17 domains, 75 subdomains, 159 problems) with CWE, OWASP and WSTG mapping. |
 
+
+`POST /api/run` is the anonymous lab path and has its own guard: a per-IP quota in a fixed 15-minute window (`BASIRA_LAB_RUN_LIMIT`, default 30) and a per-process concurrency cap (`BASIRA_LAB_RUN_CONCURRENCY`, default 8). Over either limit the answer is 429 with `Retry-After`, the same shape the auth limiter uses. `0` or less disables each limit. The counters live in memory per process.
+
 Example:
 
 ```bash
@@ -200,4 +203,4 @@ for path in sorted(schema["paths"]):
 PY
 ```
 
-The count printed on `main` at `62b0d27` is 60 paths and 78 operations. `GET /openapi.json` returns the same schema from the running app, and `/docs` renders it.
+The count printed on `main` at `192fddf` is 60 paths and 78 operations. `GET /openapi.json` returns the same schema from the running app, and `/docs` renders it.
