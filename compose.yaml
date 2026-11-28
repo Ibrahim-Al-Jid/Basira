@@ -172,7 +172,7 @@ services:
   model-gateway:
     <<: *app
     profiles: [model]
-    command: ["python", "-m", "uvicorn", "backend.model_gateway:app", "--no-access-log", "--host", "0.0.0.0", "--port", "8001"]
+    command: ["python", "-m", "uvicorn", "backend.model_gateway:app", "--no-access-log", "--proxy-headers", "--host", "0.0.0.0", "--port", "8001"]
     environment:
       <<: *model-client
       BASIRA_PLATFORM_DATABASE_URL: postgresql+psycopg://basira_model_gateway:${BASIRA_MODEL_DB_PASSWORD:-}@db/basira

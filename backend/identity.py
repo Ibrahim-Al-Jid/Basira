@@ -16,7 +16,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from joserfc.errors import JoseError
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import and_, literal, or_, select, update
+from sqlalchemy import and_, literal, or_, select, text, update
 from sqlalchemy.exc import IntegrityError
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.sessions import SessionMiddleware
@@ -28,8 +28,8 @@ except ImportError:
 
 from .platform_db import (
     AuthSession, Membership, Organization, PlatformUnavailable, Project, ProjectGrant,
-    User, bind_legacy_project_access, bind_owner, personal_projects_enabled, platform_database_url,
-    platform_session, revoke_session, session_owner, utc_now,
+    User, bind_legacy_project_access, bind_org, bind_owner, new_id, personal_projects_enabled,
+    platform_database_url, platform_session, revoke_session, session_owner, utc_now,
 )
 
 router = APIRouter(prefix="/api/platform", tags=["Project identity"])
@@ -233,6 +233,8 @@ def require_session_user(request, digest):
     if digest:
         with platform_session() as db:
             user_id = session_owner(db, digest)
+            if user_id:
+                bind_owner(db, user_id)
             user = db.get(User, user_id) if user_id else None
             if (user and user.disabled_at is None
                     and (user.issuer != PASSWORD_ISSUER or password_auth_enabled(request))):
@@ -241,6 +243,7 @@ def require_session_user(request, digest):
 
 
 def require_membership(db, org_id, user_id):
+    bind_org(db, org_id)
     member = db.get(Membership, (org_id, user_id))
     if not member or member.revoked_at is not None:
         raise HTTPException(404, "المؤسسة غير متاحة.")
@@ -255,6 +258,11 @@ def project_access(db, project_id, user_id):
         ).where(Project.id == project_id, Project.owner_user_id == user_id,
                 Project.deleted_at.is_(None), User.disabled_at.is_(None))).one_or_none()
     bind_legacy_project_access(db)
+    org_id = db.scalar(select(Project.org_id).where(Project.id == project_id,
+                                                   Project.deleted_at.is_(None)))
+    if org_id is None:
+        return None
+    bind_org(db, org_id)
     return db.execute(
         select(Project.org_id, Membership.role).join(
             Membership, and_(Membership.org_id == Project.org_id, Membership.user_id == user_id,
@@ -295,17 +303,31 @@ def persist_login(settings, claims, old_digest):
     name = claims.get("name")
     display_name = name.replace("\x00", "").strip()[:200] if isinstance(name, str) else ""
     display_name = public_name(display_name)
-    identity = select(User).where(User.issuer == settings.issuer, User.subject == subject)
     with platform_session() as db:
-        user = db.scalar(identity)
+        def lookup():
+            # Before a session exists the row cannot be read under row level security, so PostgreSQL
+            # resolves the identity through the definer function and only then binds the owner.
+            if db.get_bind().dialect.name == "postgresql":
+                found = db.execute(text("SELECT user_id FROM public.basira_login_identity(:issuer, :subject)"),
+                                   {"issuer": settings.issuer, "subject": subject}).first()
+                if found is None:
+                    return None
+                bind_owner(db, found[0])
+                return db.get(User, found[0])
+            return db.scalar(select(User).where(User.issuer == settings.issuer,
+                                                User.subject == subject))
+
+        user = lookup()
         if user is None:
             try:
                 with db.begin_nested():
-                    user = User(issuer=settings.issuer, subject=subject, display_name=display_name)
+                    user = User(id=new_id(), issuer=settings.issuer, subject=subject,
+                                display_name=display_name)
+                    bind_owner(db, user.id)
                     db.add(user)
                     db.flush()
             except IntegrityError:
-                user = db.scalar(identity)
+                user = lookup()
                 if user is None:
                     raise
         if user.disabled_at is not None:
@@ -354,6 +376,7 @@ def update_profile(body: ProfileInput, request: Request):
     actor = require_user(request)
     try:
         with platform_session() as db:
+            bind_owner(db, actor.id)
             user = db.scalar(select(User).where(User.id == actor.id, User.disabled_at.is_(None)).with_for_update())
             if not user:
                 raise HTTPException(401, "الحساب غير متاح.")
@@ -381,6 +404,7 @@ def logout(request: Request):
 def list_organizations(request: Request):
     user = require_user(request)
     with platform_session() as db:
+        bind_owner(db, user.id)
         items = db.execute(select(Organization.id, Organization.name, Membership.role).join(
             Membership, Membership.org_id == Organization.id,
         ).where(Membership.user_id == user.id, Membership.revoked_at.is_(None))
@@ -392,6 +416,7 @@ def list_organizations(request: Request):
 def create_organization(body: NamedResource, request: Request):
     user = require_user(request)
     with platform_session() as db:
+        bind_owner(db, user.id)
         org = Organization(name=body.name)
         db.add(org)
         db.flush()
@@ -465,6 +490,7 @@ def list_projects(request: Request, archived: bool = False):
 
         return list_owned(user.id, archived)
     with platform_session() as db:
+        bind_owner(db, user.id)
         bind_legacy_project_access(db)
         items = db.execute(select(Project.id, Project.org_id, Project.name, Membership.role).join(
             Membership, and_(Membership.org_id == Project.org_id, Membership.user_id == user.id,
@@ -482,6 +508,7 @@ def list_projects(request: Request, archived: bool = False):
 def list_grants(project_id: str, request: Request):
     context = require_project(request, project_id, "manage")
     with platform_session() as db:
+        bind_org(db, context.org_id)
         items = db.execute(select(ProjectGrant.user_id, Membership.role, User.display_name).join(
             Membership, and_(Membership.org_id == ProjectGrant.org_id,
                              Membership.user_id == ProjectGrant.user_id),

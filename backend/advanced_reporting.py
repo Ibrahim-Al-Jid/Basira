@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from .artifact_review import InputError, safe_path
 from .contracts import Report
 from .identity import member_name
-from .platform_db import User
+from .platform_db import User, bind_owner
 from . import platform_runtime as store
 
 metadata = store.metadata
@@ -198,6 +198,7 @@ def change_review(ctx, report_id, action):
         projects = metadata.tables["projects"]
         db.execute(sa.select(projects.c.id).where(projects.c.org_id == ctx.org_id,
                                                   projects.c.id == ctx.project_id).with_for_update()).one()
+        bind_owner(db, ctx.user_id)
         who = db.get(User, ctx.user_id)
         scoped = {"org_id": ctx.org_id, "project_id": ctx.project_id, "fingerprint": action.fingerprint}
         condition = sa.and_(review_scope(reviews, ctx), reviews.c.fingerprint == action.fingerprint)

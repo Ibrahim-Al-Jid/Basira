@@ -18,7 +18,7 @@ from .identity import (
     PASSWORD_ISSUER, account_view, issue_session, normalize_person_name, oidc_settings, password_auth_enabled,
     session_digest, set_platform_cookie,
 )
-from .platform_db import Base, PlatformUnavailable, User, platform_session, utc_now
+from .platform_db import Base, PlatformUnavailable, User, bind_owner, new_id, platform_session, utc_now
 
 HASHER = PasswordHasher(time_cost=3, memory_cost=65536, parallelism=2)
 EMAIL = re.compile(r"[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+")
@@ -140,9 +140,10 @@ def register(body: Registration, request: Request, response: Response):
     encoded = HASHER.hash(password)
     try:
         with platform_session() as db:
-            user = User(issuer=PASSWORD_ISSUER, subject=body.email,
+            user = User(id=new_id(), issuer=PASSWORD_ISSUER, subject=body.email,
                         first_name=body.first_name, last_name=body.last_name,
                         display_name=f"{body.first_name} {body.last_name}" if body.first_name else "")
+            bind_owner(db, user.id)
             db.add(user)
             db.flush()
             db.execute(credentials.insert().values(user_id=user.id, password_hash=encoded))
@@ -159,18 +160,26 @@ def login(body: Credentials, request: Request, response: Response):
     reserve_attempt(request, body.email, "login")
     dummy = dummy_password_hash()
     with platform_session() as db:
-        row = db.execute(sa.select(User, credentials.c.password_hash).join(
-            credentials, credentials.c.user_id == User.id,
-        ).where(User.issuer == PASSWORD_ISSUER, User.subject == body.email)).one_or_none()
-        encoded = row.password_hash if row is not None else dummy
+        if db.get_bind().dialect.name == "postgresql":
+            found = db.execute(sa.text(
+                "SELECT user_id, password_hash FROM public.basira_login_identity(:issuer, :subject)"),
+                {"issuer": PASSWORD_ISSUER, "subject": body.email}).first()
+            user_id, password_hash = (found[0], found[1]) if found else (None, None)
+        else:
+            row = db.execute(sa.select(User.id, credentials.c.password_hash).join(
+                credentials, credentials.c.user_id == User.id,
+            ).where(User.issuer == PASSWORD_ISSUER, User.subject == body.email)).one_or_none()
+            user_id, password_hash = (row[0], row[1]) if row is not None else (None, None)
+        encoded = password_hash if password_hash else dummy
     try:
         valid = HASHER.verify(encoded, body.password.get_secret_value())
     except (VerificationError, InvalidHashError, UnicodeError):
         valid = False
-    if not valid or row is None:
+    if not valid or user_id is None:
         raise HTTPException(401, "الإيميل أو كلمة المرور غير صحيحة.")
     with platform_session() as db:
-        user = db.get(User, row.User.id)
+        bind_owner(db, user_id)
+        user = db.get(User, user_id)
         if user is None or user.disabled_at is not None:
             raise HTTPException(401, "الإيميل أو كلمة المرور غير صحيحة.")
         if HASHER.check_needs_rehash(encoded):
