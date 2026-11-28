@@ -33,6 +33,8 @@ def public(*addresses):
 def use_resolver(monkeypatch, resolver):
     """custom_base binds socket.getaddrinfo as a default argument, so patch the default, not the module."""
     monkeypatch.setattr(llm_providers.custom_base, "__defaults__", (resolver,))
+    # The connect-time check resolves again through the module, so it answers the same way.
+    monkeypatch.setattr(llm_providers.socket, "getaddrinfo", resolver)
 
 
 # ---- prompt injection: what the model is allowed to see ----
