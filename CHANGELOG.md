@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-28
+
+### Added
+- Access log (`backend/observability.py`, installed from `backend/main.py`): one line per request with a request id, method, path without its query string, status and duration, plus an `X-Request-ID` response header. The image runs uvicorn with `--no-access-log`, so until now an incident left no trail. `BASIRA_LOG_LEVEL` sets the level (INFO by default) and static assets are skipped.
+
 ## 2026-11-27
 
 ### Changed
