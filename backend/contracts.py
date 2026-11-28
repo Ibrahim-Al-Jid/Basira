@@ -5,6 +5,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from .analysis_mode import AnalysisMode
 from .scan_contracts import ArtifactKind, CoverageStatus, Digest, GitHubSnapshotRef, Identifier, TargetProfile, ToolSelection
 
 MAX_SOURCE_BYTES = 1_000_000
@@ -101,6 +102,10 @@ class ArtifactInfo(BaseModel):
     bytes: int = Field(ge=1)
     github: GitHubSnapshotRef | None = Field(default=None, exclude_if=lambda value: value is None)
     profile: TargetProfile | None = Field(default=None, exclude_if=lambda value: value is None)
+    # Reports made before run modes existed were rules-only scans, so the defaults are correct for them.
+    analysis_mode: AnalysisMode = "rules"
+    mode_effective: AnalysisMode = "rules"
+    fallback_reason: Literal["agent_path_unavailable"] | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class Benchmark(BaseModel):

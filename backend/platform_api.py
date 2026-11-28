@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 
 from . import platform_runtime as store
 from . import advanced_reporting as advanced
+from .analysis_mode import AnalysisMode, ModeUnavailable
 from .artifact_review import EXTENDED_IDS, MAX_ARTIFACT, InputError, RULESET_VERSION, decode_payload, redact_label, safe_path
 from .contracts import History, HistoryItem, Report, history_item
 from .identity import ROLE_ACTIONS, require_project
@@ -40,6 +41,7 @@ class Submission(BaseModel):
     acknowledge_scope: bool = False
     model_connection: ModelConnection | None = None
     target_reference: str | None = Field(default=None, max_length=250)
+    analysis_mode: AnalysisMode | None = None
 
     @model_validator(mode="after")
     def extension(self):
@@ -113,10 +115,12 @@ def submit(project_id: str, body: Submission, request: Request,
         envelope = {"kind": body.kind, "name": redact_label(body.name), "bytes": len(raw), "enrich": body.enrich}
         if ctx.owner_user_id:
             return compatible_zip(ctx, envelope, raw, key, scope_version=body.scope_version,
-                                  model_connection=body.model_connection)
+                                  model_connection=body.model_connection, analysis_mode=body.analysis_mode)
         return store.create_scan(ctx, envelope, raw, key,
                                  scope_version=body.scope_version, model_connection=body.model_connection,
-                                 target_reference=body.target_reference)
+                                 target_reference=body.target_reference, analysis_mode=body.analysis_mode)
+    except ModeUnavailable as exc:
+        raise HTTPException(422, str(exc)) from None
     except InputError as exc:
         raise HTTPException(422, str(exc)) from None
     except StorageUnavailable:

@@ -259,19 +259,24 @@ def declared_asset(db, ids, ref, clock):
     return asset_id
 
 
-def scan_request_digest(envelope, raw, scope_version, model_connection, target_reference=None):
+def scan_request_digest(envelope, raw, scope_version, model_connection, target_reference=None, analysis_mode=None):
     request = {**envelope, "scope_version": scope_version, "model_connection": model_connection} if scope_version is not None else envelope
     if target_reference:
         request = {**request, "target_reference": target_reference}
+    if analysis_mode:
+        request = {**request, "analysis_mode": analysis_mode}
     return hashlib.sha256(json.dumps(request, sort_keys=True).encode() + b"\x00" + raw).hexdigest()
 
 
 def create_scan(ctx, envelope, raw, idempotency_key, *, scope_version=None, model_connection=None,
-                target_reference=None, before_create=None, intake_digest=None):
+                target_reference=None, before_create=None, intake_digest=None, analysis_mode=None):
+    from .analysis_mode import resolve_mode
     from .artifact_review import RULESET_VERSION
     from .model_connections import scan_connection
 
-    digest = intake_digest or scan_request_digest(envelope, raw, scope_version, model_connection, target_reference)
+    mode = resolve_mode(analysis_mode)
+    digest = intake_digest or scan_request_digest(envelope, raw, scope_version, model_connection, target_reference,
+                                                  analysis_mode)
     ids = {"org_id": ctx.org_id, "project_id": ctx.project_id}
     with platform_session() as db:
         bind_project_context(db, ctx)
@@ -329,7 +334,7 @@ def create_scan(ctx, envelope, raw, idempotency_key, *, scope_version=None, mode
             raise Conflict("مفيش أدوات تحليل مسجلة لنوع المدخل ده.")
         clock = now()
         scan_id = uuid4().hex
-        artifact = {**envelope, "enrich": bool(connection)}
+        artifact = {**envelope, "enrich": bool(connection), **mode}
         if connection:
             artifact.update(model_connection=connection["id"], connection_model=connection["model"],
                             connection_generation=connection["generation"])
