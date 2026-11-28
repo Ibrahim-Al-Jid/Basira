@@ -399,6 +399,76 @@ def test_login_identity_returns_only_the_requested_identity(db):
                 "DELETE FROM public.users WHERE issuer = :issuer"), {"issuer": issuer})
 
 
+def test_scan_agent_calls_counter_defaults_to_zero(db):
+    """The Hunter's cap is enforced by incrementing this counter under a row lock."""
+    nullable, default = one_row(db,
+        "SELECT is_nullable, column_default FROM information_schema.columns "
+        "WHERE table_schema = 'public' AND table_name = 'project_scans' "
+        "AND column_name = 'agent_calls'")
+    assert nullable == "NO"
+    assert default and "0" in default
+    assert scalar(db,
+        "SELECT count(*) FROM pg_constraint WHERE conname = 'ck_project_scans_agent_calls'") == 1
+    for signature in ("public.basira_start_agent_call(text,text,text,text,text,text,integer)",
+                      "public.basira_start_account_agent_call(text,text,text,text,text,text,integer)"):
+        assert scalar(db, "SELECT prosecdef FROM pg_proc WHERE oid = CAST(:s AS regprocedure)",
+                      s=signature), f"{signature} must be SECURITY DEFINER"
+        assert not scalar(db,
+            "SELECT has_function_privilege('public', CAST(:s AS regprocedure), 'EXECUTE')",
+            s=signature), f"{signature} must not be executable by PUBLIC"
+        if scalar(db, "SELECT count(*) FROM pg_roles WHERE rolname = 'basira_model_gateway'"):
+            assert scalar(db,
+                "SELECT has_function_privilege('basira_model_gateway', CAST(:s AS regprocedure), "
+                "'EXECUTE')", s=signature), f"{signature} must be executable by the gateway"
+
+
+def test_agent_call_cap_stops_the_call_after_the_limit(db):
+    """The cap has to hold under concurrency, so the check and the increment are one statement."""
+    statements = (
+        "INSERT INTO users (id, issuer, subject, display_name, created_at) "
+        "VALUES ('t33u', 'issuer', 'subject', 'Cap Test', now()) ON CONFLICT DO NOTHING",
+        "INSERT INTO organizations (id, name, created_at) VALUES ('t33o', 'Cap Org', now()) "
+        "ON CONFLICT DO NOTHING",
+        "INSERT INTO memberships (org_id, user_id, role, joined_at) "
+        "VALUES ('t33o', 't33u', 'owner', now()) ON CONFLICT DO NOTHING",
+        "INSERT INTO projects (id, org_id, name, created_at, owner_user_id) "
+        "VALUES ('t33p', 't33o', 'Cap Project', now(), 't33u') ON CONFLICT DO NOTHING",
+        "INSERT INTO project_review_settings (org_id, project_id, version, policy) "
+        "VALUES ('t33o', 't33p', 1, '{\"model_connection\": \"openrouter-default\", "
+        "\"model_grant_id\": \"operator\"}'::json) ON CONFLICT DO NOTHING",
+        "INSERT INTO project_scans (id, org_id, project_id, user_id, idempotency_key, "
+        "request_digest, state, input_meta, policy, attempt, created_at, updated_at, cursor, lease, "
+        "lease_until, source_expires_at, enrichment_reserved_at) "
+        "VALUES ('t33s', 't33o', 't33p', 't33u', 'cap-key', repeat('a', 64), 'running', "
+        "'{\"connection_generation\": \"operator\", \"connection_model\": \"m\"}'::json, "
+        "'{}'::json, 1, now()::timestamp, now()::timestamp, 0, 'cap-lease', "
+        "(now() + interval '10 minutes')::timestamp, (now() + interval '1 hour')::timestamp, "
+        "now()::timestamp) ON CONFLICT DO NOTHING",
+    )
+    with db.connect() as connection:
+        for statement in statements:
+            connection.execute(sa.text(statement))
+        connection.commit()
+        call = ("SELECT count(*) FROM public.basira_start_agent_call("
+                "'t33o', 't33p', 't33s', 'cap-lease', 'operator', 'm', 1)")
+        assert connection.execute(sa.text(call)).scalar_one() == 1, "the first call is allowed"
+        assert connection.execute(sa.text(call)).scalar_one() == 0, "the call past the cap is refused"
+        calls, started = connection.execute(sa.text(
+            "SELECT agent_calls, enrichment_started_at IS NOT NULL FROM project_scans "
+            "WHERE id = 't33s'")).one()
+        assert calls == 1, "a refused call must not increment the counter"
+        assert started, "the first allowed call records when the model path opened"
+        connection.execute(sa.text(
+            "DELETE FROM project_scans WHERE id = 't33s'"))
+        connection.execute(sa.text(
+            "DELETE FROM project_review_settings WHERE project_id = 't33p'"))
+        connection.execute(sa.text("DELETE FROM projects WHERE id = 't33p'"))
+        connection.execute(sa.text("DELETE FROM memberships WHERE org_id = 't33o'"))
+        connection.execute(sa.text("DELETE FROM organizations WHERE id = 't33o'"))
+        connection.execute(sa.text("DELETE FROM users WHERE id = 't33u'"))
+        connection.commit()
+
+
 def test_no_connection_is_left_checked_out(db):
     """A leaked connection here exhausts the pool the rest of the suite shares."""
     assert db.pool.checkedout() == 0
