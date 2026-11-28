@@ -13,7 +13,7 @@
 ### Changed
 - Plan: current position re-verified at `b71e08a` (407 passed, 2 skipped, 8 subtests; frontend build; six routes at 200) and the older 251-test figure kept as an earlier record. New section 3b lists every merged pull request (#1 to #53) under its phase, so each status can be traced to its evidence.
 - Plan statuses corrected: P09 is partial with its open items named (per-tool progress, slow-scan confirmation, parity test) instead of "slice (a) tokens done"; P10 records that the look is settled and points at the merged frontend; P18 is partial with the release checklist and Windows setup merged and Docker still unverified.
-- Plan decisions G to J recorded: keep the current look (the Pop work stays as history and `design-pop.css` is deleted), remove the header bell and palette picker, every change lands through a two-account pull request, and no paid model spend.
+- Plan decisions G to L recorded with their source: keep the current look and overhaul in place, remove the bell and palette picker, Arabic sidebar on the right, two-account pull requests with merge autonomy, and no paid model spend. G to I, K and L come from the owner's own messages on 28 November 2026 (WhatsApp, 08:11, 08:25, 08:26 and 08:33).
 - README: the verification paragraph now states the 28 November run and its numbers, and the documentation section links the setup, configuration, API and troubleshooting pages.
 
 ## 2026-11-27
