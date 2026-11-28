@@ -424,7 +424,9 @@ def product_mode():
 @app.get("/reports", include_in_schema=False)
 @app.get("/reports/{report_id}", include_in_schema=False)
 @app.get("/projects", include_in_schema=False)
+@app.get("/projects/{project_id}", include_in_schema=False)
 @app.get("/projects/{project_id}/scans/{scan_id}", include_in_schema=False)
+@app.get("/projects/{project_id}/reports/{report_id}", include_in_schema=False)
 @app.get("/demo", include_in_schema=False)
 @app.get("/signin", include_in_schema=False)
 @app.get("/dashboard", include_in_schema=False)
@@ -459,3 +461,13 @@ app.include_router(personal_project_router)
 app.include_router(personal_github_router)
 app.include_router(personal_intake_router)
 app.mount("/", StaticFiles(directory=ROOT / "frontend" / "dist", html=True, check_dir=False), name="frontend")
+
+
+@app.exception_handler(404)
+async def not_found_page(request: Request, exc):
+    """Unknown browser URLs open the app's own "Page not found" screen. API calls keep the JSON error."""
+    path = request.url.path
+    if (request.method == "GET" and not path.startswith(("/api/", "/assets/")) and "text/html" in request.headers.get("accept", "")
+            and (ROOT / "frontend" / "dist" / "index.html").is_file()):
+        return FileResponse(ROOT / "frontend" / "dist" / "index.html", status_code=404, headers={"Cache-Control": "no-store"})
+    return JSONResponse({"detail": getattr(exc, "detail", "Not Found")}, status_code=404)
