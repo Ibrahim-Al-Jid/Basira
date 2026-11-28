@@ -46,15 +46,15 @@ def wire(monkeypatch, answers, provider_calls):
     monkeypatch.setattr(agent_client.gateway_model, "__defaults__", (routed,))
 
 
-def scan_through(client, ctx, monkeypatch, mode, answers):
+def scan_through(client, ctx, monkeypatch, mode, answers, kind="repository", name="snapshot.zip", raw=None):
     assert setup_key(client, ctx).status_code == 200
-    policy = {"allowed_kinds": ["repository"], "model_connection": IDENTIFIER}
+    policy = {"allowed_kinds": [kind], "model_connection": IDENTIFIER}
     assert client.put(project_root(ctx) + "/policy", json=policy).status_code == 200
     monkeypatch.setenv("BASIRA_AGENT_LOOP", "1")
     monkeypatch.setenv("BASIRA_GATEWAY_TOKEN", "test-only-gateway-auth")
     calls = []
     wire(monkeypatch, answers, calls)
-    body = {**artifact("repository", "snapshot.zip", archive()), "scope_version": 1, "acknowledge_scope": True,
+    body = {**artifact(kind, name, raw or archive()), "scope_version": 1, "acknowledge_scope": True,
             "model_connection": IDENTIFIER, "analysis_mode": mode}
     created = submit(client, ctx, body, key="agent-e2e-" + mode)
     assert created.status_code == 202, created.text
@@ -172,3 +172,38 @@ def test_a_loop_that_never_finishes_stops_at_the_step_budget_and_the_gateway_cap
     assert row["state"] in ("completed", "partial")
     assert len(provider) <= model_gateway.CHAT_CALL_CAP
     assert [run["status"] for run in runs if run["role_id"] == "analysis"] == ["over_budget"]
+
+
+COMPOSE = json.dumps({"services": {"web": {"image": "app", "environment": {"MODE": "prod"}}}}, indent=2).encode()
+
+
+def test_a_config_scan_runs_all_five_roles_on_the_document(credential_platform, monkeypatch):
+    client, _, _, ctx, _, _ = credential_platform
+    place = {"path": "compose.json", "line": 4, "quote": '"image": "app",', "rule": RULE}
+    script = five(hunter=[tool("read_file", path="compose.json"), final(place)], picks=json.dumps({"picks": ["compose.json"]}))
+    row, runs, _ = scan_through(client, ctx, monkeypatch, "hybrid", script, "config", "compose.json", COMPOSE)
+    assert row["state"] in ("completed", "partial"), row.get("report")
+    assert row["report"]["input_artifact"]["mode_effective"] == "hybrid"
+    assert [(item["path"], item["line"]) for item in row["report"]["agent_findings"]] == [("compose.json", 4)]
+    assert len(runs) == 4 and row["report"]["agent_run"]["status"] == "completed"
+
+
+def test_an_agents_scan_on_a_har_is_refused_and_hybrid_says_it_ran_rules(credential_platform, monkeypatch):
+    client, _, _, ctx, _, _ = credential_platform
+    har = json.dumps({"log": {"entries": [{"request": {"url": "https://a.example/"}, "response": {
+        "status": 200, "headers": [], "content": {"mimeType": "text/html", "text": "<p>x</p>", "size": 8}}}]}}).encode()
+    assert setup_key(client, ctx).status_code == 200
+    client.put(project_root(ctx) + "/policy", json={"allowed_kinds": ["har"], "model_connection": IDENTIFIER})
+    monkeypatch.setenv("BASIRA_AGENT_LOOP", "1")
+    body = {**artifact("har", "capture.har", har), "scope_version": 1, "acknowledge_scope": True,
+            "model_connection": IDENTIFIER}
+    refused = submit(client, ctx, {**body, "analysis_mode": "agents"}, key="agent-har-1")
+    assert refused.status_code == 422
+    soft = submit(client, ctx, {**body, "analysis_mode": "hybrid"}, key="agent-har-2")
+    assert soft.status_code == 202
+    jobs.execute_scan(ctx.org_id, ctx.project_id, soft.json()["id"])
+    with platform_session() as db:
+        row = dict(store.select_scan(db, ctx.org_id, ctx.project_id, soft.json()["id"]))
+    meta = row["report"]["input_artifact"]
+    assert meta["mode_effective"] == "rules" and meta["fallback_reason"] == "agent_path_unavailable"
+    assert "agent_run" not in row["report"]

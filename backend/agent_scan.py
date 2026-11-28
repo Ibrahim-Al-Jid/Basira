@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 
 from . import agent_client, hunter_loop, maestro, platform_runtime as store, scout as scout_agent, scribe
 from .agent_memory import agent_runs
-from .artifact_review import EXTENDED_IDS, InputError, redact_label, zip_texts
+from .artifact_review import EXTENDED_IDS, InputError, prepare, redact_label
 from .contracts import AgentFinding
 from .model_connections import gateway_config
 from .platform_db import bind_job_project, platform_session
@@ -28,11 +28,12 @@ ROLE_ID = {"maestro": "orchestrator", "scout": "planning", "hunter": "analysis",
 
 
 def snapshot(row):
-    """path -> text for a repository upload, or None when the input is not one."""
-    if row["input_meta"].get("kind") != "repository":
+    """path -> text for a repository upload or a configuration input, or None for any other kind."""
+    kind = row["input_meta"].get("kind")
+    if kind not in ("repository", "config"):
         return None
     try:
-        files = zip_texts(row["raw"])
+        files = prepare(kind, row["input_meta"]["name"], row["raw"])[0]
     except InputError:
         return None
     return files or None

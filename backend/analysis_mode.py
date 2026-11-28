@@ -5,8 +5,9 @@ from typing import Literal
 AnalysisMode = Literal["rules", "agents", "hybrid"]
 MODES = ("rules", "agents", "hybrid")
 DEFAULT_MODE = "hybrid"
-# The Hunter reads a repository upload, so other input kinds always run the rules.
-AGENT_KINDS = ("repository",)
+# The Hunter reads files: a repository upload or a configuration file or bundle. HTML, HAR, OpenAPI and ZAP inputs have
+# no files to read, so they always run the rules.
+AGENT_KINDS = ("repository", "config")
 FLAG = "BASIRA_AGENT_LOOP"
 
 
@@ -22,7 +23,7 @@ class ModeUnavailable(ValueError):
 def resolve_mode(requested=None, *, has_model=False, kind="repository"):
     """Return the contract fields for a scan: what was asked, what runs, and why they differ.
 
-    The agent path needs the BASIRA_AGENT_LOOP flag, a model connection on the scan and a repository input."""
+    The agent path needs the BASIRA_AGENT_LOOP flag, a model connection on the scan and a repository or config input."""
     asked = requested or DEFAULT_MODE
     if asked not in MODES:
         raise ModeUnavailable("وضع التحليل غير معروف.")

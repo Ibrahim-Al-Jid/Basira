@@ -8,11 +8,14 @@ def test_flag_model_and_repository_input_are_all_needed_for_the_agent_path(monke
     assert resolve_mode("agents", has_model=True) == {
         "analysis_mode": "agents", "mode_effective": "agents", "fallback_reason": None}
     assert resolve_mode(None, has_model=True)["mode_effective"] == "hybrid"
-    for options in ({"has_model": False}, {"has_model": True, "kind": "html"}):
+    for options in ({"has_model": False}, {"has_model": True, "kind": "html"},
+                    {"has_model": True, "kind": "har"}, {"has_model": True, "kind": "zap"},
+                    {"has_model": True, "kind": "openapi"}):
         assert resolve_mode("hybrid", **options) == {
             "analysis_mode": "hybrid", "mode_effective": "rules", "fallback_reason": "agent_path_unavailable"}
         with pytest.raises(ModeUnavailable):
             resolve_mode("agents", **options)
+    assert resolve_mode("agents", has_model=True, kind="config")["mode_effective"] == "agents"
     assert resolve_mode("rules", has_model=True)["mode_effective"] == "rules"
 
 
