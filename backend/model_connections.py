@@ -179,6 +179,7 @@ def connection_info(row, model, grant_id, source):
 
 
 def public_connection(db, org_id, policy=None):
+    bind_org(db, org_id)
     if personal_projects_enabled():
         return None
     if policy is not None and policy.get("model_connection") != CONNECTION_ID:
