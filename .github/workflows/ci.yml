@@ -97,7 +97,9 @@ jobs:
           python-version: "3.13"
       # Exercises the documented bootstrap path end to end: env file, compose up, readiness wait.
       - name: Start the full local deployment with the bootstrap script
-        run: ops/start-local.sh --port 8901
+        # bash explicitly: ops/start-local.sh is tracked 644 in git, and the
+        # web flow cannot set the exec bit (tracked separately).
+        run: bash ops/start-local.sh --port 8901
       - name: Install Playwright and Chromium
         run: |
           pip install -r requirements-browser.txt
@@ -109,9 +111,18 @@ jobs:
         run: docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file .env.local exec -T app python - < tests/container_smoke.py
       - name: Compose state and logs
         if: always()
+        # Guarded: when the boot step never ran there is no .env.local, and an
+        # unguarded compose call fails and buries the real error.
         run: |
-          docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file .env.local ps
-          docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file .env.local logs --tail=150
+          if [ -f .env.local ]; then
+            docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file .env.local ps
+            docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file .env.local logs --tail=150
+          else
+            echo "deployment never started; nothing to dump"
+          fi
       - name: Stop the deployment
         if: always()
-        run: docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file .env.local down
+        run: |
+          if [ -f .env.local ]; then
+            docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file .env.local down
+          fi
