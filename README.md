@@ -91,10 +91,10 @@ Needs Docker Desktop or Docker Engine with Compose. On Windows, one command does
 powershell -NoProfile -ExecutionPolicy Bypass -File .\ops\start-local.ps1
 ```
 
-On macOS and Linux, copy `ops/platform.env.example` to `.env.local`, fill the three `*_PASSWORD` values with random letters and digits, then:
+On macOS and Linux, copy `ops/platform.env.example` to `.env.local`, fill the three `*_PASSWORD` values with random letters and digits, set `BASIRA_PERSONAL_PROJECTS`, `BASIRA_PASSWORD_AUTH_ENABLED` and `BASIRA_PASSWORD_SELF_SIGNUP` to `1`, then:
 
 ```bash
-docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file .env.local up -d --build
+docker compose -p basira-local -f compose.yaml --env-file .env.local up -d --build
 ```
 
 Open the sign-in page and choose "Create account" on a fresh install. More detail is in the [platform guide](docs/PLATFORM.md).

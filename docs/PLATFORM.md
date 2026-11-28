@@ -56,7 +56,7 @@
 
 ## تشغيل بيئة المشاريع محليًا
 
-**للاستخدام على جهاز واحد** افتح `/projects` واختار «إنشاء حساب» ثم سجّل بإيميلك وكلمة مرور خاصة ببصيرة من ١٢ حرف أو أكتر. ملف `compose.local.yaml` يفعّل الحسابات المحلية ويربط قاعدة التقارير المجهولة بمجلد `data/` الموجود. بيانات حسابات المشاريع محفوظة في PostgreSQL، وكلمات المرور محفوظة ببصمة Argon2id، والجلسة بتنتهي بعد ٨ ساعات وحد محاولات الدخول محفوظ في القاعدة. الإيميل هنا اسم دخول. استخدم OIDC لبيئة فريق تحتاج تحقق بريد أو استعادة حساب.
+**للاستخدام على جهاز واحد** افتح `/projects` واختار «إنشاء حساب» ثم سجّل بإيميلك وكلمة مرور خاصة ببصيرة من ١٢ حرف أو أكتر. سكربت التشغيل المحلي (`ops/start-local.*`) يكتب في `.env.local` أعلام الحسابات المحلية (`BASIRA_PERSONAL_PROJECTS` و`BASIRA_PASSWORD_AUTH_ENABLED` و`BASIRA_PASSWORD_SELF_SIGNUP` بقيمة `1`)، وقاعدة التقارير المجهولة محفوظة في volume اسمه `anonymous`. بيانات حسابات المشاريع محفوظة في PostgreSQL، وكلمات المرور محفوظة ببصمة Argon2id، والجلسة بتنتهي بعد ٨ ساعات وحد محاولات الدخول محفوظ في القاعدة. الإيميل هنا اسم دخول. استخدم OIDC لبيئة فريق تحتاج تحقق بريد أو استعادة حساب.
 
 على Windows، شغّل Docker Desktop ونفّذ من جذر الريبو:
 
@@ -64,15 +64,15 @@
 powershell -NoProfile -ExecutionPolicy Bypass -File .\ops\start-local.ps1
 ```
 
-أول مرة السكربت بيولّد كلمات مرور عشوائية لقاعدة البيانات في `.env.local`، وبيشغّل PostgreSQL وRedis والترحيلات ونسخة التطبيق اللي فيها الحسابات. البروفايل المحلي (`compose.local.yaml`) بيفعّل المشاريع الشخصية (`BASIRA_PERSONAL_PROJECTS=1`) لوحده، فمش لازم تكتبه في `.env.local`. في التشغيل التالي بيستخدم نفس الملف. لو المنفذ 8765 مستخدم، اختار منفذًا مختلفًا في أول تشغيل بإضافة `-Port 8775`. لو ملف `.env.local` موجود، عدّل `BASIRA_PORT` فيه.
+أول مرة السكربت بيولّد كلمات مرور عشوائية لقاعدة البيانات في `.env.local`، وبيشغّل PostgreSQL وRedis والترحيلات ونسخة التطبيق اللي فيها الحسابات. السكربت بيكتب `BASIRA_PERSONAL_PROJECTS=1` وأعلام الحسابات المحلية في `.env.local` لوحده في كل تشغيل. في التشغيل التالي بيستخدم نفس الملف. لو المنفذ 8765 مستخدم، اختار منفذًا مختلفًا في أول تشغيل بإضافة `-Port 8775`. لو ملف `.env.local` موجود، عدّل `BASIRA_PORT` فيه.
 
 للتشغيل اليدوي، جهّز `.env.local` من `ops/platform.env.example` في جذر المشروع. حط كلمات مرور عشوائية مختلفة من حروف وأرقام في `BASIRA_DB_PASSWORD` و`BASIRA_DISPATCH_PASSWORD` و`BASIRA_MIGRATION_PASSWORD`. Git وDocker build بيستبعدوا الملف.
 
 ```powershell
-docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file .env.local up -d --build
+docker compose -p basira-local -f compose.yaml --env-file .env.local up -d --build
 ```
 
-لو صفحة الدخول بتقول «تسجيل الدخول للمشاريع غير متاح حاليًا»، تأكد إنك فتحت عنوان `127.0.0.1` اللي بيطبعه السكربت. أمر `npm start` لو اتشغّل لوحده بيفتح المختبر. لو المختبر شغال، وقّفه بـ`Ctrl+C` في نافذته قبل تشغيل نسخة المشاريع على نفس المنفذ. نسخة Compose الأساسية من غير `compose.local.yaml` بتسيب حسابات الإيميل مقفولة بالإعداد الافتراضي. للتأكد إن نسخة المشاريع فعّلت التسجيل، افتح `/api/platform/auth/options` على نفس العنوان. الحسابات المحلية بتظهر مع `"password":true` وإنشاء الحساب مع `"registration":true`.
+لو صفحة الدخول بتقول «تسجيل الدخول للمشاريع غير متاح حاليًا»، تأكد إنك فتحت عنوان `127.0.0.1` اللي بيطبعه السكربت. أمر `npm start` لو اتشغّل لوحده بيفتح المختبر. لو المختبر شغال، وقّفه بـ`Ctrl+C` في نافذته قبل تشغيل نسخة المشاريع على نفس المنفذ. نسخة Compose الأساسية من غير الأعلام دي في `.env.local` بتسيب حسابات الإيميل مقفولة بالإعداد الافتراضي. للتأكد إن نسخة المشاريع فعّلت التسجيل، افتح `/api/platform/auth/options` على نفس العنوان. الحسابات المحلية بتظهر مع `"password":true` وإنشاء الحساب مع `"registration":true`.
 
 إنشاء الحسابات محدود بـ١٢ حسابًا كل ١٥ دقيقة لكل عنوان شبكة. لو اختبارات المتصفح اتشغّلت كذا مرة ورا بعض، التسجيل بيرجع 429 «وصلت لحد محاولات الدخول» مع ترويسة `Retry-After`. استنى لنهاية النافذة أو باعد بين التشغيلات.
 
@@ -92,7 +92,7 @@ docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file 
 على Windows، شغّل `ops/start-local.ps1 -Model` مرة واحدة. السكريبت بيكتب الإعدادات الأربعة (`BASIRA_PROJECT_MODEL_ENABLED` و`BASIRA_GATEWAY_URL` و`BASIRA_GATEWAY_TOKEN` و`BASIRA_MODEL_DB_PASSWORD`) في `.env.local` بقيم عشوائية، وبيشغّل خدمة `model-gateway` (profile اسمه `model`). بعد كده أي تشغيل عادي للسكريبت بيشغّلها طالما `BASIRA_PROJECT_MODEL_ENABLED=1` موجود. لو صفحة «اتصال الموديل» قالت إن البوابة مش متظبطة، ده معناه إن الإعدادات دي أو الـprofile ناقصين. للتشغيل اليدوي: اضبط `BASIRA_PROJECT_MODEL_ENABLED=1` و`BASIRA_GATEWAY_URL=http://model-gateway:8001`. أنشئ `BASIRA_GATEWAY_TOKEN` و`BASIRA_MODEL_DB_PASSWORD` بقيمتين عشوائيتين مستقلتين. كلمة مرور قاعدة البيانات تقبل ٢٤ إلى ١٢٨ حرفًا أو رقمًا (ASCII).
 
 ```powershell
-docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file .env.local --profile model up -d --build
+docker compose -p basira-local -f compose.yaml --env-file .env.local --profile model up -d --build
 ```
 
 بعد التشغيل، المالك أو المدير يفتح «الحساب ← اتصال الموديل»، يختار المؤسسة ويدخل مفتاح OpenRouter ومعرّف الموديل، ثم يسمح للمشروع في نفس المكان. التخزين مشفر بمفتاح خاص ببوابة الموديل. تفاصيل النسخ الاحتياطي والإعداد المشغّل القديم في سجلات المشروع في git (الدليل القديم اتشال من المستودع).

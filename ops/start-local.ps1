@@ -144,11 +144,20 @@ if (-not (Test-Path -LiteralPath $settings)) {
 }
 
 Initialize-GitHubSettings $settings $Port $GitHubClientId $GitHubAppSlug
+# The local profile: accounts, projects and self sign-up on. compose.yaml reads
+# these from .env.local for the app, dispatcher and worker, so no override file
+# is needed. Written on every run so an older .env.local that carries 0 cannot
+# leave sign-in off.
+$localText = [IO.File]::ReadAllText($settings)
+foreach ($name in 'BASIRA_PERSONAL_PROJECTS', 'BASIRA_PASSWORD_AUTH_ENABLED', 'BASIRA_PASSWORD_SELF_SIGNUP') {
+    $localText = Set-Setting $localText $name '1'
+}
+[IO.File]::WriteAllText($settings, $localText, (New-Object Text.UTF8Encoding($false)))
 $withModel = Initialize-ModelSettings $settings ([bool]$Model)
 
 Push-Location -LiteralPath $root
 try {
-    $compose = @('-p', $project, '-f', 'compose.yaml', '-f', 'compose.local.yaml', '--env-file', '.env.local')
+    $compose = @('-p', $project, '-f', 'compose.yaml', '--env-file', '.env.local')
     if ($withModel) { $compose += @('--profile', 'model') }
     docker compose @compose up -d --build
     if ($LASTEXITCODE -ne 0) { throw 'Basira failed to start. Check the Docker Compose output above.' }

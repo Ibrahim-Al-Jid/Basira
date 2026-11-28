@@ -92,7 +92,7 @@ cp ops/platform.env.example .env.local
 2. Start the stack:
 
 ```bash
-docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file .env.local up -d --build
+docker compose -p basira-local -f compose.yaml --env-file .env.local up -d --build
 ```
 
 3. Check the services and open the app:
@@ -105,7 +105,7 @@ docker compose -p basira-local ps -a
 
 `.env.local` is read for every setting Compose forwards, including `BASIRA_LOG_LEVEL` and the two lab run limits `BASIRA_LAB_RUN_LIMIT` and `BASIRA_LAB_RUN_CONCURRENCY` (defaults `INFO`, `30` and `8`). Change a value there and re-run the `up -d` command; no image rebuild is needed for these three.
 
-`compose.local.yaml` turns on personal projects, local password accounts and self sign-up, and mounts `./data` so the lab SQLite file survives a rebuild. Without it the email and password sign-in stays off.
+Set `BASIRA_PERSONAL_PROJECTS=1`, `BASIRA_PASSWORD_AUTH_ENABLED=1` and `BASIRA_PASSWORD_SELF_SIGNUP=1` in `.env.local` before step 2: they turn on personal projects, local password accounts and self sign-up. Without them the email and password sign-in stays off. `ops/start-local.sh` and `ops/start-local.ps1` write all three for you. The anonymous lab database lives in the `anonymous` Compose volume.
 
 ### One command on Linux and macOS
 
@@ -123,10 +123,10 @@ Optional profiles:
 
 ```bash
 # Model gateway (Account -> Model connection)
-docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file .env.local --profile model up -d --build
+docker compose -p basira-local -f compose.yaml --env-file .env.local --profile model up -d --build
 
 # GitHub App archive import for operator-assigned installations
-docker compose -p basira-local -f compose.yaml -f compose.local.yaml -f compose.github.yaml --env-file .env.local up -d
+docker compose -p basira-local -f compose.yaml -f compose.github.yaml --env-file .env.local up -d
 ```
 
 ## Model gateway

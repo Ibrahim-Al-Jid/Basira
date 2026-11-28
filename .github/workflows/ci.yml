@@ -125,8 +125,8 @@ jobs:
         # unguarded compose call fails and buries the real error.
         run: |
           if [ -f .env.local ]; then
-            docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file .env.local ps
-            docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file .env.local logs --tail=150
+            docker compose -p basira-local -f compose.yaml --env-file .env.local ps
+            docker compose -p basira-local -f compose.yaml --env-file .env.local logs --tail=150
           else
             echo "deployment never started; nothing to dump"
           fi
@@ -134,11 +134,13 @@ jobs:
         if: always()
         run: |
           if [ -f .env.local ]; then
-            docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file .env.local down
+            docker compose -p basira-local -f compose.yaml --env-file .env.local down
           fi
       # container_smoke.py exercises team-mode routes (organizations, grants,
       # cross-org RLS) that the personal-mode middleware deliberately 404s, so
-      # it needs its own deployment without compose.local.yaml. This also gives
+      # it needs its own deployment with BASIRA_PERSONAL_PROJECTS=0. The start script
+      # writes that flag as 1 into the shared .env.local, and shell env wins over
+      # --env-file, so the export below turns it off here. This also gives
       # the team-mode deployment shape its first automated coverage. The test
       # mints sessions in the database itself, so password auth is not needed.
       # Password auth + self-signup on for the account suites, and the model
@@ -150,6 +152,7 @@ jobs:
       - name: Start the team-mode deployment
         run: |
           export BASIRA_PASSWORD_AUTH_ENABLED=1 BASIRA_PASSWORD_SELF_SIGNUP=1
+          export BASIRA_PERSONAL_PROJECTS=0
           export BASIRA_MODEL_DB_PASSWORD="$(openssl rand -hex 24)"
           export BASIRA_GATEWAY_TOKEN="$(openssl rand -hex 24)"
           export BASIRA_GATEWAY_URL="http://model-gateway:8001"

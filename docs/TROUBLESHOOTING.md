@@ -6,8 +6,8 @@ Symptoms are grouped by where they appear. Each entry gives the cause and the ch
 
 | Symptom | Likely cause | Check and fix |
 |---|---|---|
-| The sign-in page says sign-in to projects is not available | The install is running without `compose.local.yaml`, or with `BASIRA_PASSWORD_AUTH_ENABLED=0` | `curl -s http://127.0.0.1:8765/api/platform/auth/options` should show `"password":true`. If not, start with `-f compose.local.yaml` |
-| No "Create account" option | `BASIRA_PASSWORD_SELF_SIGNUP=0` | Same `options` call must show `"registration":true`. `compose.local.yaml` sets it |
+| The sign-in page says sign-in to projects is not available | `.env.local` has `BASIRA_PASSWORD_AUTH_ENABLED=0` (or the flag is missing) | `curl -s http://127.0.0.1:8765/api/platform/auth/options` should show `"password":true`. If not, set `BASIRA_PERSONAL_PROJECTS=1`, `BASIRA_PASSWORD_AUTH_ENABLED=1` and `BASIRA_PASSWORD_SELF_SIGNUP=1` in `.env.local` (`ops/start-local.sh` and `ops/start-local.ps1` do this on every run) and re-run `up -d` |
+| No "Create account" option | `BASIRA_PASSWORD_SELF_SIGNUP=0` | Same `options` call must show `"registration":true`. `ops/start-local.*` sets it to `1` in `.env.local` |
 | Sign-in works on one machine but the old account is rejected on another | Every install has its own PostgreSQL database | Create an account on the new machine, or move the PostgreSQL data |
 | Password rejected at 12 characters or more | The password has leading or trailing spaces, or the account is rate limited after repeated attempts | Wait for the attempt window to pass, then retry. Register and login limits are separate |
 | Session ends after 8 hours | By design (`SESSION_TTL`) | Sign in again. There is no refresh token |

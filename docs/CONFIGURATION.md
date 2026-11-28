@@ -33,9 +33,9 @@ Related: [setup](SETUP.md) for the commands, [API](API.md) for the endpoints the
 
 | Variable | Default | Effect |
 |---|---|---|
-| `BASIRA_PERSONAL_PROJECTS` | `0` | Turns on accounts, projects and personal scans. `compose.local.yaml` sets `1` for the app, dispatcher and worker. |
-| `BASIRA_PASSWORD_AUTH_ENABLED` | `0` | Email and password sign-in. `compose.local.yaml` sets `1`. |
-| `BASIRA_PASSWORD_SELF_SIGNUP` | `0` | "Create account" on the sign-in page. `compose.local.yaml` sets `1`. Passwords need 12 or more characters; sessions last 8 hours; attempts are rate limited per account. |
+| `BASIRA_PERSONAL_PROJECTS` | `0` | Turns on accounts, projects and personal scans. `ops/start-local.*` writes `1` to `.env.local`; Compose passes it to the app, dispatcher and worker. |
+| `BASIRA_PASSWORD_AUTH_ENABLED` | `0` | Email and password sign-in. `ops/start-local.*` writes `1`. |
+| `BASIRA_PASSWORD_SELF_SIGNUP` | `0` | "Create account" on the sign-in page. `ops/start-local.*` writes `1`. Passwords need 12 or more characters; sessions last 8 hours; attempts are rate limited per account. |
 
 OIDC is the alternative to local passwords, for a team install:
 
@@ -127,10 +127,10 @@ curl -s http://127.0.0.1:8765/api/platform/auth/options
 curl -s -b "basira_session=<cookie>" http://127.0.0.1:8765/api/platform/account/model-connection
 
 # Effective Compose configuration after .env.local is applied
-docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file .env.local config
+docker compose -p basira-local -f compose.yaml --env-file .env.local config
 ```
 
-`options` reports `password` and `registration` booleans, which is the fastest way to confirm that `compose.local.yaml` actually applied.
+`options` reports `password` and `registration` booleans, which is the fastest way to confirm that the three local flags in `.env.local` actually applied.
 
 ## Compose and these settings
 

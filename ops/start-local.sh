@@ -157,8 +157,16 @@ if [ "$with_model" = 1 ]; then
     fi
 fi
 
+# The local profile: accounts, projects and self sign-up on. compose.yaml reads
+# these from .env.local for the app, dispatcher and worker, so no override file
+# is needed. Written on every run so an older .env.local copied from the
+# example (which carries 0) cannot leave sign-in off.
+set_setting BASIRA_PERSONAL_PROJECTS 1
+set_setting BASIRA_PASSWORD_AUTH_ENABLED 1
+set_setting BASIRA_PASSWORD_SELF_SIGNUP 1
+
 cd "$root"
-compose=(-p "$project" -f compose.yaml -f compose.local.yaml --env-file .env.local)
+compose=(-p "$project" -f compose.yaml --env-file .env.local)
 if [ "$with_model" = 1 ]; then
     compose+=(--profile model)
 fi
