@@ -1,0 +1,258 @@
+name: basira
+
+x-app: &app
+  build: .
+  image: basira-platform:local
+  restart: unless-stopped
+  # The default json-file driver grows without bound; a full disk takes the
+  # database down with it.
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+  # Every service here runs as an unprivileged user and needs no capabilities.
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+
+x-platform: &platform
+  BASIRA_PERSONAL_PROJECTS: ${BASIRA_PERSONAL_PROJECTS:-0}
+  BASIRA_PLATFORM_DATABASE_URL: postgresql+psycopg://basira_app:${BASIRA_DB_PASSWORD:?Set BASIRA_DB_PASSWORD}@db/basira
+  BASIRA_REDIS_URL: redis://broker:6379/0
+  BASIRA_SOURCE_ADAPTERS: ${BASIRA_SOURCE_ADAPTERS-gitleaks,osv-scanner}
+
+x-model-client: &model-client
+  BASIRA_OPENROUTER_MODEL: ${BASIRA_OPENROUTER_MODEL:-}
+  BASIRA_PROJECT_MODEL_ENABLED: ${BASIRA_PROJECT_MODEL_ENABLED:-0}
+  BASIRA_GATEWAY_URL: ${BASIRA_GATEWAY_URL:-}
+  BASIRA_GATEWAY_TOKEN: ${BASIRA_GATEWAY_TOKEN:-}
+  BASIRA_AGENT_LOOP: ${BASIRA_AGENT_LOOP:-0}
+  BASIRA_OPERATOR_MODEL_ORGS: ${BASIRA_OPERATOR_MODEL_ORGS:-}
+
+services:
+  db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: basira
+      POSTGRES_PASSWORD: ${BASIRA_MIGRATION_PASSWORD:?Set BASIRA_MIGRATION_PASSWORD}
+      BASIRA_DB_PASSWORD: ${BASIRA_DB_PASSWORD:?Set BASIRA_DB_PASSWORD}
+      BASIRA_DISPATCH_PASSWORD: ${BASIRA_DISPATCH_PASSWORD:?Set BASIRA_DISPATCH_PASSWORD}
+    volumes:
+      - database:/var/lib/postgresql/data
+      - ./ops/postgres-init.sh:/docker-entrypoint-initdb.d/10-basira.sh:ro
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d basira -h 127.0.0.1"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+    # postgres defaults: shared_buffers 128MB plus a few MB per connection.
+    mem_limit: 512m
+    cpus: 1
+    pids_limit: 128
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
+  broker:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    networks: [internal]
+    volumes: [redis:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 2s
+      retries: 12
+    # Small queue payloads; the AOF rewrite forks one copy-on-write child.
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 32
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
+  migrate:
+    <<: *app
+    restart: "no"
+    command: ["python", "ops/migrate-platform.py"]
+    environment:
+      BASIRA_PLATFORM_MIGRATION_URL: postgresql+psycopg://postgres:${BASIRA_MIGRATION_PASSWORD:?Set BASIRA_MIGRATION_PASSWORD}@db/basira
+      BASIRA_MODEL_DB_PASSWORD: ${BASIRA_MODEL_DB_PASSWORD:-}
+    depends_on:
+      db: {condition: service_healthy}
+    networks: [internal]
+
+  app:
+    <<: *app
+    environment:
+      <<: [*platform, *model-client]
+      BASIRA_LOG_LEVEL: ${BASIRA_LOG_LEVEL:-INFO}
+      BASIRA_LAB_RUN_LIMIT: ${BASIRA_LAB_RUN_LIMIT:-30}
+      BASIRA_LAB_RUN_CONCURRENCY: ${BASIRA_LAB_RUN_CONCURRENCY:-8}
+      BASIRA_OIDC_ISSUER: ${BASIRA_OIDC_ISSUER:-}
+      BASIRA_OIDC_CLIENT_ID: ${BASIRA_OIDC_CLIENT_ID:-}
+      BASIRA_OIDC_CLIENT_SECRET: ${BASIRA_OIDC_CLIENT_SECRET:-}
+      BASIRA_OIDC_REDIRECT_URI: ${BASIRA_OIDC_REDIRECT_URI:-}
+      BASIRA_OIDC_STATE_SECRET: ${BASIRA_OIDC_STATE_SECRET:-}
+      BASIRA_PASSWORD_AUTH_ENABLED: ${BASIRA_PASSWORD_AUTH_ENABLED:-0}
+      BASIRA_PASSWORD_SELF_SIGNUP: ${BASIRA_PASSWORD_SELF_SIGNUP:-0}
+      BASIRA_GITHUB_CLIENT_ID: ${BASIRA_GITHUB_CLIENT_ID:-}
+      BASIRA_GITHUB_APP_SLUG: ${BASIRA_GITHUB_APP_SLUG:-}
+      BASIRA_GITHUB_CLIENT_SECRET: ${BASIRA_GITHUB_CLIENT_SECRET:-}
+      BASIRA_GITHUB_CALLBACK_URL: ${BASIRA_GITHUB_CALLBACK_URL:-}
+      BASIRA_GITHUB_CREDENTIAL_KEY: ${BASIRA_GITHUB_CREDENTIAL_KEY:-}
+      BASIRA_APPROVED_WEBSITE_PAGES: ${BASIRA_APPROVED_WEBSITE_PAGES:-}
+      BASIRA_INTAKE_S3_BUCKET: ${BASIRA_INTAKE_S3_BUCKET:-}
+      BASIRA_INTAKE_S3_ENDPOINT: ${BASIRA_INTAKE_S3_ENDPOINT:-}
+      BASIRA_INTAKE_STORAGE_REQUIRED: ${BASIRA_INTAKE_STORAGE_REQUIRED:-0}
+      AWS_DEFAULT_REGION: ${BASIRA_INTAKE_S3_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${BASIRA_INTAKE_S3_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${BASIRA_INTAKE_S3_SECRET_ACCESS_KEY:-}
+      AWS_SESSION_TOKEN: ${BASIRA_INTAKE_S3_SESSION_TOKEN:-}
+    ports: ["127.0.0.1:${BASIRA_PORT:-8765}:8000"]
+    volumes: [anonymous:/srv/basira/data]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/product', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    networks: [internal, egress]
+    # Measured 143MB serving API + SPA traffic; 512m is ~3.5x headroom for the
+    # postgres driver, OIDC and report views.
+    mem_limit: 512m
+    cpus: 1.5
+    pids_limit: 128
+
+  dispatcher:
+    <<: *app
+    command: ["python", "-m", "backend.platform_jobs"]
+    environment:
+      <<: *platform
+      BASIRA_PLATFORM_DATABASE_URL: postgresql+psycopg://basira_dispatch:${BASIRA_DISPATCH_PASSWORD:?Set BASIRA_DISPATCH_PASSWORD}@db/basira
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      broker: {condition: service_healthy}
+    networks: [internal]
+    healthcheck:
+      # No HTTP port: liveness is "the dispatcher loop process is alive".
+      # A heartbeat-based check needs backend instrumentation (follow-up).
+      test: ["CMD", "python", "-c", "import pathlib,sys; sys.exit(0 if b'platform_jobs' in pathlib.Path('/proc/1/cmdline').read_bytes() else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    # Measured 129MB in its poll loop; 384m is ~3x headroom.
+    mem_limit: 384m
+    cpus: 0.5
+    pids_limit: 64
+
+  worker:
+    <<: *app
+    command: ["celery", "-A", "backend.platform_jobs:celery_app", "worker", "--concurrency", "2", "--loglevel", "WARNING"]
+    environment:
+      <<: [*platform, *model-client]
+      BASIRA_ANALYSIS_SPOOL: /srv/basira/spool
+    volumes: [spool:/srv/basira/spool]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      broker: {condition: service_healthy}
+      scanner: {condition: service_started}
+    networks: [internal]
+    healthcheck:
+      # Celery's own liveness probe: proves the worker process is up AND can
+      # still reach the broker, which a bare process check cannot.
+      test: ["CMD", "celery", "-A", "backend.platform_jobs:celery_app", "inspect", "--timeout", "5", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    # Measured ~440MB at boot with --concurrency 2 (main + 2 pool processes);
+    # 768m leaves ~1.7x for report generation under load.
+    mem_limit: 768m
+    cpus: 2
+    pids_limit: 128
+
+  scanner:
+    <<: *app
+    build:
+      context: .
+      target: scanner-npm
+    image: basira-platform:scanner-local
+    command: ["python", "-m", "backend.offline_worker"]
+    environment:
+      BASIRA_ANALYSIS_SPOOL: /srv/basira/spool
+      BASIRA_SOURCE_ADAPTERS: ${BASIRA_SOURCE_ADAPTERS-gitleaks,osv-scanner}
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes: [spool:/srv/basira/spool]
+    network_mode: none
+    read_only: true
+    tmpfs: ["/tmp:size=64m,noexec,nosuid,nodev"]
+    mem_limit: 400m
+    cpus: 1
+    pids_limit: 64
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      # No network (network_mode: none) and no shell tools to spare: liveness
+      # is "the offline worker loop is PID 1 and alive". /proc is available
+      # even with read_only.
+      test: ["CMD", "python", "-c", "import pathlib,sys; sys.exit(0 if b'offline_worker' in pathlib.Path('/proc/1/cmdline').read_bytes() else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  model-secrets:
+    <<: *app
+    profiles: [model]
+    restart: "no"
+    command: ["python", "ops/init-model-vault.py"]
+    volumes: [model-secrets:/srv/basira/model-secrets]
+    network_mode: none
+
+  model-gateway:
+    <<: *app
+    profiles: [model]
+    command: ["python", "-m", "uvicorn", "backend.model_gateway:app", "--no-access-log", "--proxy-headers", "--host", "0.0.0.0", "--port", "8001"]
+    environment:
+      <<: *model-client
+      BASIRA_PLATFORM_DATABASE_URL: postgresql+psycopg://basira_model_gateway:${BASIRA_MODEL_DB_PASSWORD:-}@db/basira
+      BASIRA_MODEL_MASTER_KEY_FILE: /srv/basira/model-secrets/master.key
+    volumes: [model-secrets:/srv/basira/model-secrets:ro]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      model-secrets: {condition: service_completed_successfully}
+    networks: [internal, egress]
+    healthcheck:
+      # /health is bearer-gated (hmac compare); use the same env token the
+      # gateway verifies against. With no token configured the gateway 401s
+      # everything and this check fails, which is the correct signal.
+      test: ["CMD", "python", "-c", "import os,urllib.request; req=urllib.request.Request('http://127.0.0.1:8001/health', headers={'Authorization': 'Bearer ' + os.environ.get('BASIRA_GATEWAY_TOKEN', '')}); urllib.request.urlopen(req, timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    # Measured 88MB serving /health and completions; 256m is ~3x headroom.
+    mem_limit: 256m
+    cpus: 1
+    pids_limit: 64
+
+networks:
+  internal: {internal: true}
+  egress: {}
+volumes:
+  database: {}
+  anonymous: {}
+  redis: {}
+  spool: {}
+  model-secrets: {}
