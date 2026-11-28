@@ -10,6 +10,7 @@ One topic, one file. If two files say different things, the one in this table wi
 | HTTP API reference | [API.md](API.md) |
 | Troubleshooting | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) |
 | Architecture: roles, tools, memory, technology | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Agent system design: roles, schemas, validation, evaluation | [ARCHITECTURE-agents.md](ARCHITECTURE-agents.md) |
 | Data model | [ERD.md](ERD.md) |
 | Live demo runbook and fallback | [DEMO.md](DEMO.md) |
 | Running and operating the platform | [PLATFORM.md](PLATFORM.md) |
