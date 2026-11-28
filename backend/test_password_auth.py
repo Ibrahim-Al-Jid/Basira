@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from .identity import SESSION_COOKIE
 from .main import app
 from .platform_db import Base, User, database_engine, platform_session
-from .password_auth import HASHER, credentials
+from .password_auth import HASHER, credentials, limits
 
 EMAIL = "local-owner@example.test"
 PASSWORD = "separate test passphrase 64"
@@ -181,3 +181,14 @@ def test_existing_password_account_survives_profile_migration(monkeypatch, tmp_p
             }
     finally:
         engine.dispose()
+
+
+def test_attempt_scopes_fit_the_column(accounts):
+    """SQLite ignores String(80), PostgreSQL does not: a longer scope made sign-up fail with a 500 there."""
+    owner, _ = accounts
+    authenticate(owner, "register")
+    authenticate(owner, "login")
+    with platform_session() as db:
+        scopes = [row[0] for row in db.execute(sa.select(limits.c.scope))]
+    assert scopes and len(scopes) >= 3
+    assert max(map(len, scopes)) <= limits.c.scope.type.length

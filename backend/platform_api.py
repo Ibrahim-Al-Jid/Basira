@@ -175,7 +175,17 @@ def read_policy(project_id: str, request: Request):
         store.bind_project_context(db, ctx)
         version, policy = store.project_policy(db, ctx.org_id, ctx.project_id)
         connection = public_connection(db, ctx.org_id, policy)
+    if ctx.owner_user_id:
+        # PUT accepts only ["repository"] for a personal project, so GET must not offer more.
+        policy = {**policy, "allowed_kinds": ["repository"]}
     return policy_view(version, policy, connection)
+
+
+def project_memory_policy(ctx, row):
+    view = dict(row) if row else {"version": 0, "policy": {"allowed_kinds": list(DEFAULT_INPUTS)}}
+    if ctx.owner_user_id:
+        view["policy"] = {**view["policy"], "allowed_kinds": ["repository"]}
+    return view
 
 
 def policy_view(version, policy, connection):
@@ -346,7 +356,7 @@ def memory(project_id: str, request: Request):
             "episodic": [{**item, "created_at": store.timestamp(item["created_at"])} for item in last],
             "semantic": [{**item, "created_at": store.timestamp(item["created_at"])} for item in knowledge],
             "procedural": {"version": RULESET_VERSION, "rules": list(RULES) + EXTENDED_IDS},
-            "project": dict(policy) if policy else {"version": 0, "policy": {"allowed_kinds": list(DEFAULT_INPUTS)}},
+            "project": project_memory_policy(ctx, policy),
             "finding": [dict(item) for item in observations],
         }
 

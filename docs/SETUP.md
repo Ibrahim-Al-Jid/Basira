@@ -70,6 +70,7 @@ Script parameters:
 | `-Port` | `8765` | Port for the app. Writes `BASIRA_PORT` and the callback line. On later runs the value in `.env.local` wins. |
 | `-GitHubClientId` | empty | Public client id, written only into empty lines. |
 | `-GitHubAppSlug` | empty | App slug, used to build the install link. |
+| `-AgentLoop` | off | Writes `BASIRA_AGENT_LOOP=1` (also on when it is already `1` in `.env.local`) and starts the model profile, because the agent path needs a model connection. Without it, `agents` scans are refused with 422 and `hybrid` scans run as `rules`. On Linux and macOS use `--agent-loop`. |
 | `-Model` | off | Writes the four gateway settings with random values and starts the `model` profile. Also on when `BASIRA_PROJECT_MODEL_ENABLED=1` is already in `.env.local`. |
 
 The script fills only empty lines, stops with a clear message when the credential key is malformed, and warns when the GitHub lines are incomplete. Without the GitHub lines the app still starts, but Connect GitHub is unavailable.
@@ -130,7 +131,8 @@ The gateway is a separate service that holds provider keys. It is optional: with
 
 1. Turn it on with `.\ops\start-local.ps1 -Model`, or by hand: set `BASIRA_PROJECT_MODEL_ENABLED=1`, `BASIRA_GATEWAY_URL=http://model-gateway:8001`, and random values for `BASIRA_GATEWAY_TOKEN` and `BASIRA_MODEL_DB_PASSWORD`, then start the `model` profile.
 2. Open Account, then Model connection, choose the organization, paste the provider key and pick a model.
-3. The page says which problem it found: gateway not set up, or gateway not answering. Both come from the same `reason` field in `GET /api/platform/account/model-connection`.
+3. To let scans use the agents, set `BASIRA_AGENT_LOOP=1` in `.env.local` (or start with `-AgentLoop`) and re-run the `up -d` command. A scan picks its mode with `analysis_mode` (`rules`, `agents` or `hybrid`, default `hybrid`): in the JSON `POST /scans` body, in the `analysis_mode` field of a GitHub or website intake request, or in the `X-Analysis-Mode` header of the ZIP upload. The agent path needs the flag, a model connection and a repository or config input; otherwise `hybrid` runs as `rules` and `agents` is refused with 422.
+4. The page says which problem it found: gateway not set up, or gateway not answering. Both come from the same `reason` field in `GET /api/platform/account/model-connection`.
 
 The gateway encrypts stored keys with a master key kept in the `model-secrets` volume. Losing that volume loses the stored keys, not the rest of the install.
 
@@ -186,7 +188,7 @@ Not run in this environment, and therefore not claimed:
 
 ## The five agents
 
-The interface shows these names; the id in the table is what rows, events and tool allow-lists store and never changes (`backend/agent_roles.py`).
+The interface shows these names; the id in the table is what rows, events and tool allow-lists store and never changes .
 
 | Id | Name | Arabic | Job |
 |---|---|---|---|

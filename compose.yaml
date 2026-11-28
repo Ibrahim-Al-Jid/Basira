@@ -17,6 +17,7 @@ x-app: &app
 
 x-platform: &platform
   BASIRA_PERSONAL_PROJECTS: ${BASIRA_PERSONAL_PROJECTS:-0}
+  BASIRA_API_DOCS: ${BASIRA_API_DOCS:-0}
   BASIRA_PLATFORM_DATABASE_URL: postgresql+psycopg://basira_app:${BASIRA_DB_PASSWORD:?Set BASIRA_DB_PASSWORD}@db/basira
   BASIRA_REDIS_URL: redis://broker:6379/0
   BASIRA_SOURCE_ADAPTERS: ${BASIRA_SOURCE_ADAPTERS-gitleaks,osv-scanner}

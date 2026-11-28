@@ -6,7 +6,9 @@ param(
     [string]$GitHubClientId = '',
     [string]$GitHubAppSlug = '',
     # Start the model gateway and write its settings to .env.local (also on when BASIRA_PROJECT_MODEL_ENABLED=1 is already there).
-    [switch]$Model
+    [switch]$Model,
+    # Turn on the agent path (BASIRA_AGENT_LOOP=1). Needs the model gateway, so it starts the model profile too.
+    [switch]$AgentLoop
 )
 
 $ErrorActionPreference = 'Stop'
@@ -153,7 +155,11 @@ foreach ($name in 'BASIRA_PERSONAL_PROJECTS', 'BASIRA_PASSWORD_AUTH_ENABLED', 'B
     $localText = Set-Setting $localText $name '1'
 }
 [IO.File]::WriteAllText($settings, $localText, (New-Object Text.UTF8Encoding($false)))
-$withModel = Initialize-ModelSettings $settings ([bool]$Model)
+$agentLoop = $AgentLoop -or ((Get-Setting ([IO.File]::ReadAllText($settings)) 'BASIRA_AGENT_LOOP') -eq '1')
+$withModel = Initialize-ModelSettings $settings ([bool]($Model -or $agentLoop))
+if ($agentLoop) {
+    [IO.File]::WriteAllText($settings, (Set-Setting ([IO.File]::ReadAllText($settings)) 'BASIRA_AGENT_LOOP' '1'), (New-Object Text.UTF8Encoding($false)))
+}
 
 Push-Location -LiteralPath $root
 try {

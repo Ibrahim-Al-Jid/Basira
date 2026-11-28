@@ -1,6 +1,6 @@
 # HTTP API reference
 
-Basira serves its own API and the React app from the same origin. This page lists every operation the app exposes on `main` at commit `ccf076c` (28 November 2026): 72 operations on 54 paths. The OpenAPI schema at `/openapi.json` and the interactive page at `/docs` are generated from the code and are the authority if this page ever drifts; see "Regenerate this list" at the end.
+Basira serves its own API and the React app from the same origin. This page lists every operation the app exposes on `main` at commit `ccf076c` (28 November 2026): 72 operations on 54 paths. The OpenAPI schema at `/openapi.json` and the interactive page at `/docs` (served only when `BASIRA_API_DOCS=1`) are generated from the code and are the authority if this page ever drifts; see "Regenerate this list" at the end.
 
 Related: [architecture](ARCHITECTURE.md), [configuration](CONFIGURATION.md), [data model](ERD.md).
 
@@ -26,8 +26,8 @@ Error codes used by the platform API:
 | 408 | A ZIP upload was cut off or ran past its 30-second window. |
 | 409 | Conflict, for example a repeated or stale scope version. |
 | 415 | A ZIP upload that did not declare a ZIP content type. |
-| 422 | Invalid input: wrong extension, unacknowledged scope, unsupported input kind for the project. |
-| 429 | Per-project limit of queued scans reached. Retry after 60 seconds. |
+| 422 | Invalid input: wrong extension, unacknowledged scope, unsupported input kind for the project, unknown or unavailable `analysis_mode`. The message names the fields that failed (`الحقول: ...`), never their values. |
+| 429 | Too many requests. For scans: the per-project limit of queued scans, or the evidence-capture limit (personal projects), was reached. For password sign-in and sign-up: too many attempts from one address or for one email from one address. Every 429 carries a `Retry-After` header in seconds (60 for scans). |
 | 503 | Storage or queue unavailable; retry later. |
 
 ## Roles
@@ -114,7 +114,7 @@ An account that is not a member and has no grant gets `404`, not `403`, so proje
 | PUT | `/api/platform/projects/{project_id}/policy` | Update policy. `expected_version` guards against a stale write. |
 | GET | `/api/platform/projects/{project_id}/scan-profile` | Which inputs and rules apply, and the scope to acknowledge. |
 | GET | `/api/platform/projects/{project_id}/technical` | Technical registry: rules, tools, adapter versions. |
-| POST | `/api/platform/projects/{project_id}/intake/zip` | Upload a ZIP body and start a scan. Requires `Idempotency-Key`, `X-Artifact-Name` (the file name, `.zip`), `X-Scope-Version`, `X-Acknowledge-Scope: true`, and a ZIP content type. Optional `X-Model-Connection`. |
+| POST | `/api/platform/projects/{project_id}/intake/zip` | Upload a ZIP body and start a scan. Requires `Idempotency-Key`, `X-Artifact-Name` (the file name, `.zip`), `X-Scope-Version`, `X-Acknowledge-Scope: true`, and a ZIP content type. Optional `X-Model-Connection` and `X-Analysis-Mode` (`rules`, `agents` or `hybrid`; default `hybrid`). |
 | POST | `/api/platform/projects/{project_id}/intake` | Start a scan from an approved remote source: a JSON body with `source` set to `github` or `website`, plus the scope version and acknowledgement. Requires `Idempotency-Key`. |
 | POST | `/api/platform/projects/{project_id}/scans` | Start a scan from a JSON body. Requires `Idempotency-Key`. |
 | GET | `/api/platform/projects/{project_id}/scans` | List scans. |
@@ -184,4 +184,4 @@ for path in sorted(schema["paths"]):
 PY
 ```
 
-The count printed on `main` at `ccf076c` is 54 paths and 72 operations. `GET /openapi.json` returns the same schema from the running app, and `/docs` renders it.
+The count printed on `main` at `ccf076c` is 54 paths and 72 operations. `GET /openapi.json` returns the same schema from the running app, and `/docs` renders it when `BASIRA_API_DOCS=1`.
