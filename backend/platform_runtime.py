@@ -122,18 +122,6 @@ findings = sa.Table(
                             ondelete="CASCADE"),
     sa.Index("ix_finding_fingerprint", "org_id", "project_id", "fingerprint"),
 )
-legacy = sa.Table(
-    "project_legacy_reports", metadata,
-    sa.Column("legacy_id", sa.String(32), primary_key=True),
-    sa.Column("org_id", sa.String(32), nullable=False),
-    sa.Column("project_id", sa.String(32), nullable=False),
-    sa.Column("user_id", sa.String(32), sa.ForeignKey("users.id"), nullable=False),
-    sa.Column("report", sa.JSON, nullable=False),
-    sa.Column("report_index", sa.JSON, nullable=False),
-    sa.Column("claimed_at", sa.DateTime, nullable=False),
-    sa.ForeignKeyConstraint(("org_id", "project_id"), ("projects.org_id", "projects.id")),
-    sa.Index("ix_legacy_reports_scope", "org_id", "project_id"),
-)
 assets = sa.Table(
     "project_assets", metadata,
     sa.Column("org_id", sa.String(32), primary_key=True),
@@ -174,7 +162,7 @@ evidence_records = sa.Table(
                             ("project_scan_provenance.org_id", "project_scan_provenance.project_id",
                              "project_scan_provenance.scan_id"), ondelete="CASCADE"),
 )
-TENANT_TABLES = (scans, events, settings, notes, findings, legacy, assets, provenance, evidence_records)
+TENANT_TABLES = (scans, events, settings, notes, findings, assets, provenance, evidence_records)
 TERMINAL = {"completed", "partial", "failed", "cancelled"}
 MAX_ATTEMPTS = 3
 EXPIRED_MESSAGE = MESSAGES["scan.failed_input_expired"]

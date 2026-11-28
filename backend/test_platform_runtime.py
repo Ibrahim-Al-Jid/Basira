@@ -143,24 +143,6 @@ def test_cancel_invalid_input_policy_and_six_memory_types(platform):
     assert owner.get(root + "/memory").json()["semantic"] == []
 
 
-def test_a_report_left_in_the_legacy_table_is_not_readable_or_listed(platform):
-    owner, _, ctx = platform
-    report = {"id": "c" * 32, "created_at": "2026-11-18T12:00:00+00:00", "model": "", "summary_ar": "تقرير",
-              "summary_en": "Report", "metrics": {}, "findings": []}
-    with platform_session() as db:
-        user_id = db.scalar(sa.select(User.id).order_by(User.created_at))
-        db.execute(store.legacy.insert().values(
-            legacy_id=report["id"], org_id=ctx.org_id, project_id=ctx.project_id, user_id=user_id, report=report,
-            report_index={"id": report["id"], "created_at": report["created_at"], "model": "", "source": None,
-                          "status": "completed", "enrichment": None, "finding_count": 0, "unique_count": 0,
-                          "domains": [], "severities": []}, claimed_at=utc_now()))
-    root = f"/api/platform/projects/{ctx.project_id}"
-    assert owner.get(root + "/reports").json() == {"reports": []}
-    for suffix in ("", "/review", "/links", "/link-candidates"):
-        assert owner.get(f"{root}/reports/{report['id']}{suffix}").status_code == 404, suffix
-    assert owner.get(f"{root}/reports/{report['id']}/compare?baseline={'d' * 32}").status_code == 404
-
-
 def test_the_anonymous_claim_route_is_gone(platform):
     owner, _, ctx = platform
     url = f"/api/platform/projects/{ctx.project_id}/reports/{'a' * 32}/claim"

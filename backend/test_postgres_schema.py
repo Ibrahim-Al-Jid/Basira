@@ -15,7 +15,7 @@ pytestmark = pytest.mark.skipif(not URL, reason="needs a migrated PostgreSQL dat
 
 TENANT_TABLES = (
     "project_scans", "project_scan_events", "project_review_settings", "project_knowledge",
-    "project_finding_observations", "project_legacy_reports", "finding_reviews",
+    "project_finding_observations", "finding_reviews",
     "finding_review_activity", "project_assets", "project_scan_provenance",
     "project_evidence_records", "project_evidence_links", "project_github_sources",
 )
@@ -80,6 +80,12 @@ def test_every_tenant_table_has_a_policy(db):
     counts = {row[0]: row[1] for row in rows}
     for name in TENANT_TABLES:
         assert counts.get(name, 0) >= 1, f"{name} has no policy"
+
+
+def test_the_legacy_report_table_is_gone(db):
+    """Dropped by platform_drop_legacy_0034. A table left behind would be a table nothing reads."""
+    assert scalar(db, "SELECT to_regclass('public.project_legacy_reports') IS NULL"), \
+        "project_legacy_reports must stay dropped"
 
 
 def test_security_definer_functions_are_not_public(db):
