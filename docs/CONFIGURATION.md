@@ -25,6 +25,8 @@ Related: [setup](SETUP.md) for the commands, [API](API.md) for the endpoints the
 | `BASIRA_SOURCE_ADAPTERS` | `gitleaks,osv-scanner` | Supplementary static adapters. Empty disables them; the report then shows the coverage they would have added as missing. |
 | `BASIRA_OSV_DB_DIRECTORY` | `/opt/basira-osv` | Offline OSV database shipped in the image. Do not point it at a downloaded copy at runtime. |
 | `BASIRA_ALLOW_INLINE_ANALYSIS` | unset | Development only. Runs analysis in the web process instead of the isolated worker. Never set this in a shared environment. |
+| `BASIRA_LAB_RUN_LIMIT` | `30` | Anonymous lab runs allowed per client IP in a fixed 15-minute window (`POST /api/run`). `0` or less disables the limit. Over the limit the endpoint answers 429 with `Retry-After`. |
+| `BASIRA_LAB_RUN_CONCURRENCY` | `8` | Anonymous lab runs allowed in flight at once in one process. `0` or less disables the limit. State is per process, so with several workers the real ceiling is the sum. |
 | `BASIRA_LOG_LEVEL` | `INFO` | Level of the request access log (`DEBUG`, `INFO`, `WARNING`, `ERROR`). The log writes one line per request with a request id, the method, the path without its query string, the status and the duration, and the response carries the same id as `X-Request-ID`. |
 
 ## Accounts and projects
