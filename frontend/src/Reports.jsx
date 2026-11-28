@@ -994,12 +994,14 @@ export function Reports({ location, navigate, revision, lang: preferredLanguage 
   const project = params.get("project");
   const projectApi = /^[a-f0-9]{32}$/.test(project ?? "") ? `/api/platform/projects/${project}/reports` : null;
   const explicitDemo = !personal && params.get("scope") === "demo";
-  const [projects, retryProjects] = useReportProjects(!id);
+  const lookup = Boolean(personal && id && !project);
+  const [projects, retryProjects] = useReportProjects(!id || lookup);
+  const [lookedUp, setLookedUp] = useState(false);
   const demoArchive = !personal && (explicitDemo || projects?.guest);
-  const badProject = Boolean((project || (personal && id)) && !projectApi);
+  const badProject = Boolean((project || (personal && id && lookedUp)) && !projectApi);
   const guestProject = Boolean((projectApi || personal) && (session.user === null || projects?.guest));
   const archive = projectApi || (demoArchive && !badProject ? "/api/history" : null);
-  const url = guestProject || badProject ? null : id ? (projectApi || "/api/reports") + "/" + encodeURIComponent(id) : archive;
+  const url = guestProject || badProject || lookup ? null : id ? (projectApi || "/api/reports") + "/" + encodeURIComponent(id) : archive;
   const archiveRevision = id ? null : revision;
   const [state, setState] = useState(null);
   const [retry, reload] = useState(0);
@@ -1008,6 +1010,22 @@ export function Reports({ location, navigate, revision, lang: preferredLanguage 
   const scanProject = projects?.projects?.find((item) => item.id === project && item.role !== "viewer");
   const showNewScan = !personal && !id && !demoArchive && !guestProject && (scanProject || (!project && projects?.projects?.some((item) => item.role !== "viewer")));
 
+  // Reports belong to a project and the project lives in the URL. A link without it (typed or shared by hand)
+  // is resolved here by asking the user's own projects which one holds the report.
+  useEffect(() => {
+    if (!lookup || !projects?.projects) return;
+    const controller = new AbortController();
+    (async () => {
+      for (const item of projects.projects.slice(0, 25)) {
+        try {
+          const result = await fetch(`/api/platform/projects/${item.id}/reports/${encodeURIComponent(id)}`, { signal: controller.signal });
+          if (result.ok) { navigate(reportPath(pathname, params, { project: item.id }) + hash, { replace: true }); return; }
+        } catch { if (controller.signal.aborted) return; }
+      }
+      if (!controller.signal.aborted) setLookedUp(true);
+    })();
+    return () => controller.abort();
+  }, [lookup, projects, id]);
   useEffect(() => {
     if (!url) return;
     const controller = new AbortController();
@@ -1059,8 +1077,12 @@ export function Reports({ location, navigate, revision, lang: preferredLanguage 
       {explicitDemo && !id && <Link className="reports-button" href="/reports" navigate={navigate}>
         {lang === "ar" ? "تقارير المشاريع" : "Project reports"}
       </Link>}
-      {badProject && <p role="alert">{lang === "ar" ? "المشروع المطلوب غير متاح." : "The requested project is unavailable."}</p>}
-      {url && !current && <div className="reports-panel reports-state" role="status">{t.loading}</div>}
+      {badProject && <div className="reports-panel reports-state" role="alert">
+        <p>{project ? (lang === "ar" ? "المشروع المطلوب غير متاح." : "The requested project is unavailable.")
+          : (lang === "ar" ? "مفيش تقرير بالرقم ده في مشاريعك. افتح التقرير من قائمة تقارير المشروع." : "No report with this ID in your projects. Open it from the project's report list.")}</p>
+        <Link className="reports-button" href="/reports" navigate={navigate}>{lang === "ar" ? "تقارير المشاريع" : "Project reports"}</Link>
+      </div>}
+      {(url || (lookup && !lookedUp)) && !current && <div className="reports-panel reports-state" role="status">{t.loading}</div>}
       {current?.error && (
         <div className="reports-panel reports-state">
           <p role="alert" dir="auto">{lang === "ar" ? current.error : t.loadError}</p>
