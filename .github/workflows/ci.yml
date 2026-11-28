@@ -180,7 +180,7 @@ jobs:
         env:
           BASIRA_TEST_PLATFORM_URL: http://127.0.0.1:8901
       - name: Browser acceptance - release acceptance
-        run: python tests/browser_release.py --password-account
+        run: python browser_release.py --password-account
         working-directory: tests
         env:
           BASIRA_TEST_PLATFORM_URL: http://127.0.0.1:8901
