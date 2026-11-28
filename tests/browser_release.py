@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from playwright.sync_api import expect, sync_playwright
 
-ORIGIN = os.environ.get("BASIRA_TEST_PLATFORM_URL", "http://127.0.0.1:8776")
+ORIGIN = os.environ.get("BASIRA_TEST_PLATFORM_URL", "http://127.0.0.1:8901")
 assert urlparse(ORIGIN).hostname == "127.0.0.1"
 
 
