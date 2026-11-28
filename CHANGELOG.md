@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-11-28
+
+### Added
+- Documentation set for running and operating Basira, in English, with every command checked against `main` at `b71e08a` on 28 November 2026 (Python 3.13.18, Node 22.23.5):
+  - `docs/SETUP.md`: the three run modes (local lab, Windows `ops/start-local.ps1`, Docker Compose), the model gateway, the GitHub App, where the data lives, and a per-item record of what was and was not run.
+  - `docs/CONFIGURATION.md`: every `BASIRA_*` variable with its default and effect, the two separate GitHub paths, the model gateway and the secrets rules.
+  - `docs/API.md`: the 78 operations on 60 paths, grouped, with the session cookies, the role-to-action mapping, the error codes, request examples and the snippet that regenerates the list from the code.
+  - `docs/TROUBLESHOOTING.md`: symptoms, causes and the check that confirms each one, for sign-in, Compose, scans, the gateway, tests and exports.
+- `docs/README.md` lists the new pages and `docs/two-account-flow.md`, which was missing from the index.
+
+### Changed
+- Plan: current position re-verified at `b71e08a` (407 passed, 2 skipped, 8 subtests; frontend build; six routes at 200) and the older 251-test figure kept as an earlier record. New section 3b lists every merged pull request (#1 to #53) under its phase, so each status can be traced to its evidence.
+- Plan statuses corrected: P09 is partial with its open items named (per-tool progress, slow-scan confirmation, parity test) instead of "slice (a) tokens done"; P10 records that the look is settled and points at the merged frontend; P18 is partial with the release checklist and Windows setup merged and Docker still unverified.
+- Plan decisions G to J recorded: keep the current look (the Pop work stays as history and `design-pop.css` is deleted), remove the header bell and palette picker, every change lands through a two-account pull request, and no paid model spend.
+- README: the verification paragraph now states the 28 November run and its numbers, and the documentation section links the setup, configuration, API and troubleshooting pages.
+
 ## 2026-11-27
 
 ### Changed
@@ -9,7 +25,6 @@
 - PLAN status matches the merged state: P10 slices a to f and P20 are marked merged, with the automatic default project as the one open P10 item.
 
 ### Removed
-- Duplicate sidebar entries in the personal workspace: "New Project" (the Projects page and the dashboard have the same button) and the "Project security / Review agents" note card at the bottom of the sidebar (it was clipped on 900 px screens and linked to Overview). "Review agents" and "Remediation" stay, because they open their own views. `frontend/src/PersonalWorkspace.jsx`; the browser test now opens New project from the Projects page.
 - `frontend/src/design-pop.css` and `frontend/src/landing.css` (29 KB): not imported anywhere since the command-center frontend was merged. The build output is unchanged.
 - SARIF export, by owner decision: the download button, the `format=sarif` endpoint option, the generator in `backend/advanced_reporting.py`, its tests and every mention in the docs. Reports still export to HTML (Arabic and English), JSON and PDF.
 
@@ -63,7 +78,6 @@
 - Local Windows setup: `compose.local.yaml` now turns personal projects on for the app, dispatcher and worker, so Connect GitHub is available without adding `BASIRA_PERSONAL_PROJECTS=1` to `.env.local`. A generated `.env.local` carried `0`, which hid the whole Personal projects path.
 - Model connection locally: `ops/start-local.ps1 -Model` writes the four gateway settings to `.env.local` and starts the `model` compose profile; the Account page said "gateway unavailable" because nothing started the gateway or set its address and token. The unavailable state now says whether the gateway is not set up or not answering (`reason` field and UI text). Not run end to end (no Docker here).
 - Scan errors in English mode showed only "Check the form values and try again." for every 422. The UI now shows an English version of the real server reason for the common intake and GitHub errors (for example "The snapshot has no supported source files"), and the GitHub step of New scan lists the file types Basira reads (Markdown and images are not scanned; a repository with none of the supported files is rejected). Arabic mode already showed the server text.
-- A visible focus box appeared around the page title (Reports, report, scan wizard) on every page load, because the title is focused for screen readers. Non-control elements that are focused only by code (`tabindex=-1`) no longer draw a ring; buttons, links and fields keep theirs (`frontend/src/workspace.css`).
 - Unknown browser URLs now open the app's own "Page not found" screen (HTTP 404) instead of a blank page with a raw server 404, and `/projects/<id>` and `/projects/<id>/reports/<id>` open the project and the report instead of an empty page (`backend/main.py`, `frontend/src/main.jsx`). API routes still return JSON 404. Found by a full product audit; test added in `backend/test_api.py`.
 
 ### Removed
