@@ -30,7 +30,11 @@
 - Every direct dependency pinned to an exact version instead of a range (`requirements.txt`). Root cause: range pins let a rebuild install a different set than the one that was tested.
 - Container operations: services log through the `json-file` driver capped at 10 MB times 3 files, every service has a healthcheck (`app` and the image by HTTP, `worker` through `celery inspect ping`, `model-gateway` through a bearer `/health`, `dispatcher` and `scanner` by reading `/proc/1/cmdline`), and `app`, `worker`, `dispatcher` and `model-gateway` run with `cap_drop: [ALL]` and `no-new-privileges`. Root cause: unbounded logs could fill the disk and take the database with them, and a hung or crash-looping service looked the same as a healthy one in `docker compose ps`.
 - The model gateway caps what a user-chosen provider address can return: 4 MiB for a catalogue, 256 KiB for a reply, and it refuses more than twelve evidence items or three planning hints. Root cause: the provider address is user-supplied, so an unbounded response could exhaust memory.
-- Every documented run mode is in one place: the local lab (`npm start`), the Windows one-command stack (`ops/start-local.ps1`) and Docker Compose, with `bash ops/start-local.sh` for Linux and macOS.
+- Three ways to run it locally are in one place: the lab with `npm start`, the Windows one-command stack (`ops/start-local.ps1`) and Docker Compose, with `bash ops/start-local.sh` for Linux and macOS. Each has its own prerequisites, and the page states which steps were run here and which were not.
+
+### Planned, not implemented
+- The analysis modes are designed, not built. `docs/ARCHITECTURE-agents.md` records the decision (hybrid: deterministic rules and scanners as tools, agents planning and proposing candidates, a validator that re-checks evidence) and the five configurations it will be measured on (C1 rules, C2 one agent, C3 team, C4 team with tools, C5 hybrid with a validator), with the order to build them. What runs today is the deterministic chain of five roles with one validated model call after analysis that only reorders priorities. `docs/ARCHITECTURE.md` describes an orchestrator that chooses split or combined analysis; the code does not do that yet, and that page says so.
+
 ## 2026-11-27
 
 ### Changed
