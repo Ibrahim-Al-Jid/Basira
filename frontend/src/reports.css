@@ -941,3 +941,4 @@
 .reports-agent-list li { display: grid; gap: .25rem; padding: .75rem 1rem; border: 1px solid var(--line); border-radius: 10px; overflow-wrap: anywhere; }
 .reports-agent-list span { color: var(--muted); font-size: .9rem; }
 .reports-agent-list code { white-space: pre-wrap; }
+.reports-agent-note { margin: .75rem 0 0; padding: .6rem .9rem; border-inline-start: 3px solid var(--accent); background: var(--tint, transparent); border-radius: 6px; }
