@@ -121,7 +121,7 @@ Status: **done** (built, tests exist, acceptance re-run or re-checked on 27 Nove
 
 ### 3b. Merged pull requests
 
-Every change reaches `main` through a pull request (see [two-account-flow](two-account-flow.md)). Merged numbers are listed so a status above can be traced to its evidence. Open numbers are work in progress and are not evidence.
+Every change reaches `main` through a pull request (see [two-account-flow](two-account-flow.md)). Merged numbers are listed so a status above can be traced to its evidence. The list is current to #58; later merges are added in the change that records them. Open numbers are work in progress and are not evidence.
 
 | PR | Change | Phase |
 |---|---|---|
@@ -174,6 +174,11 @@ Every change reaches `main` through a pull request (see [two-account-flow](two-a
 | #51 | Two-account pull request flow documented | docs |
 | #52 | Blank pages on unknown and project or report URLs fixed | P10 |
 | #53 | Two unused stylesheets removed (29 KB) | P10 |
+| #54 | Duplicate sidebar entries removed (New Project, clipped note card) | P10 |
+| #55 | Focus ring removed from page titles that are focused by code | P10 |
+| #56 | Header bell and colour palette picker removed (owner decision H) | P10 |
+| #57 | Arabic layout: sidebar on the right (owner decision K) | P10 |
+| #58 | A report link without `?project=` finds its project | P10 |
 
 Order of work, set by the agent as the expert (27 Nov 2026): P21 (provider settings, done), P09 model lane (done), P10 redesign slices a to f (merged), then P20 (replay and budget check, merged), P19 (source-code checks, the biggest measured gap), P11, P17 and P23 (measured evaluation with precision, when the free-tier cap allows), P13, P16, P15, P22, P07 gaps, P12, P24, P18. P14 follows decision A and ships before P17 if approved, so evaluation covers it.
 
