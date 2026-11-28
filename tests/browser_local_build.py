@@ -58,13 +58,16 @@ def first_scan(page):
     page.get_by_role("main").get_by_role("link", name="New scan", exact=True).click()
     # The project is already chosen, so the flow opens on the source step.
     page.get_by_role("radio", name="Project source", exact=False).check()
-    # A malformed archive is rejected by the server and the review shows why.
+    # A malformed archive passes the client checks and is rejected by the
+    # server on submit; the review shows why (personal_intake.py).
     page.locator('input[type="file"]').set_input_files({
         "name": "bad.zip", "mimeType": "application/zip", "buffer": b"this is not a zip archive",
     })
-    expect(page.get_by_role("alert")).to_contain_text("The repository snapshot must be a valid ZIP.")
-    page.locator('input[type="file"]').set_input_files(source_zip())  # choosing a file opens the review step
     page.get_by_role("checkbox", name="I have permission to review this file").check()
+    page.get_by_role("button", name="Submit scan").click()
+    expect(page.get_by_role("alert")).to_contain_text("The file must be a valid ZIP.")
+    page.get_by_role("button", name="Back").click()
+    page.locator('input[type="file"]').set_input_files(source_zip())  # choosing a file opens the review step
     page.get_by_role("button", name="Submit scan").click()
     page.wait_for_url("**/projects/*/scans/*")
     scan_id = urlsplit(page.url).path.rsplit("/", 1)[-1]
