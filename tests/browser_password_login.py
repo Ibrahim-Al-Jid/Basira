@@ -23,8 +23,10 @@ def main():
         page.locator('[name="last_name"]').fill("حمدي")
         page.get_by_label("كلمة المرور", exact=True).fill(password)
         page.get_by_role("button", name="إنشاء الحساب", exact=True).click()
-        page.wait_for_url(ORIGIN + "/dashboard")
+        page.wait_for_url(ORIGIN + "/projects")
+        page.get_by_role("button", name="قائمة الحساب").click()
         expect(page.get_by_text("إبراهيم حمدي", exact=False)).to_be_visible()
+        page.keyboard.press("Escape")
         page.goto(ORIGIN + "/projects")
         expect(page.get_by_label("اسم المؤسسة", exact=True)).to_be_visible()
 
@@ -53,7 +55,7 @@ def main():
         assert forbidden.status == 401
         page.get_by_label("كلمة المرور", exact=True).fill(password)
         page.get_by_role("button", name="تسجيل الدخول", exact=True).click()
-        expect(page.get_by_role("link", name="الحساب", exact=True)).to_be_visible()
+        expect(page.get_by_role("button", name="قائمة الحساب")).to_be_visible()
         page.goto(report_link)
         expect(page.get_by_role("link", name="تحميل PDF")).to_be_visible()
         page.reload()
