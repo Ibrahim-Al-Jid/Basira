@@ -36,14 +36,6 @@ export function WorkspaceBrand({ href, follow, lang }) {
   </a>;
 }
 
-export function WorkspaceSidebarNote({ href, follow, lang }) {
-  return <a className="command-rail-note" href={href} onClick={(event) => follow(event, href)}>
-    <Workflow size={20} aria-hidden="true" />
-    <span><strong>{lang === "ar" ? "مراجعة أمنية" : "Project security"}</strong>
-      <small>{lang === "ar" ? "فريق المراجعة" : "Review agents"}</small></span>
-  </a>;
-}
-
 function WorkspaceSearch({ lang, authenticated, follow, close }) {
   const t = (ar, en) => lang === "ar" ? ar : en;
   const [query, setQuery] = useState("");
