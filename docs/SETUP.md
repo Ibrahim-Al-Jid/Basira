@@ -72,7 +72,7 @@ Script parameters:
 | `-Port` | `8765` | Port for the app. Writes `BASIRA_PORT` and the callback line. On later runs the value in `.env.local` wins. |
 | `-GitHubClientId` | empty | Public client id, written only into empty lines. |
 | `-GitHubAppSlug` | empty | App slug, used to build the install link. |
-| `-AgentLoop` | off | Writes `BASIRA_AGENT_LOOP=1` (also on when it is already `1` in `.env.local`) and starts the model profile, because the agent path needs a model connection. Without it, `agents` scans are refused with 422 and `hybrid` scans run as `rules`. On Linux and macOS use `--agent-loop`. |
+| `-AgentLoop` | on | The agent path is on by default: writes `BASIRA_AGENT_LOOP=1` and starts the model profile, because the agent path needs a model connection. Add `-NoAgentLoop` to keep rules-only (`agents` scans are then refused with 422 and `hybrid` scans run rules only). |
 | `-Model` | off | Writes the four gateway settings with random values and starts the `model` profile. Also on when `BASIRA_PROJECT_MODEL_ENABLED=1` is already in `.env.local`. |
 
 The script fills only empty lines, stops with a clear message when the credential key is malformed, and warns when the GitHub lines are incomplete. Without the GitHub lines the app still starts, but Connect GitHub is unavailable.

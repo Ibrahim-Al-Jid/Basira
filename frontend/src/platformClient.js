@@ -4,7 +4,7 @@ export const api = "/api/platform";
 export const translate = (lang) => (ar, en) => lang === "en" ? en : ar;
 // English text for the server messages a user can act on. Other server text stays Arabic-only.
 const knownErrors = {
-  "لقطة GitHub أكبر من حد الرفع (٢ ميجابايت). اختار مستودعًا أصغر أو ارفع ZIP لمجلد الكود فقط.": "The GitHub snapshot is over the 2 MB limit. Pick a smaller repository, or upload a ZIP of just the code folder (for example backend/).",
+  "لقطة GitHub أكبر من حد الرفع (١٠ ميجابايت). اختار مستودعًا أصغر أو ارفع ZIP لمجلد الكود فقط.": "The GitHub snapshot is over the 10 MB limit. Pick a smaller repository, or upload a ZIP of just the code folder (for example backend/).",
   "انتهت مهلة تنزيل لقطة GitHub.": "Downloading the GitHub snapshot timed out. Try again, or upload a ZIP instead.",
   "GitHub لم يرجع ملف ZIP صالح.": "GitHub did not return a valid ZIP. Try again in a minute.",
   "رابط لقطة GitHub غير متوافق.": "GitHub returned an unexpected download address, so the snapshot was refused. Try again.",
@@ -19,8 +19,8 @@ const knownErrors = {
   "قائمة GitHub أكبر من الحدود المسموحة. استخدم تثبيت بصلاحيات أقل.": "The GitHub repository list is over the supported size. Install the app on fewer repositories.",
   "عدد تثبيتات GitHub أكبر من الحد المسموح.": "There are more GitHub App installations than the supported limit.",
   "اللقطة خالية من الملفات النصية المدعومة.": "The snapshot has no supported source files. Basira reads code and config files (.py, .js, .ts, .json, .yaml, .toml, .xml, Dockerfile and similar), not Markdown, images or empty folders.",
-  "عدد عناصر ZIP لازم يكون بين ١ و٢٠٠.": "The snapshot must contain between 1 and 200 entries.",
-  "حجم ملفات ZIP بعد الفك تجاوز الحد.": "The unpacked size of the snapshot is over the limit (8 MB). Scan a smaller repository.",
+  "عدد عناصر ZIP لازم يكون بين ١ و١٠٠٠.": "The snapshot must contain between 1 and 1000 entries.",
+  "حجم ملفات ZIP بعد الفك تجاوز الحد.": "The unpacked size of the snapshot is over the limit (50 MB). Scan a smaller repository.",
   "ZIP فيه أسماء مكررة.": "The snapshot has duplicate file names.",
   "ZIP يحتوي على رابط أو ملف خاص أو طريقة ضغط غير مدعومة.": "The snapshot has a symbolic link, special file or unsupported compression.",
   "الأرشيفات المتداخلة غير مدعومة.": "Nested archives are not supported.",
@@ -42,7 +42,7 @@ const knownErrors = {
   "العنوان ده مش في الصفحات المعتمدة للمشروع. اكتبه بالظبط زي ما هو معتمد (HTTPS من غير معاملات، ونفس شكل المسار)، أو اطلب من المسؤول يضيفه في BASIRA_APPROVED_WEBSITE_PAGES.": "This address is not on the project's approved pages. Write it exactly as approved (HTTPS, no query string, same path), or ask the server owner to add it to BASIRA_APPROVED_WEBSITE_PAGES.",
   "استخدم رابط HTTPS معتمد من غير معاملات أو بيانات تسجيل دخول.": "Use an approved HTTPS link with no query string or credentials.",
   "اسم النطاق أو مسار الصفحة غير صالح.": "The domain name or page path is not valid. IP addresses and localhost are not accepted.",
-  "حجم الملف تجاوز ٢ ميجابايت.": "The file is over the 2 MB limit.",
+  "حجم الملف تجاوز ١٠ ميجابايت.": "The file is over the 10 MB limit.",
 };
 const isArabic = (text) => /[\u0600-\u06ff]/.test(text);
 // A browser network failure has no HTTP status and an English engine message ("Failed to fetch").

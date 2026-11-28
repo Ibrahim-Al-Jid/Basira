@@ -212,7 +212,7 @@ class AgentExecution(BaseModel):
     inventory_sha256: Digest
     plan_sha256: Digest
     evidence_sha256: Digest
-    files_read: int = Field(ge=0, le=200)
+    files_read: int = Field(ge=0, le=1000)
     validated_locations: int = Field(ge=0, le=5000)
 
 
@@ -257,7 +257,7 @@ class Report(BaseModel):
     ruleset_version: str | None = None
     priority: list[str] | None = None
     input_paths: list[str] | None = None
-    input_manifest: list[InputManifestEntry] | None = Field(default=None, max_length=200)
+    input_manifest: list[InputManifestEntry] | None = Field(default=None, max_length=1000)
     imported_evidence: ImportedEvidence | None = None
     task_runs: list[TaskRun] = Field(default_factory=list)
     tool_selection: list[ToolSelection] = Field(default_factory=list, exclude_if=lambda value: not value)

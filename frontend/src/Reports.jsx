@@ -80,15 +80,16 @@ const copy = {
     decisionFix: "إصلاحات قبل التسليم",
     decisionFixOne: "إصلاح واحد قبل التسليم",
     decisionFirst: "ابدأ بالأهم",
-    decisionCovered: "قواعد اتنفذت من",
-    decisionNotChecked: "قواعد ماتفحصتش أو مش مطبّقة على النوع ده",
+    decisionRan: "قاعدة اتفحصت",
+    decisionNotApplicable: "قاعدة مش مطبّقة على المدخل ده (زي قواعد HTML على كود Python)",
+    decisionNotChecked: "قاعدة اتخطّت أو فشلت (دول بس اللي بيخلّوا الفحص «جزئي»)",
     decisionCaution: "ده مش معناه إن المشروع سليم: اللي ماتفحصش مكتوب في التغطية.",
     decisionOpen: "افتح النتيجة",
     pdf: "تحميل PDF",
     alternatePdf: "تحميل PDF بالإنجليزي",
     findingTypes: "أنواع النتائج",
     rulesApplied: "قواعد اتنفذت",
-    incompleteCoverage: "بعض القواعد ما اكتملتش. راجع تغطية الفحص للتفاصيل.",
+    incompleteCoverage: "الفحص «جزئي»: قاعدة أو أكتر اتخطّت أو فشلت، فالنتيجة ممكن تكون ناقصة. القواعد «غير المطبّقة» مش سبب. افتح تغطية الفحص وشوف السبب.",
     technical: "التفاصيل الفنية",
     snapshotVerification: "مطابقة لقطة الفحص",
     verifiedLocations: "مواضع الأدلة المتحققة",
@@ -246,15 +247,16 @@ const copy = {
     decisionFix: "fixes before handover",
     decisionFixOne: "One fix before handover",
     decisionFirst: "Start with the most important",
-    decisionCovered: "rules ran out of",
-    decisionNotChecked: "rules were not checked or do not apply to this input",
+    decisionRan: "rules ran",
+    decisionNotApplicable: "rules do not apply to this input (for example HTML rules on Python code)",
+    decisionNotChecked: "rules were skipped or failed (only these make a scan \"Partial\")",
     decisionCaution: "This does not mean the project is clean: what was not checked is listed under Coverage.",
     decisionOpen: "Open finding",
     pdf: "Download PDF",
     alternatePdf: "Download Arabic PDF",
     findingTypes: "Finding types",
     rulesApplied: "Rules run",
-    incompleteCoverage: "Some checks did not finish. Open scan coverage for details.",
+    incompleteCoverage: "Partial: at least one rule was skipped or failed, so the result may be incomplete. Rules that simply do not apply are not the cause. Open scan coverage to see why.",
     technical: "Technical details",
     snapshotVerification: "Scan snapshot verification",
     verifiedLocations: "Validated evidence locations",
@@ -825,7 +827,8 @@ function Decision({ findings, coverage, applied, t, lang, count, coverageHref, n
   for (const finding of findings) if (!byRule.has(finding.rule)) byRule.set(finding.rule, finding);
   const top = [...byRule.values()].sort((a, b) => (rank[a.severity] ?? 3) - (rank[b.severity] ?? 3) || a.rule.localeCompare(b.rule)).slice(0, 3);
   const total = coverage.length;
-  const notChecked = coverage.filter(({ status }) => status !== "matched" && status !== "clear").length;
+  const notApplicable = coverage.filter(({ status }) => status === "not_applicable").length;
+  const notChecked = coverage.filter(({ status }) => status === "skipped" || status === "error").length;
   const headline = !byRule.size ? t.decisionClear : byRule.size === 1 ? t.decisionFixOne : `${count(byRule.size)} ${t.decisionFix}`;
   const titleOf = (finding) => (lang === "ar" ? finding.title_ar : finding.title) || finding.title || finding.rule;
   return (
@@ -844,8 +847,10 @@ function Decision({ findings, coverage, applied, t, lang, count, coverageHref, n
         ))}
       </ol>}
       {!!total && <p className="reports-decision-cover">
-        <b>{count(applied)}</b> {t.decisionCovered} <b>{count(total)}</b>
-        {!!notChecked && <> · <a href={coverageHref} onClick={(event) => routeLink(event, coverageHref, navigate)}>{count(notChecked)} {t.decisionNotChecked}</a></>}
+        <b>{count(applied)}</b> {t.decisionRan}
+        {!!notApplicable && <> · <b>{count(notApplicable)}</b> {t.decisionNotApplicable}</>}
+        {" · "}{notChecked ? <a href={coverageHref} onClick={(event) => routeLink(event, coverageHref, navigate)}><b>{count(notChecked)}</b> {t.decisionNotChecked}</a>
+          : <><b>{count(0)}</b> {t.decisionNotChecked}</>}
       </p>}
       <p className="reports-decision-caution">{t.decisionCaution}</p>
     </section>

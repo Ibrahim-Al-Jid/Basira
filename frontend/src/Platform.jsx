@@ -216,6 +216,7 @@ function NewScan({ projects, project, navigate, lang, personal }) {
   const [repository, setRepository] = useState("");
   const [targetReference, setTargetReference] = useState("");
   const [enrich, setEnrich] = useState(false);
+  const [mode, setMode] = useState("hybrid");
   const [acknowledged, setAcknowledged] = useState(false);
   const [profile, setProfile] = useState(null);
   const [profileFailure, setProfileFailure] = useState(null);
@@ -233,6 +234,16 @@ function NewScan({ projects, project, navigate, lang, personal }) {
   const profileValue = profile?.path === policyPath ? profile.value : null;
   const profileError = profileFailure?.path === policyPath ? profileFailure.error : null;
   const model = profileValue?.model_connection;
+  const agentKind = kind === "github" || kind === "repository" || kind === "config";
+  const modeBlockers = [
+    !profileValue?.agent_path_enabled && t("السيرفر مش مشغّل مسار الوكلاء (BASIRA_AGENT_LOOP=1). شغّل ops/start-local من جديد.",
+      "The server has the agent path off (BASIRA_AGENT_LOOP=1 is not set). Restart with ops/start-local."),
+    !model && t("مفيش اتصال موديل: سجّل المفتاح في الحساب > اتصال الموديل.", "No model connection: save a key under Account > Model connection."),
+    !agentKind && t("الوكلاء بيقرأوا المستودعات وملفات الإعدادات بس.", "Agents read repositories and config files only."),
+  ].filter(Boolean);
+  const agentsOk = !modeBlockers.length;
+  const effectiveMode = agentsOk ? mode : "rules";
+  const modelWanted = (enrich || effectiveMode !== "rules") && !!model;
   const limit = profileValue?.max_bytes;
   const allowedKinds = profileValue?.allowed_kinds ?? [];
   const sourceKinds = personal && allowedKinds.includes("repository") ? ["repository", "github", "website"]
@@ -296,7 +307,8 @@ function NewScan({ projects, project, navigate, lang, personal }) {
     try {
       const scope = {
         scope_version: profileValue.scope_version, acknowledge_scope: true,
-        ...(enrich && model ? { model_connection: model.id } : {}),
+        analysis_mode: effectiveMode,
+        ...(modelWanted ? { model_connection: model.id } : {}),
       };
       const base = projectApi(project.id);
       let endpoint = base + "/scans";
@@ -306,6 +318,7 @@ function NewScan({ projects, project, navigate, lang, personal }) {
         options = { method: "POST", body: source, headers: {
           "Content-Type": "application/zip", "X-Artifact-Name": encodeURIComponent(source.name),
           "X-Scope-Version": String(scope.scope_version), "X-Acknowledge-Scope": "true",
+          "X-Analysis-Mode": scope.analysis_mode,
           ...(scope.model_connection ? { "X-Model-Connection": scope.model_connection } : {}),
         } };
       } else if (personal) {
@@ -443,8 +456,8 @@ function NewScan({ projects, project, navigate, lang, personal }) {
               value={commit} onChange={(event) => updateEvidence(() => setCommit(event.target.value))} />
           </label>
           {personal && <p className="project-hint">{t(
-            "بصيرة بتقرا ملفات الكود والإعدادات (py، js، ts، json، yaml، toml، xml، Dockerfile وأشباهها) لحد ٢٠٠ ملف و٨ ميجا بعد الفك. ملفات Markdown والصور مش بتتفحص، ومستودع من غيرها هيترفض.",
-            "Basira reads code and config files (py, js, ts, json, yaml, toml, xml, Dockerfile and similar), up to 200 files and 8 MB unpacked. Markdown and images are not scanned, and a repository with none of the supported files is rejected.")}</p>}
+            "بصيرة بتقرا ملفات الكود والإعدادات (py، js، ts، json، yaml، toml، xml، Dockerfile وأشباهها) لحد ١٠٠٠ ملف و٥٠ ميجا بعد الفك (الأرشيف نفسه لحد ١٠ ميجا). ملفات Markdown والصور مش بتتفحص، ومستودع من غيرها هيترفض.",
+            "Basira reads code and config files (py, js, ts, json, yaml, toml, xml, Dockerfile and similar), up to 1000 files and 50 MB unpacked (10 MB for the archive itself). Markdown and images are not scanned, and a repository with none of the supported files is rejected.")}</p>}
         </>}
       </> : useWebsite ? <label>{t("رابط الصفحة المعتمدة", "Approved page URL")}
         <input type="url" dir="ltr" value={targetReference} maxLength={250} required placeholder="https://example.com/"
@@ -522,6 +535,20 @@ function NewScan({ projects, project, navigate, lang, personal }) {
         }} />
         {t("استخدم الموديل لترتيب النتائج", "Use a model to prioritize findings")} <bdi>{model.model}</bdi>
       </label>}
+      <fieldset className="project-form scan-mode" disabled={busy}>
+        <legend>{t("وضع الفحص", "Scan mode")}</legend>
+        {[["rules", t("قواعد فقط", "Rules only"), t("فحص ثابت بالقواعد، سريع ومن غير موديل.", "Fixed rule checks. Fast, no model.")],
+          ["agents", t("وكيل ذكاء اصطناعي فقط", "AI agent only"), t("وكلاء الموديل بيقروا الكود ويدوّروا بنفسهم، من غير القواعد.", "Model agents read the code and hunt on their own, without the rules.")],
+          ["hybrid", t("هجين (قواعد + ذكاء اصطناعي)", "Hybrid (rules + AI)"), t("القواعد أولًا وبعدها الوكلاء يكمّلوا ويرتّبوا النتائج.", "Rules first, then agents add findings and prioritize.")],
+        ].map(([id, name, hint]) => <label key={id} className="project-check">
+          <input type="radio" name="analysis_mode" value={id} checked={effectiveMode === id}
+            disabled={id !== "rules" && !agentsOk} onChange={() => { setMode(id); idempotency.current = crypto.randomUUID(); }} />
+          <span><b>{name}</b> <small>{hint}</small></span>
+        </label>)}
+        {!agentsOk && <p className="project-hint" role="status" data-testid="mode-unavailable">
+          {t("وضع الوكلاء مش متاح هنا، والفحص هيشتغل بالقواعد فقط. السبب:", "AI modes are not available here, so this scan will run rules only. Why:")}
+          <ul>{modeBlockers.map((reason) => <li key={reason}>{reason}</li>)}</ul></p>}
+      </fieldset>
       {personal && !model && <DirectoryLink className="workspace-back" to="/settings?tab=model" navigate={navigate}>
         {t("إعداد اتصال الموديل", "Set up model connection")}
       </DirectoryLink>}

@@ -156,6 +156,7 @@ def test_failed_rotation_leaves_connection_and_project_grant_active(credential_p
     latest = state(ctx)
     assert latest["generation"] != first["generation"] and latest["grant_id"] == first["grant_id"]
     assert client.get(project + "/scan-profile").json()["model_connection"]["model"] == MODEL
+    assert client.get(project + "/scan-profile").json()["agent_path_enabled"] is False
     assert setup_key(client, ctx, None, MODEL + "-other").status_code == 200
     assert client.get(project + "/scan-profile").json()["model_connection"]["model"] == MODEL + "-other"
     assert not any(item[0] == "call" for item in calls)

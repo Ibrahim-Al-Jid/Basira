@@ -23,10 +23,10 @@ from .scan_contracts import ANALYZER_INPUTS, TOOL_PROTOCOL_VERSION, json_digest,
 from .rules import RULES, SourceIndex
 from .source_adapters import GITLEAKS, GITLEAKS_PROVIDERS, SOURCE_TOOLS, review_source
 
-MAX_ARTIFACT = 2_000_000
-MAX_EXPANDED = 8_000_000
+MAX_ARTIFACT = 10 * 1024 * 1024
+MAX_EXPANDED = 50 * 1024 * 1024
 MAX_FILE = 1_000_000
-MAX_FILES = 200
+MAX_FILES = 1000
 RULESET_VERSION = "basira-static-3"
 DOMAINS = {"HTML": "html", "WEB": "web", "DEP": "dependencies", "INF": "infrastructure",
            "CI": "ci", "APP": "application", "SRC": "source"}
@@ -129,20 +129,24 @@ def zip_texts(raw, *, manifest=None, metrics=None):
         with ZipFile(io.BytesIO(raw) if isinstance(raw, bytes) else raw) as archive:
             entries = archive.infolist()
             if not entries or len(entries) > MAX_FILES:
-                raise InputError("عدد عناصر ZIP لازم يكون بين ١ و٢٠٠.")
+                raise InputError("عدد عناصر ZIP لازم يكون بين ١ و١٠٠٠.")
             for entry in entries:
-                original = entry.orig_filename
-                path = safe_path(original.removesuffix("/") if entry.is_dir() else original)
+                # Some Windows tools (Compress-Archive on Windows PowerShell 5.1, older Explorer versions) write "\\"
+                # as the separator. Read it as "/" before any check: safe_path still refuses "..", empty parts,
+                # drive letters and absolute paths on the converted name, so nothing new gets through.
+                original = entry.orig_filename.replace("\\", "/")
+                folder = entry.is_dir() or original.endswith("/")
+                path = safe_path(original.removesuffix("/") if folder else original)
                 stamp = unicodedata.normalize("NFKC", path).casefold()
                 safe_path(stamp)
                 if stamp in seen:
                     raise InputError("ZIP فيه أسماء مكررة.")
                 seen.add(stamp)
                 mode = entry.external_attr >> 16
-                if (stat.S_IFMT(mode) not in {0, stat.S_IFDIR if entry.is_dir() else stat.S_IFREG}
+                if (stat.S_IFMT(mode) not in {0, stat.S_IFDIR if folder else stat.S_IFREG}
                         or entry.flag_bits & 1 or entry.compress_type not in {ZIP_STORED, ZIP_DEFLATED}):
                     raise InputError("ZIP يحتوي على رابط أو ملف خاص أو طريقة ضغط غير مدعومة.")
-                if entry.is_dir():
+                if folder:
                     if entry.file_size:
                         raise InputError("عنصر مجلد ZIP غير صالح.")
                     continue
@@ -187,7 +191,7 @@ def decode_payload(content):
     except (binascii.Error, ValueError):
         raise InputError("ترميز محتوى الملف غير صالح.") from None
     if not 0 < len(raw) <= MAX_ARTIFACT:
-        raise InputError("الملف لازم يكون أقل من أو يساوي ٢ ميجابايت.")
+        raise InputError("الملف لازم يكون أقل من أو يساوي ١٠ ميجابايت.")
     return raw
 
 

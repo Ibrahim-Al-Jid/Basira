@@ -23,7 +23,7 @@ Error codes used by the platform API:
 | 401 | No valid session. |
 | 403 | Signed in, but the role does not allow the action, or the request origin is not the app. |
 | 404 | The project, scan or report is not visible to this account. Also what the closed `/demo` and organization routes return when personal projects are on. |
-| 408 | A ZIP upload was cut off or ran past its 30-second window. |
+| 408 | A ZIP upload was cut off or ran past its 90-second window. |
 | 409 | Conflict, for example a repeated or stale scope version. |
 | 415 | A ZIP upload that did not declare a ZIP content type. |
 | 422 | Invalid input: wrong extension, unacknowledged scope, unsupported input kind for the project, unknown or unavailable `analysis_mode`. The message names the fields that failed (`الحقول: ...`), never their values. |

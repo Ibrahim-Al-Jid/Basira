@@ -25,3 +25,10 @@ def test_script_can_start_the_model_gateway_profile():
         assert re.search(rf"(?m)^{key}=", example)
     assert "'--profile', 'model'" in script
     assert "-Model" in script
+
+
+def test_local_start_turns_agent_path_on_unless_opted_out():
+    script = (ROOT / "ops" / "start-local.ps1").read_text(encoding="utf-8")
+    shell = (ROOT / "ops" / "start-local.sh").read_text(encoding="utf-8")
+    assert "[switch]$NoAgentLoop" in script and "$agentLoop = -not $NoAgentLoop" in script
+    assert "agent_loop=1\n" in shell and "--no-agent-loop)" in shell

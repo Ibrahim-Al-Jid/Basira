@@ -68,6 +68,6 @@ def quarantine(file, size, digest):
 
 def bounded_update(file, digest, block):
     if file.tell() + len(block) > MAX_ARTIFACT:
-        raise InputError("حجم الملف تجاوز ٢ ميجابايت.")
+        raise InputError("حجم الملف تجاوز ١٠ ميجابايت.")
     file.write(block)
     digest.update(block)

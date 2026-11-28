@@ -468,3 +468,47 @@ def test_website_capture_is_limited_to_three_approved_pages_on_same_origin(monke
     assert calls == [paths[0], paths[2], paths[3]]
     assert facts["pages"] == facts["requests"] == 3
     assert len(json.loads(raw)["log"]["entries"]) == 3
+
+
+def repo_zip(extra=None, windows=True):
+    """The real backend source as a Windows tool writes it: backslash separators and folder entries."""
+    root = Path(__file__).resolve().parents[1]
+    archive = BytesIO()
+    with ZipFile(archive, "w", compression=ZIP_DEFLATED) as file:
+        sources = [*(root / "backend").rglob("*.py"), *(root / "frontend" / "src").rglob("*.js*"),
+                   *(root / "docs").glob("*.md"), *(root / "tests").glob("*.py"), *(root / "ops").glob("*")]
+        for path in sorted(sources):
+            if "__pycache__" in path.parts or not path.is_file() or path.stat().st_size > 900_000:
+                continue
+            name = "Basira/" + path.relative_to(root).as_posix()
+            file.writestr(name.replace("/", "\\") if windows else name, path.read_text(encoding="utf-8"))
+        for name, text_value in (extra or {}).items():
+            file.writestr(name.replace("/", "\\") if windows else name, text_value)
+    return archive.getvalue()
+
+
+def test_end_to_end_windows_zip_scan_mode_header_and_comparison(personal_clients, monkeypatch):
+    """New scan flow: Windows ZIP over 200 files, analysis mode header, worker run, report, then a comparison."""
+    owner, _ = personal_clients
+    monkeypatch.setenv("BASIRA_ALLOW_INLINE_ANALYSIS", "1")
+    path, project_id = new_project(owner)
+    route = path + "/intake/zip"
+    first = repo_zip()
+    assert 200 < len(ZipFile(BytesIO(first)).namelist()) <= 1000
+    refused = owner.post(route, content=first, headers={**zip_headers("mode-bad-key"), "X-Analysis-Mode": "turbo"})
+    assert refused.status_code == 422 and "X-Analysis-Mode" in refused.json()["detail"]
+    no_model = owner.post(route, content=first, headers={**zip_headers("mode-agents-key"), "X-Analysis-Mode": "agents"})
+    assert no_model.status_code == 422  # the agent path is off here: refused, never quietly a rules scan
+    scan = owner.post(route, content=first, headers={**zip_headers("e2e-first-key"), "X-Analysis-Mode": "rules"})
+    report, snapshot = reported(owner, path, project_id, scan)
+    assert report["input_artifact"]["analysis_mode"] == "rules" and report["input_artifact"]["mode_effective"] == "rules"
+    assert snapshot["profile"]["text_files"] > 200
+    assert all("\\" not in row["path"] for row in report["input_manifest"])
+    vulnerable = "import subprocess\n\n\ndef run(request):\n    return subprocess.check_output(request.args['c'], shell=True)\n"
+    second = repo_zip({"Basira/backend/added_view.py": vulnerable})
+    again = owner.post(route, content=second, headers={**zip_headers("e2e-second-key"), "X-Analysis-Mode": "rules"})
+    later, _ = reported(owner, path, project_id, again)
+    assert any(item["rule"] == "SRC-02" and item["path"].endswith("added_view.py") for item in later["findings"])
+    comparison = owner.get(path + f"/reports/{again.json()['id']}/compare", params={"baseline": scan.json()["id"]})
+    assert comparison.status_code == 200, comparison.text
+    assert "SRC-02" in json.dumps(comparison.json())

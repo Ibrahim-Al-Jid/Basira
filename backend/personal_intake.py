@@ -195,7 +195,7 @@ async def upload_zip(
         try:
             with SpooledTemporaryFile(max_size=256_000) as file:
                 digest = sha256()
-                async with asyncio.timeout(30):
+                async with asyncio.timeout(90):
                     async for block in request.stream():
                         await run_in_threadpool(bounded_update, file, digest, block)
                 return await run_in_threadpool(finish_upload, ctx, scope, key, file, name, digest.hexdigest())
