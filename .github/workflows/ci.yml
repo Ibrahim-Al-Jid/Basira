@@ -136,11 +136,29 @@ jobs:
       # it needs its own deployment without compose.local.yaml. This also gives
       # the team-mode deployment shape its first automated coverage. The test
       # mints sessions in the database itself, so password auth is not needed.
+      # Password auth + self-signup on for the account suites, and the model
+      # profile up: the credential UI's first GET must see the gateway answer
+      # /managed-health ready (vault key + provisioned role + credential
+      # functions), which the migrate service sets up when the model password
+      # is present. Passwords/tokens are generated per run; the stack is
+      # ephemeral. Shell env wins over --env-file in compose interpolation.
       - name: Start the team-mode deployment
-        run: docker compose -p basira-team -f compose.yaml --env-file .env.local up -d --build --wait
+        run: |
+          export BASIRA_PASSWORD_AUTH_ENABLED=1 BASIRA_PASSWORD_SELF_SIGNUP=1
+          export BASIRA_MODEL_DB_PASSWORD="$(openssl rand -hex 24)"
+          export BASIRA_GATEWAY_TOKEN="$(openssl rand -hex 24)"
+          export BASIRA_GATEWAY_URL="http://model-gateway:8001"
+          docker compose -p basira-team -f compose.yaml --env-file .env.local --profile model up -d --build --wait
       # RLS, worker path and report generation against the isolated Compose project.
       - name: Container acceptance
         run: docker compose -p basira-team -f compose.yaml --env-file .env.local exec -T app python - < tests/container_smoke.py
+      # Account hub, invitation and project-access flow, credential UI, layouts.
+      # No scans, so it adds seconds, not minutes.
+      - name: Browser acceptance - account, invitations, access, credentials
+        run: python browser_account.py
+        working-directory: tests
+        env:
+          BASIRA_TEST_PLATFORM_URL: http://127.0.0.1:8901
       - name: Compose state and logs (team mode)
         if: always()
         run: |
