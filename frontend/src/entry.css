@@ -77,3 +77,5 @@
 .entry-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.5rem clamp(1rem, 4vw, 3rem); border-block-start: 1px solid var(--command-edge); color: var(--muted, inherit); }
 .entry-footer nav { display: flex; gap: 1.2rem; }
 .entry-footer a { color: inherit; }
+.entry-globe .planet:not(.ready) { opacity: 0; }
+.entry-globe .planet { transition: opacity 700ms ease; }
