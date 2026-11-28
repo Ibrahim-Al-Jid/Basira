@@ -34,7 +34,6 @@ const content = {
     ],
     limits: "التغطية بتتكتب صريحة: اللي اتفحص واللي لأ. النتيجة النضيفة مش إثبات إن المشروع آمن.",
     home: "الرئيسية",
-    homeLabel: "بصيرة، الصفحة الرئيسية",
     toLight: "الوضع الفاتح",
     toDark: "الوضع الغامق",
     switchLanguage: "English",
@@ -50,7 +49,6 @@ const content = {
     ],
     limits: "Coverage is stated plainly: what was checked and what was not. A clean result is not proof the project is safe.",
     home: "Home",
-    homeLabel: "Basira home",
     toLight: "Light theme",
     toDark: "Dark theme",
     switchLanguage: "ع",
@@ -156,7 +154,7 @@ export function SignIn({ onAuthenticated, lang, personal, startInRegister, navig
   return (
     <div className="signin-page">
       <div className="signin-topbar">
-        <a className="signin-brand" href="/" onClick={home} aria-label={copy.homeLabel}>
+        <a className="signin-brand" href="/" onClick={home}>
           <span className="signin-brand-mark" aria-hidden="true"><ShieldCheck size={26} strokeWidth={1.7} /></span>
           <span dir="ltr">BASIRA</span>
         </a>
@@ -168,7 +166,7 @@ export function SignIn({ onAuthenticated, lang, personal, startInRegister, navig
                 onClick={() => preferences.setTheme(preferences.theme === "dark" ? "light" : "dark")}>
                 {preferences.theme === "dark" ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
               </button>
-              <button type="button" className="signin-control signin-control-word" aria-label={copy.switchLanguageLabel}
+              <button type="button" className="signin-control signin-control-word" aria-label={copy.switchLanguage + ", " + copy.switchLanguageLabel}
                 onClick={() => preferences.setLang(lang === "ar" ? "en" : "ar")}>
                 {copy.switchLanguage}
               </button>

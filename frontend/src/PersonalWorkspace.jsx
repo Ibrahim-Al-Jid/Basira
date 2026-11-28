@@ -213,7 +213,7 @@ function ProjectList({ projects, navigate, refresh, submit, busy, lang }) {
             </div>
           </form> : <div className="workspace-actions personal-project-actions">
             <DirectoryLink className="btn primary" to={"/new-scan?project=" + encodeURIComponent(project.id)} navigate={navigate}
-              aria-label={t("فحص جديد في " + project.name, "New scan in " + project.name)}>
+              aria-label={t("فحص جديد، " + project.name, "Add scan, " + project.name)}>
               <Plus size={14} aria-hidden="true" />{t("فحص جديد", "Add scan")}
             </DirectoryLink>
             <button className="btn" type="button" disabled={busy} onClick={() => { setDeleting(null); setEditing(project.id); }}>

@@ -55,7 +55,7 @@ export function Entry({ follow, lang, preferences }) {
   return (
     <div className="entry" dir={lang === "ar" ? "rtl" : "ltr"} lang={lang}>
       <header className="entry-bar">
-        <a className="entry-brand" href="/" onClick={(event) => follow(event, "/")} aria-label={t("بصيرة", "Basira")}>
+        <a className="entry-brand" href="/" onClick={(event) => follow(event, "/")}>
           <span className="entry-mark" aria-hidden="true"><ShieldCheck size={26} strokeWidth={1.7} /></span>
           <strong dir="ltr">BASIRA</strong>
         </a>
