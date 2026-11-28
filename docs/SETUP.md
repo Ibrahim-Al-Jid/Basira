@@ -1,6 +1,6 @@
 # Setup and run guide
 
-Every command on this page was checked against `main` at commit `0438894` on 28 November 2026 (Linux, Python 3.13.18, Node 22.23.5). The last section states what was not run, so nothing here is claimed beyond its evidence.
+Every command on this page was checked against `main` at commit `14193c9` on 28 November 2026 (Linux, Python 3.13.18, Node 22.23.5). The last section states what was not run, so nothing here is claimed beyond its evidence.
 
 Related: [configuration](CONFIGURATION.md) for every environment variable, [API](API.md) for the HTTP surface, [troubleshooting](TROUBLESHOOTING.md) when a step fails, [PLATFORM.md](PLATFORM.md) for the Arabic operations notes and the ownership migration.
 
@@ -8,7 +8,7 @@ Related: [configuration](CONFIGURATION.md) for every environment variable, [API]
 
 | Mode | What works | Needs | Accounts, projects, GitHub |
 |---|---|---|---|
-| 1. Local lab | `/demo` HTML review, reports in SQLite, taxonomy and catalog endpoints | Python 3.13, Node 22 | no |
+| 1. Local lab | `POST /api/run` HTML review (the `/demo` page only redirects), reports in SQLite, taxonomy and catalog endpoints | Python 3.13, Node 22 | no |
 | 2. Windows local stack | Everything: accounts, projects, ZIP scans, GitHub App, PDF, dashboard | Mode 1 prerequisites, Docker Desktop, Git | yes |
 | 3. Docker Compose (manual) | Same as mode 2, any OS | Docker Engine or Desktop with Compose, Git | yes |
 
@@ -34,12 +34,18 @@ npm run build
 npm start
 ```
 
-Open http://127.0.0.1:8765/demo, choose an HTML file or paste markup, and run the sample. `PORT` changes the port. `npm test` runs the backend suite through the same launcher.
+The `/demo` page is retired; it opens the workspace when signed in and the sign-in page when not. Run a review through the API instead:
+
+```bash
+curl -N -X POST http://127.0.0.1:8765/api/run -H 'content-type: application/json' -d '{"source":"<form action=\"/x\"><input name=p type=password></form>"}'
+```
+
+`PORT` changes the port. `npm test` runs the backend suite through the same launcher.
 
 Checks that should pass:
 
 ```bash
-.venv/bin/python -m pytest backend -q            # 443 passed, 19 skipped on 28 Nov 2026
+.venv/bin/python -m pytest backend -q            # 513 passed, 22 skipped on 28 Nov 2026
 node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs   # 8 pass
 ```
 
@@ -172,8 +178,8 @@ After the app is installed, open Settings, then GitHub, press "Connect GitHub" a
 | Step | Command | Result |
 |---|---|---|
 | Install | `python -m venv .venv`, `pip install -r requirements-dev.txt` | ok, Python 3.13.18 |
-| Frontend | `npm --prefix frontend ci`, `npm run build` | ok, Vite build 444 ms |
-| Backend suite | `.venv/bin/python -m pytest backend -q` | 443 passed, 19 skipped, 8 subtests, 20.9 s |
+| Frontend | `npm --prefix frontend ci`, `npm run build` | ok, Vite build 355 ms |
+| Backend suite | `.venv/bin/python -m pytest backend -q` | 513 passed, 22 skipped, 8 subtests, 15.6 s |
 | Frontend unit tests | `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs` | 8 pass |
 | App start | `python -m uvicorn backend.main:app --host 127.0.0.1 --port 8765` | `/`, `/demo`, `/signin`, `/projects`, `/api/taxonomy`, `/api/product` all 200 |
 
