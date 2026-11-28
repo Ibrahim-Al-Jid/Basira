@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-28
+
+### Changed
+- `requirements.txt` pins every direct dependency to an exact version instead of a range (SQLAlchemy 2.1.9, alembic 1.20.1, psycopg 3.3.9, celery 5.7.0, Authlib 1.9.10, boto3 1.44.13, joserfc 1.8.0, itsdangerous 2.2.0, PyYAML 6.0.4, argon2-cffi 25.1.0). These are the versions a fresh install resolved for Python 3.13 on 28 November 2026 (`uv pip compile --python-version 3.13`), so a build no longer picks up a different release between runs. Dependabot proposes updates from here.
+
 ## 2026-11-27
 
 ### Changed
