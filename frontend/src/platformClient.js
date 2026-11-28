@@ -23,12 +23,21 @@ const knownErrors = {
   "اربط حسابك بـGitHub من جديد.": "Connect your GitHub account again.",
   "اتصال GitHub اتغيّر قبل تسجيل الفحص.": "The GitHub connection changed before the scan was recorded. Try again.",
   "GitHub تعذّر عليه إرجاع اللقطة.": "GitHub could not return the snapshot. Try again.",
+  "GitHub App محتاج إعداد على الخادم.": "GitHub import is not set up on this server. Use a ZIP upload instead, or ask the server owner to configure the GitHub App.",
+  "مفيش صفحات موقع معتمدة للمشروع ده. المسؤول لازم يضيف العنوان في BASIRA_APPROVED_WEBSITE_PAGES قبل جمع الأدلة.": "This project has no approved website pages. The server owner must add the address to BASIRA_APPROVED_WEBSITE_PAGES before website scans, or you can scan a ZIP instead.",
+  "العنوان ده مش في الصفحات المعتمدة للمشروع. اكتبه بالظبط زي ما هو معتمد (HTTPS من غير معاملات، ونفس شكل المسار)، أو اطلب من المسؤول يضيفه في BASIRA_APPROVED_WEBSITE_PAGES.": "This address is not on the project's approved pages. Write it exactly as approved (HTTPS, no query string, same path), or ask the server owner to add it to BASIRA_APPROVED_WEBSITE_PAGES.",
+  "استخدم رابط HTTPS معتمد من غير معاملات أو بيانات تسجيل دخول.": "Use an approved HTTPS link with no query string or credentials.",
+  "اسم النطاق أو مسار الصفحة غير صالح.": "The domain name or page path is not valid. IP addresses and localhost are not accepted.",
+  "حجم الملف تجاوز ٢ ميجابايت.": "The file is over the 2 MB limit.",
 };
 const isArabic = (text) => /[\u0600-\u06ff]/.test(text);
 // A browser network failure has no HTTP status and an English engine message ("Failed to fetch").
 const isNetwork = (err) => err instanceof TypeError || (!err.status && /^(failed to fetch|load failed|networkerror)/i.test(err.message));
 export const errorText = (err, t) => {
   if (isNetwork(err)) return t("تعذّر الاتصال بالخادم. اتأكد من الإنترنت وحاول تاني.", "Could not reach the server. Check your connection and try again.");
+  if (err.status === 422 && err.fields?.length && !knownErrors[err.message]) {
+    return t(err.message, "Check these fields and try again: " + err.fields.join(", ") + ".");
+  }
   const english = knownErrors[err.message] || ({
     401: "Check your credentials or sign in again.",
     403: "This account cannot perform the requested action.",

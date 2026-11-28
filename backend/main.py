@@ -40,10 +40,18 @@ async def validation_error(request, error):
         return JSONResponse({"detail": detail, "fields": fields}, status_code=422)
     if request.url.path.startswith("/api/platform/"):
         # Field names only: the submitted values may be secrets or source code.
+        labels = {
+            "url": "رابط الصفحة", "source": "نوع المدخل", "scope_version": "نسخة النطاق",
+            "acknowledge_scope": "الإقرار بالنطاق", "installation_id": "تثبيت GitHub",
+            "repository_id": "المستودع", "ref": "الفرع أو الـ commit", "model_connection": "اتصال النموذج",
+            "x-artifact-name": "اسم الملف", "x-scope-version": "نسخة النطاق",
+            "x-acknowledge-scope": "الإقرار بالنطاق", "idempotency-key": "مفتاح الطلب",
+        }
         fields = list(dict.fromkeys(
             str(issue["loc"][-1]) for issue in error.errors() if len(issue["loc"]) > 1 and issue["loc"][0] in {"body", "header", "query"}
         ))[:10]
-        detail = "راجع الحقول المطلوبة ونوع البيانات." + (f" الحقول: {', '.join(fields)}." if fields else "")
+        named = [labels.get(name.lower(), name) for name in fields]
+        detail = "راجع الحقول المطلوبة ونوع البيانات." + (f" الحقول: {', '.join(named)}." if named else "")
     else:
         detail = "راجع نوع وحجم مصدر HTML والحقول المدعومة."
     return JSONResponse({"detail": detail, **({"fields": fields} if request.url.path.startswith("/api/platform/") else {})}, status_code=422)

@@ -515,7 +515,12 @@ def review_prepared(prepared, policy, *, kind=None, external=False):
             summary_ar += (f" {unsupported} قاعدة تحتاج ملفات PHP أو JavaScript أو Python: اللقطة فيها كود"
                            " بلغة تانية والفحوصات مش بتقراها.")
         incomplete = sum(row.reason == "har_headers_incomplete" for row in coverage)
-        if incomplete:
+        if incomplete and isinstance(policy, dict) and policy.get("intake_mode") == "website":
+            summary_en += (f" {incomplete} rule(s) were skipped because a website scan reads one page and a few"
+                           " headers, not a full header capture. This is expected. Upload a HAR export to run them.")
+            summary_ar += (f" تم تخطي {incomplete} قاعدة لأن فحص الموقع بيقرا صفحة وكام رأس بس، مش لقطة رؤوس كاملة."
+                           " ده متوقع. ارفع تصدير HAR لتشغيلها.")
+        elif incomplete:
             summary_en += (f" {incomplete} rule(s) need a complete header capture: set har_headers_complete"
                            " after checking the export includes response headers.")
             summary_ar += (f" {incomplete} قاعدة تحتاج لقطة رؤوس كاملة: عيّن har_headers_complete"
