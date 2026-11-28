@@ -45,6 +45,10 @@ services:
       interval: 3s
       timeout: 3s
       retries: 15
+    # postgres defaults: shared_buffers 128MB plus a few MB per connection.
+    mem_limit: 512m
+    cpus: 1
+    pids_limit: 128
     logging:
       driver: json-file
       options:
@@ -62,6 +66,10 @@ services:
       interval: 3s
       timeout: 2s
       retries: 12
+    # Small queue payloads; the AOF rewrite forks one copy-on-write child.
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 32
     logging:
       driver: json-file
       options:
@@ -115,6 +123,11 @@ services:
     depends_on:
       migrate: {condition: service_completed_successfully}
     networks: [internal, egress]
+    # Measured 143MB serving API + SPA traffic; 512m is ~3.5x headroom for the
+    # postgres driver, OIDC and report views.
+    mem_limit: 512m
+    cpus: 1.5
+    pids_limit: 128
 
   dispatcher:
     <<: *app
@@ -134,6 +147,10 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+    # Measured 129MB in its poll loop; 384m is ~3x headroom.
+    mem_limit: 384m
+    cpus: 0.5
+    pids_limit: 64
 
   worker:
     <<: *app
@@ -155,6 +172,11 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+    # Measured ~440MB at boot with --concurrency 2 (main + 2 pool processes);
+    # 768m leaves ~1.7x for report generation under load.
+    mem_limit: 768m
+    cpus: 2
+    pids_limit: 128
 
   scanner:
     <<: *app
@@ -216,6 +238,10 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+    # Measured 88MB serving /health and completions; 256m is ~3x headroom.
+    mem_limit: 256m
+    cpus: 1
+    pids_limit: 64
 
 networks:
   internal: {internal: true}
