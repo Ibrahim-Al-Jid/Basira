@@ -95,6 +95,16 @@ def vulnerability_taxonomy():
     return taxonomy_public()
 
 
+def guidance_html(guidance, ar, t, esc):
+    """Fix example and verify step of one finding. Every value is escaped: the location in them comes from the input."""
+    if not guidance:
+        return ""
+    lead, *code = guidance["fix_ar" if ar else "fix"].split("\n")
+    block = f'<pre><code>{esc(chr(10).join(code))}</code></pre>' if code else ""
+    return (f'<p><strong>{t("الإصلاح","Fix")}</strong> · {esc(lead)}</p>{block}'
+            f'<p><strong>{t("التحقق","Verify")}</strong> · {esc(guidance["verify_ar" if ar else "verify"])}</p>')
+
+
 def report_html(report, lang):
     ar = lang == "ar"
     def t(arabic, english):
@@ -168,7 +178,8 @@ def report_html(report, lang):
                      f'{esc(severity_labels.get(severity, severity) if ar else severity)} · '
                      f'{esc(finding["path"]) + " · " if finding.get("path") else ""}'
                      f'{t("السطر","Line")} {esc(finding["line"])}</small>'
-                     f'<pre><code>{esc(finding["evidence"])}</code></pre><p>{esc(advice)}</p></article>')
+                     f'<pre><code>{esc(finding["evidence"])}</code></pre><p>{esc(advice)}</p>'
+                     f'{guidance_html(finding.get("guidance"), ar, t, esc)}</article>')
     if not report["findings"]:
         if report["coverage"] and all(row["status"] == "not_applicable" for row in report["coverage"]):
             message = t("لم تنطبق أي قاعدة على المصدر.", "No registered rule applied to this source.")

@@ -164,6 +164,13 @@ def report_pdf(report, lang):
             pdf.write_line(printable(finding.evidence, 225), size=9, color=MUTED, direction="ltr")
         advice = (finding.remediation_ar if pdf.ar else None) or finding.remediation
         pdf.write_line(t("الإصلاح: ", "Fix: ") + printable(advice))
+        if finding.guidance:
+            lead, *code = (finding.guidance.fix_ar if pdf.ar else finding.guidance.fix).split("\n")
+            pdf.write_line(printable(lead, 600), size=9)
+            for line in code:
+                pdf.write_line(printable(line, 400), size=8, color=MUTED, direction="ltr")
+            pdf.write_line(t("التحقق: ", "Verify: ") + printable(
+                finding.guidance.verify_ar if pdf.ar else finding.guidance.verify, 600), size=9)
         if len(matches) > 1:
             pdf.write_line(t("باقي المواضع موجودة في التقرير داخل بصيرة.",
                              "The full report in Basira includes the remaining locations."), size=9, color=MUTED)

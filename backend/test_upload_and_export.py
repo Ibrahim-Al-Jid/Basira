@@ -136,7 +136,9 @@ def hostile_report(text):
         "id": "a" * 32, "created_at": "2026-11-18T12:00:00+00:00", "model": "fixture",
         "summary_en": text, "summary_ar": text, "metrics": {"validatedCount": 1, "modelCalls": 0},
         "findings": [{**HOSTILE_FINDING, "evidence": text, "title": text, "title_ar": text,
-                      "remediation": text, "remediation_ar": text}]})
+                      "remediation": text, "remediation_ar": text,
+                      "guidance": {"fix": "Fix it.\n" + text[:900], "fix_ar": "أصلحها.\n" + text[:900],
+                                   "verify": "Check " + text[:900], "verify_ar": "تحقق " + text[:900]}}]})
 
 
 def test_hostile_report_text_is_escaped_in_the_html_export():
@@ -146,6 +148,7 @@ def test_hostile_report_text_is_escaped_in_the_html_export():
     for lang in ("en", "ar"):
         page = report_html(hostile_report(markup).model_dump(mode="json"), lang)
         assert markup not in page and "&lt;img" in page
+        assert page.count("&lt;img") >= 6  # evidence, advice, title, fix example, verify step, summary
 
 
 def test_hostile_report_text_in_the_pdf_export_stays_text_with_no_active_content():
@@ -192,3 +195,17 @@ def test_a_risky_dockerfile_under_build_produces_a_finding():
     raw = build([("app/index.html", PAGE), ("build/Dockerfile", b"FROM python:3\nUSER 0\n")])
     report = defensive_review("repository", "source.zip", raw, {})
     assert "build/Dockerfile" in {row["path"] for row in report["findings"]}
+
+
+def test_guidance_appears_in_the_html_and_pdf_exports_in_both_languages():
+    from .main import report_html
+    from .report_pdf import report_pdf
+
+    report = hostile_report("plain text")
+    en = report_html(report.model_dump(mode="json"), "en")
+    ar = report_html(report.model_dump(mode="json"), "ar")
+    assert "<strong>Fix</strong>" in en and "<strong>Verify</strong>" in en and "Check plain text" in en
+    assert "<strong>الإصلاح</strong>" in ar and "تحقق plain text" in ar
+    plain = report.model_copy(update={"findings": [report.findings[0].model_copy(update={"guidance": None})]})
+    assert "<strong>Fix</strong>" not in report_html(plain.model_dump(mode="json"), "en")
+    assert report_pdf(report, "en").startswith(b"%PDF-") and report_pdf(report, "ar").startswith(b"%PDF-")

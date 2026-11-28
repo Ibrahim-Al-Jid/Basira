@@ -5,6 +5,7 @@ from . import guidance
 from .artifact_review import catalog, defensive_review
 from .contracts import Finding
 from .checks.source_code import RULE_IDS
+from .test_platform_runtime import platform  # noqa: F401  (fixture)
 
 FIXTURES = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "source-code"
 ARABIC = re.compile(r"[\u0600-\u06ff]")
@@ -64,3 +65,22 @@ def _zip(files):
         for name, body in files.items():
             bundle.writestr(name, body)
     return out.getvalue()
+
+
+def test_the_persisted_report_and_the_exports_carry_exactly_the_four_guidance_keys(platform):
+    from . import platform_jobs as jobs
+    from .test_platform_runtime import submit
+
+    owner, _other, ctx = platform
+    scan = submit(owner, ctx, key="agent-guidance-1").json()["id"]
+    jobs.execute_scan(ctx.org_id, ctx.project_id, scan)
+    base = f"/api/platform/projects/{ctx.project_id}/reports/{scan}"
+    report = owner.get(base).json()
+    with_guidance = [item for item in report["findings"] if "guidance" in item]
+    assert with_guidance and all(set(item["guidance"]) == {"fix", "fix_ar", "verify", "verify_ar"}
+                                 for item in with_guidance)
+    exported = owner.get(base + "/download?format=json").json()
+    assert exported["findings"] == report["findings"]
+    html = owner.get(base + "/download?format=html")
+    assert html.status_code == 200 and "<strong>Verify</strong>" in html.text
+    assert owner.get(base + "/download?format=pdf").content.startswith(b"%PDF-")
