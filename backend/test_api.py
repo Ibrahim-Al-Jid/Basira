@@ -2,6 +2,7 @@ from contextlib import closing
 import json
 import os
 from pathlib import Path
+import time
 import sqlite3
 from tempfile import TemporaryDirectory
 import unittest
@@ -170,6 +171,30 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(detail["content"]["application/json"]["schema"]["$ref"], "#/components/schemas/Report")
 
 
+class SessionTableTests(unittest.TestCase):
+    def setUp(self):
+        tmp = self.enterContext(TemporaryDirectory())
+        self.db = Path(tmp) / "sessions.sqlite3"
+        self.enterContext(patch.dict(os.environ, {"BASIRA_DB_PATH": str(self.db)}))
+        self.client = self.enterContext(TestClient(main.app))
+
+    def rows(self):
+        with main.database() as db:
+            return db.execute("SELECT owner, expires_at FROM sessions").fetchall()
+
+    def test_page_views_do_not_create_sessions(self):
+        for _ in range(5):
+            assert self.client.get("/", headers={"accept": "text/html"}).status_code == 200
+        assert self.rows() == []
+
+    def test_minting_a_session_removes_expired_rows(self):
+        with main.database() as db:
+            db.execute("INSERT INTO sessions(owner, expires_at) VALUES('expired', 1)")
+            db.execute("INSERT INTO sessions(owner, expires_at) VALUES('live', ?)", (int(time.time()) + 600,))
+        self.client.get("/api/history")
+        owners = {row["owner"] for row in self.rows()}
+        assert "expired" not in owners and "live" in owners
+        assert len(owners) == 2
 class DatabasePreparationTests(unittest.TestCase):
     def test_schema_is_prepared_once_per_database_path(self):
         with TemporaryDirectory() as tmp:
