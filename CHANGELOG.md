@@ -2,8 +2,14 @@
 
 ## 2026-11-28
 
-### Changed
-- `requirements.txt` pins every direct dependency to an exact version instead of a range (SQLAlchemy 2.1.9, alembic 1.20.1, psycopg 3.3.9, celery 5.7.0, Authlib 1.9.10, boto3 1.44.13, joserfc 1.8.0, itsdangerous 2.2.0, PyYAML 6.0.4, argon2-cffi 25.1.0). These are the versions a fresh install resolved for Python 3.13 on 28 November 2026 (`uv pip compile --python-version 3.13`), so a build no longer picks up a different release between runs. Dependabot proposes updates from here.
+### Fixed
+- Scan idempotency keys are scoped to one project. The unique constraint on `project_scans` spanned the whole organization while the API looked the key up per project, so reusing the same `Idempotency-Key` in a second project of the same organization returned 409 "the key is linked to a different request" instead of creating the scan. Migration `platform_idempotency_0017` replaces `uq_project_scans_request` with `uq_project_scans_project_request` on (org, project, user, key). Reproduced and re-checked on PostgreSQL 16 with the `basira_app` role: before, 409; after, 202 in both projects.
+### Added
+- Container operations: every service and the database and broker log through the `json-file` driver capped at 10 MB times 3 files, the `app` service has a healthcheck and the image has a `HEALTHCHECK`, so a hung process is restarted or routed around instead of looking up. `app`, `worker`, `dispatcher` and `model-gateway` run with `cap_drop: [ALL]` and `no-new-privileges`, which they do not need (they already run as an unprivileged user); the scanner keeps its own isolation.
+- The image build runs `pip check` after installing the requirements and sets `PYTHONDONTWRITEBYTECODE=1`; `.dockerignore` keeps `tests/`, `docs/` and `backend/test_*.py` out of the build context and the runtime image.
+
+### Fixed
+- Report "technical" tab no longer blanks the whole page: `ToolRuns` (frontend/src/ReportAdvanced.jsx) called the translation object as a function (`t("...")`), throwing on every report that shows tool execution. The copy now uses the component's own bilingual strings like the rest of the file.
 
 ## 2026-11-27
 
@@ -14,9 +20,6 @@
 - PLAN status matches the merged state: P10 slices a to f and P20 are marked merged, with the automatic default project as the one open P10 item.
 
 ### Removed
-- Header bell icon: it was a link to Scan history (the sidebar already has it), not notifications. `frontend/src/SiteHeader.jsx`.
-- Colour palette picker (the "Workspace" / "Colors" pill, the 16 palettes and the "Mix with" option), its stored preferences and its code (`DesignPicker.jsx` and its styles). Owner decision: it only changed colours. The look is fixed to the current default palette, which keeps WCAG AA (accent on canvas 6.9:1 dark, 5.7:1 light, measured; the best of the 16 differed by about 0.5 and would have changed the look). The dark/light toggle and language switch stay.
-- Duplicate sidebar entries in the personal workspace: "New Project" (the Projects page and the dashboard have the same button) and the "Project security / Review agents" note card at the bottom of the sidebar (it was clipped on 900 px screens and linked to Overview). "Review agents" and "Remediation" stay, because they open their own views. `frontend/src/PersonalWorkspace.jsx`; the browser test now opens New project from the Projects page.
 - `frontend/src/design-pop.css` and `frontend/src/landing.css` (29 KB): not imported anywhere since the command-center frontend was merged. The build output is unchanged.
 - SARIF export, by owner decision: the download button, the `format=sarif` endpoint option, the generator in `backend/advanced_reporting.py`, its tests and every mention in the docs. Reports still export to HTML (Arabic and English), JSON and PDF.
 
@@ -70,9 +73,14 @@
 - Local Windows setup: `compose.local.yaml` now turns personal projects on for the app, dispatcher and worker, so Connect GitHub is available without adding `BASIRA_PERSONAL_PROJECTS=1` to `.env.local`. A generated `.env.local` carried `0`, which hid the whole Personal projects path.
 - Model connection locally: `ops/start-local.ps1 -Model` writes the four gateway settings to `.env.local` and starts the `model` compose profile; the Account page said "gateway unavailable" because nothing started the gateway or set its address and token. The unavailable state now says whether the gateway is not set up or not answering (`reason` field and UI text). Not run end to end (no Docker here).
 - Scan errors in English mode showed only "Check the form values and try again." for every 422. The UI now shows an English version of the real server reason for the common intake and GitHub errors (for example "The snapshot has no supported source files"), and the GitHub step of New scan lists the file types Basira reads (Markdown and images are not scanned; a repository with none of the supported files is rejected). Arabic mode already showed the server text.
+- Forms and cards (look only): the Projects search box and the Reports project dropdown now use the same field style as the other inputs (they were the browser's plain controls), and each project card keeps Add scan, Rename and Delete in two tidy rows instead of wrapping one button alone. `frontend/src/personal-workspace.css`, `frontend/src/reports.css`. Checked in a browser at 1152 px (125% zoom) in English.
+- A report link without `?project=` now works: Basira looks for the report in your own projects and adds the project to the address. If none of your projects has it, you get a clear message and a button to the report list. Root cause: reports belong to a project and the project was only kept in the URL, so a typed or shared link lost it (`frontend/src/Reports.jsx`). Checked in a browser: a real bare link opened the report; an unknown ID showed the message; no console errors. The same fix stops the page asking the demo endpoint `/api/reports/<id>` (two 404s) while it looks for the project.
+- New browser smoke test `tests/browser_smoke.py`: signs up, runs a real ZIP scan, opens 9 pages in English and Arabic (no script or console errors, no horizontal overflow, a heading on each), checks that a report link without a project resolves, and that an unknown address shows the not-found page. Run like the other browser tests with `BASIRA_QA_ORIGIN`. Passed 4 times in a row here; one earlier run on a half-built tree failed on a missing heading and I could not reproduce it.
 - Arabic layout: the sidebar now sits on the right (it stayed on the left before). Desktop and tablet widths; the phone layout (menu under the header) is unchanged. Measured in a browser at 1440, 1024 and 390 px in Arabic and English: sidebar right edge equals the viewport width in Arabic, left edge 0 in English, no horizontal overflow (`frontend/src/command-center.css`).
+- Arabic header now mirrors with the sidebar: search on the right, theme, language and account controls on the left (one CSS rule in `frontend/src/command-center.css`). Checked in a browser in Arabic at 1280 and 390 px and English at 1280 px: no overflow. This branch builds on the Arabic sidebar PR (#57), merge that first.
 - A visible focus box appeared around the page title (Reports, report, scan wizard) on every page load, because the title is focused for screen readers. Non-control elements that are focused only by code (`tabindex=-1`) no longer draw a ring; buttons, links and fields keep theirs (`frontend/src/workspace.css`).
 - Unknown browser URLs now open the app's own "Page not found" screen (HTTP 404) instead of a blank page with a raw server 404, and `/projects/<id>` and `/projects/<id>/reports/<id>` open the project and the report instead of an empty page (`backend/main.py`, `frontend/src/main.jsx`). API routes still return JSON 404. Found by a full product audit; test added in `backend/test_api.py`.
+- New scan: pressing Review scan with no file chosen now says "Choose a file first." in the app language (it showed the browser's own English text in the Arabic UI). Root cause: the file field relied on the browser's built-in required message. `frontend/src/Platform.jsx`. Checked in a browser in English and Arabic.
 
 ### Removed
 - `work/` folder (its content moved into `docs/PLAN.md`).
