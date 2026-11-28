@@ -4,6 +4,16 @@ x-app: &app
   build: .
   image: basira-platform:local
   restart: unless-stopped
+  # The default json-file driver grows without bound; a full disk takes the
+  # database down with it.
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+  # Every service here runs as an unprivileged user and needs no capabilities.
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
 
 x-platform: &platform
   BASIRA_PERSONAL_PROJECTS: ${BASIRA_PERSONAL_PROJECTS:-0}
@@ -35,6 +45,11 @@ services:
       interval: 3s
       timeout: 3s
       retries: 15
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     restart: unless-stopped
 
   broker:
@@ -47,6 +62,11 @@ services:
       interval: 3s
       timeout: 2s
       retries: 12
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     restart: unless-stopped
 
   migrate:
@@ -86,6 +106,12 @@ services:
       AWS_SESSION_TOKEN: ${BASIRA_INTAKE_S3_SESSION_TOKEN:-}
     ports: ["127.0.0.1:${BASIRA_PORT:-8765}:8000"]
     volumes: [anonymous:/srv/basira/data]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/product', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
     depends_on:
       migrate: {condition: service_completed_successfully}
     networks: [internal, egress]

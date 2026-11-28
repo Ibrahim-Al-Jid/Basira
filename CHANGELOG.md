@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-28
+
+### Added
+- Container operations: every service and the database and broker log through the `json-file` driver capped at 10 MB times 3 files, the `app` service has a healthcheck and the image has a `HEALTHCHECK`, so a hung process is restarted or routed around instead of looking up. `app`, `worker`, `dispatcher` and `model-gateway` run with `cap_drop: [ALL]` and `no-new-privileges`, which they do not need (they already run as an unprivileged user); the scanner keeps its own isolation.
+- The image build runs `pip check` after installing the requirements and sets `PYTHONDONTWRITEBYTECODE=1`; `.dockerignore` keeps `tests/`, `docs/` and `backend/test_*.py` out of the build context and the runtime image.
+
 ## 2026-11-27
 
 ### Changed
