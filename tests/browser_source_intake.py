@@ -43,7 +43,7 @@ def main():
         page = ctx.new_page()
         page.goto(ORIGIN + "/dashboard")
         expect(page.get_by_text("Source Reviewer", exact=False)).to_be_visible()
-        expect(page.get_by_role("link", name="New scan", exact=True)).to_have_count(1)
+        expect(page.locator("main").get_by_role("link", name="New scan", exact=True)).to_have_count(1)
         expect(page.locator("main a[href='/projects'], main a[href='/scans'], main a[href='/reports']")).to_have_count(0)
         page.goto(f"{ORIGIN}/projects?project={project}")
         page.locator(".site-brand").click()
