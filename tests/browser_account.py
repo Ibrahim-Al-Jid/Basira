@@ -40,13 +40,10 @@ def account_layout(page):
     expect(page.locator("html")).to_have_attribute("data-theme", "light")
     page.get_by_label("Theme").select_option("dark")
     page.set_viewport_size({"width": 566, "height": 850})
-    menu = page.get_by_role("button", name="Open menu")
-    menu.focus()
-    page.keyboard.press("Enter")
-    expect(page.locator(".site-mobile-menu")).to_have_attribute("aria-expanded", "true")
-    page.keyboard.press("Escape")
-    expect(menu).to_be_focused()
-    expect(menu).to_have_attribute("aria-expanded", "false")
+    nav = page.get_by_role("navigation", name="Main navigation")
+    expect(nav).to_be_visible()
+    expect(nav.get_by_role("link", name="Reports")).to_be_visible()
+    assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
 
 
 def credential_ui(page, org):
