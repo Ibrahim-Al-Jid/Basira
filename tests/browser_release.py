@@ -98,7 +98,7 @@ def main():
                 "email": f"release-{uuid4().hex[:12]}@example.test",
                 "password": token_urlsafe(24),
             })
-            assert account.status == 201
+            assert account.status == 201, account.text()
         else:
             token = os.environ["BASIRA_TEST_SESSION"]
             context.add_cookies([{"name": "basira_platform_session", "value": token, "url": ORIGIN}])

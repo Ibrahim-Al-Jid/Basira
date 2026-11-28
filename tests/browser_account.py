@@ -20,7 +20,7 @@ def register(context):
         "email": email, "password": token_urlsafe(28),
         "first_name": "Workspace", "last_name": "Member",
     })
-    assert response.status == 201
+    assert response.status == 201, response.text()
     return email
 
 
