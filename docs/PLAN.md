@@ -72,8 +72,8 @@ A future addition may be started early only if Release 1 is complete, or if it b
 
 Phases P01 to P08 are built; this plan has 24 phases (P01 to P24). P09 has its live view and model lane in place; P10 slices a to f and P20 are merged, and the design question is closed (28 November 2026: keep the current look, no new design); open: the automatic default project (scan flow is 4 actions, target 3), then future additions. Release 1 scope is defined above; everything else is a future addition. Section 3b lists every merged pull request, which is where the evidence for a status lives.
 
-Verified on 28 November 2026 at commit `7071ae9`, Linux, Python 3.13.18, Node 22.23.5:
-- Backend suite: `python -m pytest backend -q` gave 540 passed, 22 skipped, 8 subtests in 31.3 s. The frontend build ran first, as `backend/test_api.py` serves `frontend/dist`.
+Verified on 28 November 2026 at commit `d5b06a6`, Linux, Python 3.13.18, Node 22.23.5:
+- Backend suite: `python -m pytest backend -q` gave 540 passed, 22 skipped, 8 subtests in 30.0 s. The frontend build ran first, as `backend/test_api.py` serves `frontend/dist`.
 - Frontend: `npm --prefix frontend ci` and `npm run build` succeed; `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs` gave 8 pass.
 - App start: `/`, `/demo`, `/signin`, `/projects`, `GET /api/taxonomy` and `GET /api/product` returned 200.
 - Documentation set: [SETUP](SETUP.md), [CONFIGURATION](CONFIGURATION.md), [API](API.md) and [TROUBLESHOOTING](TROUBLESHOOTING.md) added, with the commands they contain checked in the same run.
@@ -270,6 +270,7 @@ Every change reaches `main` through a pull request (see [two-account-flow](two-a
 | #166 | Worker runs the Hunter loop behind `BASIRA_AGENT_LOOP` (off by default) | P09 |
 | #168 | Docs follow-up 6: #164, #166, #167 | docs |
 | #169 | Hunter findings beside rules findings in `report.agent_findings`; agent path on behind the flag (P4c) | P09 |
+| #172 | CI: release browser suite (`--password-account`) on every pull request | P18 |
 | #173 | Reports: separate "Agent review" section for `agent_findings` | P10 |
 | #170 | Scan timeline texts for the agent failed and fallback events | P10 |
 | #167 | Gateway `/chat` route for the Hunter loop with a per-scan call cap of 8 | P09 |
