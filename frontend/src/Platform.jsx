@@ -743,7 +743,6 @@ function Dashboard({ location, navigate, user, lang, invitationRevision, persona
     {showProjectNavigation && <nav className="project-section-nav" aria-label={t("أقسام المشروع", "Project sections")}>
       {[
         ["activity", t("النشاط والتقارير", "Activity and reports"), true],
-        ["history", t("سجل الفحوصات", "Scan History"), personal],
         ["management", t("إدارة المشروع", "Project management"), manage],
         ["access", t("الوصول", "Access"), manage && !personal],
         ["references", t("المراجع", "References"), true],
