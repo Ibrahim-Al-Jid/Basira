@@ -122,6 +122,8 @@ Budgets are per mode and set by the Maestro: `rules` keeps today's limits; `agen
 
 Report contract fields: `analysis_mode` (requested), `mode_effective`, `fallback_reason` (nullable), `budget` (limits and use per role).
 
+**Implemented today (#169).** Only the Hunter loop and the Auditor check are built. With `BASIRA_AGENT_LOOP=1`, a model connection on the scan and a repository upload, `agents` and `hybrid` run them; the result is the separate `report.agent_findings` list. Otherwise `hybrid` runs as `rules` and `agents` is refused with 422. The `budget` field and the Maestro, Scout and Scribe roles are not built; the loop has its own fixed budget (8 steps, 12 tool calls, 40,000 tokens, 60 s) and the gateway caps a scan at 8 model calls.
+
 Selector copy (interface, Arabic and English, using the role names):
 
 | Mode | English | Arabic |
@@ -140,7 +142,7 @@ Each phase is one small PR. The DB agent owns migrations: the `analysis_mode` co
 | P1 | `analysis_mode` setting, validation, contract fields, default `hybrid` with fallback to `rules` | Invalid value gives 422; old scans read as `rules`; hybrid without a model completes as `rules` with `fallback_reason`; contract round trip test |
 | P2 (**done**, #148) | Deterministic `ProjectMap` (Scout): languages, entry points, routes, config files, dependency manifests, trust boundaries, keyed by snapshot digest | Same input gives the same map; map holds paths and counts only, no file bodies; unit tests on the sample projects |
 | P3 (**done**, #150) | Auditor upgrade: location exists, quote present at the location, rule or deterministic check reproduces | Candidates with a missing file, line or quote are rejected with a reason code; the existing corpus recall does not drop |
-| P4 (**done except P4c**: loop #151, gateway `/chat` #167, worker #166, counter #163; dormant) | Bounded Hunter tool loop behind `BASIRA_AGENT_LOOP`, rules as tools. P4c, still to do: make `resolve_mode` return `agents` and `hybrid`, and merge the Hunter's candidates into the report | Mocked model only in tests; budget exhaustion keeps the deterministic result; injected text in a snapshot never changes tool calls |
+| P4 (**done**: loop #151, counter #163, worker #166, gateway `/chat` #167, report and mode #169) | Bounded Hunter tool loop behind `BASIRA_AGENT_LOOP`, rules as tools. Hunter findings go to `report.agent_findings`, never into `findings` | Mocked model only in tests; budget exhaustion keeps the deterministic result; injected text in a snapshot never changes tool calls |
 | P5 | Interface selector and copy above | Both languages render; the selected mode shows in the report |
 | P6 | Benchmark runner mapping modes to C1, C2, C4 using recorded responses | Reproduces the recorded scores without network |
 
