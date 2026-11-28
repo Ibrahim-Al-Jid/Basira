@@ -329,7 +329,9 @@ body { background: var(--canvas); color: var(--ink); }
   .workspace-layout:not(:has(.personal-sidebar)) { --sidebar-width: 4.75rem; }
   .workspace-layout > .overview-sidebar { padding-inline: .6rem; }
   .overview-sidebar .site-brand, .overview-nav a { display: flex; justify-content: center; }
-  .overview-sidebar .site-brand-copy, .overview-nav a > span { display: none; }
+  .overview-nav a > span { display: none; }
+  /* Keep the brand name for screen readers when only the mark is visible. */
+  .overview-sidebar .site-brand-copy { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }
 @media (max-width: 760px) {
   .workspace-layout:has(.personal-sidebar) {

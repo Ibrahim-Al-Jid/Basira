@@ -216,7 +216,7 @@ function ScanList({ project, scans, lang, t, emptyMessage }) {
 
 function RecentScanTable({ project, scans, lang, t }) {
   if (!scans.length) return <ScanList project={project} scans={scans} lang={lang} t={t} />;
-  return <div className="command-table-wrap">
+  return <div className="command-table-wrap" role="region" tabIndex={0} aria-label={t("جدول الفحوصات", "Scans table")}>
     <table className="command-table">
       <thead><tr>
         <th scope="col">{t("مصدر الفحص", "Scan source")}</th>

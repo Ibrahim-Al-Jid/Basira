@@ -124,6 +124,7 @@ const copy = {
     provenanceUnavailable: "بيانات مصدر الفحص غير متاحة للتقرير ده.",
     provenanceError: "تعذّر تحميل مصدر الفحص.",
     coverage: "تغطية الفحص",
+    rulesTable: "جدول القواعد",
     rule: "القاعدة",
     steps: "أحداث الوكلاء",
     summarySource: "مصدر الملخص",
@@ -288,6 +289,7 @@ const copy = {
     provenanceUnavailable: "This report does not have scan provenance.",
     provenanceError: "Could not load scan provenance.",
     coverage: "Scan coverage",
+    rulesTable: "Rules table",
     rule: "Rule",
     steps: "Agent events",
     summarySource: "Summary source",
@@ -608,7 +610,7 @@ function FindingList({ findings, coverage, imported, priority, t, lang, params, 
 function CoverageDetails({ coverage, t, count }) {
   if (!coverage?.length) return <p className="reports-empty">{t.legacyCoverage}</p>;
   return (
-    <div className="reports-table-wrap">
+    <div className="reports-table-wrap" role="region" tabIndex={0} aria-label={t.rulesTable}>
       <table className="reports-coverage" aria-label={t.coverage}>
         <thead><tr>{[t.rule, t.domain, t.status, t.occurrences].map((title) => <th key={title} scope="col">{title}</th>)}</tr></thead>
         <tbody>

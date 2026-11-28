@@ -185,7 +185,7 @@ export function Landing({ follow, lang, authenticated }) {
             <h2>{t("أحدث الفحوصات", "Recent scans")}</h2>
             <a href="/scans" onClick={(event) => follow(event, "/scans")}>{t("عرض الكل", "View all")}</a>
           </header>
-          <div className="command-table-wrap">
+          <div className="command-table-wrap" role="region" tabIndex={0} aria-label={t("آخر الفحوصات", "Recent scans")}>
             <table className="command-table">
               <thead><tr><th scope="col">{t("المشروع", "Project")}</th><th scope="col">{t("الحالة", "Status")}</th>
                 <th scope="col">{t("النتائج", "Findings")}</th><th scope="col">{t("المدة", "Duration")}</th></tr></thead>
