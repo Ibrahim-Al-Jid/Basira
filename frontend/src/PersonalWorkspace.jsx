@@ -1,11 +1,12 @@
 import React, { useEffect, useId, useRef, useState } from "react";
-import { ArrowUpRight, CheckCircle2, ChevronLeft, ChevronRight, Folder, FolderPlus, GitBranch, LogOut, Menu, RefreshCw, Search, Settings } from "lucide-react";
+import { ArrowUpRight, Bug, CheckCircle2, ChevronLeft, ChevronRight, FileCheck2, Folder, FolderPlus, GitBranch, Grid2X2, History, LogOut, Menu, RefreshCw, ScanLine, Search, Settings, SlidersHorizontal, Workflow } from "lucide-react";
 import { post } from "./data";
 import { action, api, errorText, json, translate } from "./platformClient";
 import { DirectoryLink } from "./ProjectDirectory";
+import { WorkspaceBrand, WorkspaceSidebarNote } from "./SiteHeader";
 import "./personal-workspace.css";
 
-export function PersonalSidebar({ location, navigate, lang, revision, onLogout }) {
+export function PersonalSidebar({ location, navigate, follow, lang, revision, onLogout }) {
   const t = translate(lang);
   const [projects, setProjects] = useState([]);
   const [failure, setFailure] = useState(null);
@@ -41,6 +42,9 @@ export function PersonalSidebar({ location, navigate, lang, revision, onLogout }
     }
   }
 
+  const projectQuery = projectId ? "?project=" + encodeURIComponent(projectId) : "";
+  const fixesQuery = new URLSearchParams({ focus: "remediation", ...(projectId && { project: projectId }) });
+  const viewingFixes = params.get("focus") === "remediation";
   return <nav className="personal-sidebar" data-project-directory={projectDirectory || undefined}
     aria-label={t("مساحة العمل", "Workspace navigation")} onKeyDown={(event) => {
     if (event.key === "Escape" && open) {
@@ -48,12 +52,37 @@ export function PersonalSidebar({ location, navigate, lang, revision, onLogout }
       menu.current?.focus();
     }
   }}>
+    <WorkspaceBrand href="/" follow={follow} lang={lang} />
     <button ref={menu} className="btn personal-menu" type="button" aria-expanded={open} aria-controls={linksId}
       onClick={() => setOpen((value) => !value)}><Menu size={18} aria-hidden="true" />{t("القائمة", "Menu")}</button>
     <div id={linksId} className={"personal-links" + (open ? " is-open" : "")}>
+      <DirectoryLink to={"/dashboard" + projectQuery} navigate={navigate} aria-current={location.pathname === "/dashboard" ? "page" : undefined}>
+        <Grid2X2 size={18} aria-hidden="true" />{t("نظرة عامة", "Overview")}
+      </DirectoryLink>
       <DirectoryLink className="personal-new-project" to="/projects?new=1" navigate={navigate}
         aria-current={projectDirectory && params.has("new") ? "page" : undefined}>
         <FolderPlus size={18} aria-hidden="true" />{t("مشروع جديد", "New Project")}
+      </DirectoryLink>
+      <DirectoryLink to={"/new-scan" + projectQuery} navigate={navigate} aria-current={location.pathname === "/new-scan" ? "page" : undefined}>
+        <ScanLine size={18} aria-hidden="true" />{t("فحص جديد", "New scan")}
+      </DirectoryLink>
+      <DirectoryLink to={"/dashboard" + projectQuery + "#agents"} navigate={navigate}
+        aria-current={location.pathname === "/dashboard" && location.hash === "#agents" ? "location" : undefined}>
+        <Workflow size={18} aria-hidden="true" />{t("فريق المراجعة", "Review agents")}
+      </DirectoryLink>
+      <DirectoryLink to={"/findings" + projectQuery} navigate={navigate}>
+        <Bug size={18} aria-hidden="true" />{t("النتائج", "Findings")}
+      </DirectoryLink>
+      <DirectoryLink to={"/reports?" + fixesQuery} navigate={navigate}
+        aria-current={location.pathname.startsWith("/reports") && viewingFixes ? "page" : undefined}>
+        <SlidersHorizontal size={18} aria-hidden="true" />{t("الإصلاحات", "Remediation")}
+      </DirectoryLink>
+      <DirectoryLink to={"/reports" + projectQuery} navigate={navigate}
+        aria-current={location.pathname.startsWith("/reports") && !viewingFixes ? "page" : undefined}>
+        <FileCheck2 size={18} aria-hidden="true" />{t("التقارير", "Reports")}
+      </DirectoryLink>
+      <DirectoryLink to={"/scans" + projectQuery} navigate={navigate} aria-current={location.pathname === "/scans" ? "page" : undefined}>
+        <History size={18} aria-hidden="true" />{t("سجل الفحوصات", "Scan history")}
       </DirectoryLink>
       <DirectoryLink to="/projects" navigate={navigate} aria-current={projectDirectory && !params.has("new") ? "page" : undefined}>
         <Folder size={18} aria-hidden="true" />{t("المشاريع", "Projects")}
@@ -84,6 +113,7 @@ export function PersonalSidebar({ location, navigate, lang, revision, onLogout }
         <button type="button" onClick={() => setRetry((count) => count + 1)}>{t("إعادة تحميل القائمة", "Reload menu")}</button>
       </p>}
     </div>
+    <WorkspaceSidebarNote href={"/dashboard" + projectQuery + "#agents"} follow={follow} lang={lang} />
   </nav>;
 }
 

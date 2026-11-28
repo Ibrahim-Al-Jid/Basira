@@ -452,7 +452,8 @@ function Archive({ reports, t, lang, params, navigate }) {
       {pageRows.length ? (
         <ul className="reports-panel reports-list">
           {pageRows.map((report) => {
-            const href = reportPath("/reports/" + encodeURIComponent(report.id), params, {});
+            const href = reportPath("/reports/" + encodeURIComponent(report.id), params, {})
+              + (params.get("focus") === "remediation" ? "#report-findings" : "");
             return (
               <li key={report.id}>
                 <Link className="reports-row" navigate={navigate} href={href}>
@@ -960,7 +961,7 @@ function ReportContext({ location, navigate, lang, active, state, retry }) {
   const ar = lang === "ar";
   const t = copy[lang];
   const select = (value) => navigate(reportPath(location.pathname, new URLSearchParams(), {
-    lang: params.get("lang") || "", project: value,
+    lang: params.get("lang") || "", project: value, q: params.get("q") || "", focus: params.get("focus") || "",
   }));
   if (!state) return <p role="status" className="reports-panel reports-state">{ar ? "جاري تحميل المشاريع…" : "Loading projects…"}</p>;
   if (state.error) return <div className="reports-panel reports-state">
@@ -1030,7 +1031,10 @@ export function Reports({ location, navigate, revision, lang: preferredLanguage 
       <header className="reports-heading">
         <div>
           {id && <Link className="reports-back" href={back} navigate={navigate}>{lang === "ar" ? <ArrowRight size={17} aria-hidden="true" /> : <ArrowLeft size={17} aria-hidden="true" />}{t.back}</Link>}
-          <h1 tabIndex={-1} ref={heading}>{id ? (projectApi ? t.projectReport : t.report) : t.reports}</h1>
+          <h1 tabIndex={-1} ref={heading}>{id ? (projectApi ? t.projectReport : t.report)
+            : params.get("focus") === "remediation" ? t.remediation : t.reports}</h1>
+          {!id && params.get("focus") === "remediation" &&
+            <p>{lang === "ar" ? "افتحي تقريرًا لمراجعة توصيات الإصلاح لكل نتيجة." : "Open a report to review the recommended fix for each finding."}</p>}
           {!id && demoArchive && !projectApi && <p>{t.archiveIntro}</p>}
         </div>
         {showReportActions && <div className="report-header-actions">
