@@ -30,6 +30,7 @@ from .artifact_review import RULESET_VERSION, catalog as rule_catalog, redact_la
 from .offline_worker import scan_payload
 from .taxonomy import public as taxonomy_public
 from .platform_db import personal_projects_enabled
+from .observability import install_observability
 
 ROOT = Path(__file__).resolve().parents[1]
 COOKIE = "basira_session"
@@ -173,6 +174,9 @@ def session(request):
             return owner, None
         token = secrets.token_urlsafe(32)
         owner = owner_key(token)
+        # Expired rows are never read again; drop them before adding one, so the table
+        # tracks live sessions instead of every browser that ever loaded a page.
+        db.execute("DELETE FROM sessions WHERE expires_at IS NOT NULL AND expires_at <= ?", (int(time.time()),))
         db.execute("INSERT INTO sessions(owner, expires_at) VALUES(?,?)", (owner, int(time.time()) + SESSION_SECONDS))
     return owner, token
 
@@ -448,11 +452,8 @@ def product_mode():
 @app.get("/settings", include_in_schema=False)
 @app.get("/new-scan", include_in_schema=False)
 def frontend_page(request: Request):
-    page = FileResponse(ROOT / "frontend" / "dist" / "index.html", headers={"Cache-Control": "no-store"})
-    if personal_projects_enabled():
-        return page
-    _, token = session(request)
-    return set_session(page, token, request)
+    # A page view is not a session: the cookie is minted on the first API call that needs an owner.
+    return FileResponse(ROOT / "frontend" / "dist" / "index.html", headers={"Cache-Control": "no-store"})
 
 
 from .identity import install_identity
@@ -465,6 +466,7 @@ from .personal_github import router as personal_github_router
 from .personal_intake import router as personal_intake_router
 
 install_identity(app)
+install_observability(app)
 app.include_router(platform_router)
 app.include_router(evidence_links_router)
 app.include_router(github_import_router)
