@@ -110,10 +110,10 @@ function CoverageDirectory({ follow, t }) {
 export function OverviewSidebar({ lang, follow, location, personal }) {
   const t = (ar, en) => lang === "ar" ? ar : en;
   const { pathname, hash } = location;
-  const home = pathname === "/";
+  const home = pathname === "/overview" || pathname === "/";
   const scanPath = personal === false ? "/demo" : "/new-scan";
   const links = [
-    [Grid2X2, "/", t("نظرة عامة", "Overview")],
+    [Grid2X2, "/overview", t("نظرة عامة", "Overview")],
     [Folder, "/projects", t("المشاريع", "Projects")],
     [ScanLine, scanPath, t("فحص جديد", "New scan")],
     ...(home ? [

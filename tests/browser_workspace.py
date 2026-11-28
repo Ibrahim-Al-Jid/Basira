@@ -23,6 +23,11 @@ def landing(browser):
             page.goto(ORIGIN)
             expect(page.locator("html")).to_have_attribute("dir", "rtl" if language == "ar" else "ltr")
             expect(page.locator("html")).to_have_attribute("data-theme", "dark")
+            expect(page.locator("#entry-title")).to_be_visible()
+            expect(page.locator("a.entry-cta[href='/signin']").first).to_be_visible()
+            assert page.locator(".overview-sidebar").count() == 0
+            reflows(page)
+            page.goto(ORIGIN + "/overview")
             expect(page.locator("#landing-title")).to_be_visible()
             expect(page.locator(".command-metric, .command-metrics > *").first).to_be_visible()
             assert page.locator(".landing-marquee-track, .landing-motion-control").count() == 0
@@ -38,7 +43,7 @@ def landing(browser):
 
     context = browser.new_context(locale="ar-EG", viewport={"width": 390, "height": 820}, reduced_motion="reduce")
     page = context.new_page()
-    page.goto(ORIGIN)
+    page.goto(ORIGIN + "/overview")
     expect(page.locator("#landing-title")).to_be_visible()
     reflows(page)
     context.close()
