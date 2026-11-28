@@ -242,6 +242,9 @@ Every change reaches `main` through a pull request (see [two-account-flow](two-a
 | #128 | Source intake suite Dockerfile moved out of the excluded build directory | P18 |
 | #135 | CI: run the account browser suite on every pull request | P18 |
 | #137 | Scan `analysis_mode` setting (rules, agents, hybrid) with an explicit fallback reason | P09 |
+| #138 | Agent memory tables: `analysis_mode`, `project_maps`, `scan_agent_runs`, `scan_agent_steps` | P09 |
+| #139 | Docs: the restore check is invoked with `sh` | docs |
+| #120 | Entry page: real WebGL planet and below-the-fold sections | P10 |
 
 Order of work, set by the agent as the expert (27 Nov 2026): P21 (provider settings, done), P09 model lane (done), P10 redesign slices a to f (merged), then P20 (replay and budget check, merged), P19 (source-code checks, the biggest measured gap), P11, P17 and P23 (measured evaluation with precision, when the free-tier cap allows), P13, P16, P15, P22, P07 gaps, P12, P24, P18. P14 follows decision A and ships before P17 if approved, so evaluation covers it.
 
