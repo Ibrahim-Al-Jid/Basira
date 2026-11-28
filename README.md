@@ -59,7 +59,7 @@ Accounts and projects need option 2.
 
 Set `PORT` to change the port. Run the tests with `npm test`.
 
-Verified on 28 November 2026 on Linux with Python 3.13.18 and Node 22.23.5, following exactly the commands above at commit `f434837`: the build succeeds (Vite, 348 ms), the app starts, `/`, `/demo` (the redirect page), `/signin`, `/projects`, `GET /api/taxonomy` and `GET /api/product` return 200, `python -m pytest backend -q` gave 581 passed and 22 skipped (553 passed and 22 skipped after the anonymous lab and its tests were removed), and `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs` gave 8 pass. The Docker path and the Windows script were not run in that environment, and the [setup guide](docs/SETUP.md) says so per item.
+Verified on 28 November 2026 on Linux with Python 3.13.18 and Node 22.23.5, following exactly the commands above at commit `8d5319c`: the build succeeds (Vite, 489 ms), the app starts, `/`, `/demo` (the redirect page), `/signin`, `/projects`, `GET /api/taxonomy` and `GET /api/product` return 200, `python -m pytest backend -q` gave 617 passed and 23 skipped, and `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs frontend/src/modelOrder.test.mjs` gave 11 pass. The Docker path and the Windows script were not run in that environment, and the [setup guide](docs/SETUP.md) says so per item.
 
 ### Run locally on Windows (accounts, projects, Connect GitHub)
 

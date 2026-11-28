@@ -1,6 +1,6 @@
 # Setup and run guide
 
-Every command on this page was checked against `main` at commit `f434837` on 28 November 2026 (Linux, Python 3.13.18, Node 22.23.5). The last section states what was not run, so nothing here is claimed beyond its evidence.
+Every command on this page was checked against `main` at commit `8d5319c` on 28 November 2026 (Linux, Python 3.13.18, Node 22.23.5). The last section states what was not run, so nothing here is claimed beyond its evidence.
 
 Related: [configuration](CONFIGURATION.md) for every environment variable, [API](API.md) for the HTTP surface, [troubleshooting](TROUBLESHOOTING.md) when a step fails, [PLATFORM.md](PLATFORM.md) for the Arabic operations notes and the ownership migration.
 
@@ -41,8 +41,8 @@ Accounts and projects need Mode 2 or 3.
 Checks that should pass:
 
 ```bash
-.venv/bin/python -m pytest backend -q            # 553 passed, 22 skipped on 28 Nov 2026
-node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs   # 8 pass
+.venv/bin/python -m pytest backend -q            # 617 passed, 23 skipped on 28 Nov 2026
+node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs frontend/src/modelOrder.test.mjs   # 8 pass
 ```
 
 `frontend/dist` must exist before the backend tests run: `backend/test_api.py` serves the built frontend. Build first, then test.
@@ -172,9 +172,9 @@ After the app is installed, open Settings, then GitHub, press "Connect GitHub" a
 | Step | Command | Result |
 |---|---|---|
 | Install | `python -m venv .venv`, `pip install -r requirements-dev.txt` | ok, Python 3.13.18 |
-| Frontend | `npm --prefix frontend ci`, `npm run build` | ok, Vite build 348 ms |
-| Backend suite | `.venv/bin/python -m pytest backend -q` | 581 passed, 22 skipped, 8 subtests, 19.7 s |
-| Frontend unit tests | `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs` | 8 pass |
+| Frontend | `npm --prefix frontend ci`, `npm run build` | ok, Vite build 489 ms |
+| Backend suite | `.venv/bin/python -m pytest backend -q` | 617 passed, 23 skipped, 29.1 s |
+| Frontend unit tests | `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs frontend/src/modelOrder.test.mjs` | 11 pass |
 | App start | `python -m uvicorn backend.main:app --host 127.0.0.1 --port 8765` | `/`, `/demo`, `/signin`, `/projects`, `/api/taxonomy`, `/api/product` all 200 |
 
 Not run in this environment, and therefore not claimed:

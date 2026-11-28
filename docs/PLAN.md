@@ -72,9 +72,9 @@ A future addition may be started early only if Release 1 is complete, or if it b
 
 Phases P01 to P08 are built; this plan has 24 phases (P01 to P24). P09 has its live view and model lane in place; P10 slices a to f and P20 are merged, and the design question is closed (28 November 2026: keep the current look, no new design); open: the automatic default project (scan flow is 4 actions, target 3), then future additions. Release 1 scope is defined above; everything else is a future addition. Section 3b lists every merged pull request, which is where the evidence for a status lives.
 
-Verified on 28 November 2026 at commit `f434837`, Linux, Python 3.13.18, Node 22.23.5:
-- Backend suite: `python -m pytest backend -q` gave 581 passed, 22 skipped, 8 subtests in 19.7 s. The frontend build ran first, as `backend/test_api.py` serves `frontend/dist`.
-- Frontend: `npm --prefix frontend ci` and `npm run build` succeed; `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs` gave 8 pass.
+Verified on 28 November 2026 at commit `8d5319c`, Linux, Python 3.13.18, Node 22.23.5:
+- Backend suite: `python -m pytest backend -q` gave 617 passed, 23 skipped in 29.1 s. The frontend build ran first, as `backend/test_api.py` serves `frontend/dist`.
+- Frontend: `npm --prefix frontend ci` and `npm run build` succeed; `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs frontend/src/modelOrder.test.mjs` gave 11 pass.
 - App start: `/`, `/demo`, `/signin`, `/projects`, `GET /api/taxonomy` and `GET /api/product` returned 200.
 - Documentation set: [SETUP](SETUP.md), [CONFIGURATION](CONFIGURATION.md), [API](API.md) and [TROUBLESHOOTING](TROUBLESHOOTING.md) added, with the commands they contain checked in the same run.
 - Earlier records: the 27 November numbers (251 tests at that time), the real-stack browser acceptance and the P18 checklist are in `docs/RELEASE.md`. CI on main is the current record for every run after this entry.
@@ -271,10 +271,38 @@ Every change reaches `main` through a pull request (see [two-account-flow](two-a
 | #168 | Docs follow-up 6: #164, #166, #167 | docs |
 | #169 | Hunter findings beside rules findings in `report.agent_findings`; agent path on behind the flag (P4c) | P09 |
 | #172 | CI: release browser suite (`--password-account`) on every pull request | P18 |
-| #181 | Maestro agent module: narrow-only plan and token ledger (P4h), not wired into scans | P09 |
+| #181 | Maestro agent module: narrow-only plan and token ledger (P4h) | P09 |
 | #176 | Local setup: profile flags folded into the start scripts; `compose.local.yaml` removed | P18 |
 | #177 | `report.agent_run` says whether the Hunter run completed or fell back (P4e) | P09 |
-| #179 | Scout agent module: model-ranked file picks for the Hunter (P4f), not wired into scans | P09 |
+| #179 | Scout agent module: model-ranked file picks for the Hunter (P4f) | P09 |
+| #178 | Reports page: legacy lab-report claim and `/api/reports` fallbacks removed | P10 |
+| #182 | CI: local-build browser suite on every pull request | P18 |
+| #183 | Agent review shows a note when the agent run fell back | P10 |
+| #184 | Docs follow-up 8: #170, #172 to #177, #179, #181 | docs |
+| #185 | Frontend: accessible names match visible labels, agent progress bar named | P10 |
+| #188 | Anonymous lab and its SQLite report store removed (v2) | P18 |
+| #189 | Scribe agent module: checked model-written summary (P4g) | P09 |
+| #190 | Report unmeasurable HAR rules as skipped, not not-applicable | P06 |
+| #191 | Reports: agent-written summary beside the main summary | P10 |
+| #192 | Release N: stop reading `project_legacy_reports` | P18 |
+| #193 | CI: compose-release browser suite on every pull request | P18 |
+| #195 | Wire Maestro, Scout, the Hunter with the Auditor and Scribe into the scan; `agent_run.phases` (P4i) | P09 |
+| #196 | Frontend: accessibility at 390 px, keyboard-reachable scrollable tables | P10 |
+| #197 | Gitleaks adapter gets its own rule id `SEC-01` | P19 |
+| #198 | Test: model-suggested order annotation | P22 |
+| #199 | Migration 0034: drop `project_legacy_reports` | P18 |
+| #200 | Smoke test for the analyzer baseline command | P23 |
+| #201 | Lint migration revision ids against `alembic_version` | P18 |
+| #202 | Frontend: localized load errors, no false empty states | P10 |
+| #204 | Frontend: note when a hybrid scan ran rules-only, agent run phases | P10 |
+| #205 | Release suite default origin matches the CI boot port 8901 | P18 |
+| #206 | Per-finding fix and verify guidance for every rule | P10 |
+| #207 | Finding guidance in the HTML and PDF exports | P10 |
+| #208 | Frontend: search dialog focus on open and close | P10 |
+| #209 | Agent path reads configuration inputs | P09 |
+| #210 | Frontend: per-finding fix and verify guidance | P10 |
+| #211 | Frontend: accessible names contain the visible text | P10 |
+| #212 | Docs follow-up 9 final: #178, #182, #183, #185, #188 to #211 | docs |
 | #174 | End-to-end tests of the agent path with a scripted model (P4d) | P09 |
 | #173 | Reports: separate "Agent review" section for `agent_findings` | P10 |
 | #170 | Scan timeline texts for the agent failed and fallback events | P10 |
@@ -552,4 +580,3 @@ What makes this graduation-worthy, in priority order: (1) live multi-agent view 
 - Environment variables start with `BASIRA_`.
 - Generated files say so in their header and have a freshness test.
 - Documentation language: English for new files; existing Arabic files stay Arabic until translated. The owner decides the language.
-
