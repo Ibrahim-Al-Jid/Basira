@@ -37,6 +37,8 @@
 - Report "technical" tab no longer blanks the whole page: `ToolRuns` (frontend/src/ReportAdvanced.jsx) called the translation object as a function (`t("...")`), throwing on every report that shows tool execution. The copy now uses the component's own bilingual strings like the rest of the file.
 
 ### Changed
+- CI runs the source-intake browser suite on every pull request (#155). Root cause: it ran only by hand, so intake regressions could merge unnoticed.
+- Domain collector (#157, `backend/domain_collector.py`): passive DNS-over-HTTPS answers from one fixed resolver, TLS facts, `security.txt` and `robots.txt`, and certificate-transparency names for approved hosts. Tests run with a mocked network. It is not wired into any role or scan yet.
 - Scan timeline events now carry a stable translation `key` and `params` next to the stored text (#156, `backend/scan_events.py`). The stored text stays the fallback for unknown events. Root cause: the interface could only show the stored Arabic text, so it could not translate events. The frontend does not use the keys yet.
 - Frontend: removed 64 dead CSS classes and an unused export (`SEVERITY_ORDER`) (#153). Root cause: styles left behind when old UI blocks were removed.
 - Compose forwards `BASIRA_LOG_LEVEL`, `BASIRA_LAB_RUN_LIMIT` and `BASIRA_LAB_RUN_CONCURRENCY` to the `app` service, so they can be set in `.env.local` instead of only in the process environment.
