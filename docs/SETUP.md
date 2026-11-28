@@ -14,6 +14,8 @@ Related: [configuration](CONFIGURATION.md) for every environment variable, [API]
 
 All three serve the app at `http://127.0.0.1:8765` by default. Use `127.0.0.1`, not `localhost`: the GitHub callback and the session cookie are registered for that host.
 
+> **SQLite is not supported for scans.** Accounts and projects may start on SQLite, but scan migrations (for example `platform_agent_memory_0031`) use PostgreSQL-only SQL and fail there. Use PostgreSQL 17 for anything beyond the development shell.
+
 ## Prerequisites
 
 - Python 3.13. 3.10 is not supported; a 3.10 run is not evidence (see the note in [RELEASE.md](RELEASE.md)).

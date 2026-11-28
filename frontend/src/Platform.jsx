@@ -457,6 +457,11 @@ function NewScan({ projects, project, navigate, lang, personal }) {
         onDrop={personal ? (event) => {
           event.preventDefault();
           const dropped = event.dataTransfer.files[0] || null;
+          if (dropped && (!extensions[kind].split(",").some((extension) => dropped.name.toLowerCase().endsWith(extension)) || dropped.size > limit)) {
+            setError(t("الملف لازم يطابق نوع المدخل وحجمه ضمن الحد.", "The file must match the selected input type and be within the size limit."));
+            return;
+          }
+          setError("");
           updateEvidence(() => setSource(dropped));
           if (dropped) setStep(2);
         } : undefined}><UploadCloud size={25} aria-hidden="true"/>
@@ -466,6 +471,19 @@ function NewScan({ projects, project, navigate, lang, personal }) {
           onChange={(event) => {
             event.target.setCustomValidity("");
             const chosen = event.target.files[0] || null;
+            if (chosen && !extensions[kind].split(",").some((extension) => chosen.name.toLowerCase().endsWith(extension))) {
+              event.target.value = "";
+              updateEvidence(() => setSource(null));
+              setError(t("امتداد الملف لازم يطابق نوع المدخل: " + extensions[kind], "The file extension must match the selected input: " + extensions[kind]));
+              return;
+            }
+            if (chosen && chosen.size > limit) {
+              event.target.value = "";
+              updateEvidence(() => setSource(null));
+              setError(t("الملف أكبر من الحد المسموح.", "The file is over the upload limit."));
+              return;
+            }
+            setError("");
             updateEvidence(() => setSource(chosen));
             if (personal && chosen) setStep(2);
           }} />

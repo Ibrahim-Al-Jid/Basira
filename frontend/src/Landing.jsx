@@ -17,7 +17,7 @@ const domains = [
 ];
 
 const steps = [
-  [Folder, "اختاري مصدر المشروع", "Choose a project source", "حددي الملفات اللي هتتراجع.", "Select the files to review."],
+  [Folder, "اختار مصدر المشروع", "Choose a project source", "حدد الملفات اللي هتتراجع.", "Select the files to review."],
   [ScanLine, "تابعي تحليل الأدلة", "Follow the evidence review", "شوفي القواعد اللي اتطبّقت على الملفات.", "See which checks applied to your files."],
   [FileCheck2, "راجعي التقرير", "Review the report", "افتحي الأدلة وتوصيات الإصلاح.", "Open the evidence and suggested fixes."],
 ];

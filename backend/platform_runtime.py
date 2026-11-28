@@ -319,7 +319,7 @@ def create_scan(ctx, envelope, raw, idempotency_key, *, scope_version=None, mode
                 policy = {**policy, "base_url": target_reference}
         if website_intake:
             # Capture includes a redacted allowlist of header values, not a complete HAR.
-            policy = {**policy, "har_headers_complete": False}
+            policy = {**policy, "har_headers_complete": False, "intake_mode": "website"}
         if envelope["kind"] == "zap" and not web_origin(policy.get("base_url")):
             raise Conflict("تقرير ZAP يحتاج عنوان موقع مطابق للأدلة المحفوظة.")
         connection = scan_connection(db, ctx, policy) if model_connection else None

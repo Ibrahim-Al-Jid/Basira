@@ -61,12 +61,9 @@ def approved_url(value, project_id):
     url = canonical_url(value)
     approved = approved_pages(project_id)
     if not approved:
-        raise InputError("مفيش صفحات موقع معتمدة للمشروع ده. المسؤول لازم يضيف العنوان في "
-                         "BASIRA_APPROVED_WEBSITE_PAGES قبل جمع الأدلة.")
+        raise InputError("مفيش صفحات موقع معتمدة للمشروع ده. المسؤول لازم يضيف العنوان في BASIRA_APPROVED_WEBSITE_PAGES قبل جمع الأدلة.")
     if url not in approved:
-        raise InputError("العنوان ده مش في الصفحات المعتمدة للمشروع. اكتبه بالظبط زي ما هو معتمد "
-                         "(HTTPS من غير معاملات، ونفس شكل المسار)، أو اطلب من المسؤول يضيفه "
-                         "في BASIRA_APPROVED_WEBSITE_PAGES.")
+        raise InputError("العنوان ده مش في الصفحات المعتمدة للمشروع. اكتبه بالظبط زي ما هو معتمد (HTTPS من غير معاملات، ونفس شكل المسار)، أو اطلب من المسؤول يضيفه في BASIRA_APPROVED_WEBSITE_PAGES.")
     return url
 
 

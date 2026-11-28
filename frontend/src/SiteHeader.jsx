@@ -8,7 +8,7 @@ const labels = {
   ar: {
     overview: "نظرة عامة", projects: "المشاريع", main: "التنقل الرئيسي",
     account: "قائمة الحساب", signin: "تسجيل الدخول", settings: "الإعدادات", github: "اتصال GitHub", logout: "تسجيل الخروج",
-    skip: "انتقلي إلى المحتوى", light: "الوضع الفاتح", dark: "الوضع الغامق", theme: "المظهر", language: "اللغة",
+    skip: "انتقل إلى المحتوى", light: "الوضع الفاتح", dark: "الوضع الغامق", theme: "المظهر", language: "اللغة",
   },
   en: {
     overview: "Overview", projects: "Projects", main: "Main navigation",
