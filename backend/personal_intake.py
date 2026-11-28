@@ -145,8 +145,8 @@ def finish_upload(ctx, scope, key, file, name, digest):
     return commit_scan(ctx, scope, key, request_digest, raw, name, profile)
 
 
-def compatible_zip(ctx, envelope, raw, key, *, scope_version, model_connection):
-    request_digest = store.scan_request_digest(envelope, raw, scope_version, model_connection)
+def compatible_zip(ctx, envelope, raw, key, *, scope_version, model_connection, analysis_mode=None):
+    request_digest = store.scan_request_digest(envelope, raw, scope_version, model_connection, analysis_mode=analysis_mode)
     existing = preflight(ctx, scope_version, key, request_digest)
     if existing:
         return existing
@@ -156,7 +156,7 @@ def compatible_zip(ctx, envelope, raw, key, *, scope_version, model_connection):
         raw, profile = archive_snapshot(BytesIO(raw), len(raw), sha256(raw).hexdigest(), "zip", envelope["name"])
         return store.create_scan(ctx, {**envelope, "profile": profile.model_dump(exclude_none=True)}, raw, key,
                                  scope_version=scope_version, model_connection=model_connection,
-                                 intake_digest=request_digest)
+                                 intake_digest=request_digest, analysis_mode=analysis_mode)
     finally:
         SLOTS.release()
 
