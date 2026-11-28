@@ -369,6 +369,36 @@ def test_agent_memory_is_scoped_and_expires(db):
                               name=name), f"basira_app must not delete from {name}"
 
 
+
+def test_login_identity_returns_only_the_requested_identity(db):
+    """Regression for 0032: the 0027 body compared `u.issuer = issuer` and `u.subject = subject`,
+    where the unqualified names resolved to the users columns, so the lookup returned every
+    account and sign-in took the first row. The lookup must return exactly the requested identity."""
+    from uuid import uuid4
+
+    issuer = f"https://issuer-{uuid4().hex}.example.test"
+    wanted, other = uuid4().hex, uuid4().hex
+    try:
+        with db.begin() as connection:
+            for user_id, subject in ((wanted, "wanted@example.test"), (other, "other@example.test")):
+                connection.execute(sa.text(
+                    "INSERT INTO public.users (id, issuer, subject, display_name, created_at) "
+                    "VALUES (:id, :issuer, :subject, :name, now())"),
+                    {"id": user_id, "issuer": issuer, "subject": subject, "name": subject})
+                connection.execute(sa.text(
+                    "INSERT INTO public.password_credentials (user_id, password_hash) "
+                    "VALUES (:id, :hash)"),
+                    {"id": user_id, "hash": f"hash-{user_id}"})
+        rows = all_rows(db,
+            "SELECT user_id, password_hash FROM public.basira_login_identity(:issuer, :subject)",
+            issuer=issuer, subject="wanted@example.test")
+        assert [(row[0], row[1]) for row in rows] == [(wanted, f"hash-{wanted}")]
+    finally:
+        with db.begin() as connection:
+            connection.execute(sa.text(
+                "DELETE FROM public.users WHERE issuer = :issuer"), {"issuer": issuer})
+
+
 def test_no_connection_is_left_checked_out(db):
     """A leaked connection here exhausts the pool the rest of the suite shares."""
     assert db.pool.checkedout() == 0
