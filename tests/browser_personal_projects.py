@@ -55,7 +55,9 @@ def main():
         project_api = origin + "/api/platform/projects/" + project_id
         expect(sidebar.get_by_role("link", name="Personal QA project", exact=True)).to_be_visible()
         project_navigation = page.get_by_role("navigation", name="Project sections")
-        expect(project_navigation.get_by_role("link", name="Scan History")).to_be_visible()
+        expect(project_navigation.get_by_role("link", name="Project management")).to_be_visible()
+        expect(project_navigation.get_by_role("link", name="Scan History")).to_have_count(0)
+        expect(sidebar.get_by_role("link", name="Scan history")).to_be_visible()
         page.get_by_role("main").get_by_role("link", name="New scan", exact=True).click()
         # The project is already chosen, so the flow opens on the source step.
         expect(page.locator('input[name="kind"]')).to_have_count(3)
