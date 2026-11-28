@@ -288,34 +288,39 @@ Published comparisons with other systems use only their own published numbers, w
 
 Basira reads untrusted files and sends parts of them to language models, so it is itself a target. Work: run Basira on its own repository and fix real findings; tests where scanned content contains instructions aimed at the agents (the agents must treat it as data and never change tools, scope or output format because of it); review the key store (encryption, masking, no logging), the custom-provider URL checks at request time (DNS rebinding), upload limits and export paths; write the threat model in ARCHITECTURE. Done when the tests exist, pass and are part of CI.
 
-### P25 Identity table row level security (planned)
+### P25 Identity table row level security (implemented)
 
-`projects` is covered: `platform_projects_rls_0023` enables row level security there with one policy
-keyed on the legacy membership flag or the bound owner. The identity tables around it are not. On a
-database migrated to head, `users`, `organizations`, `memberships`, `project_grants`, `auth_sessions`,
-`password_credentials`, `password_attempt_limits`, `organization_invitations` and `scan_dispatch_outbox`
-report `relrowsecurity = false`, hold no policy, and `basira_app` has SELECT, INSERT, UPDATE and DELETE
-on every one of them; isolation there is the application's WHERE clauses alone.
+Every table in the identity set is now scoped, in small migrations that each shipped with the
+lifecycles they touch exercised as `basira_app` on a migrated database:
 
-They cannot be closed the way `projects` was, because the first read in several flows happens before
-any owner is known: the session lookup by `auth_sessions.token_digest`, the password login by
-`users.issuer`/`users.subject` joined to `password_credentials`, the attempt limiter keyed on the
-email-derived scope, and invitation acceptance by `organization_invitations.token_digest`.
-`scan_dispatch_outbox` is written and drained by `basira_dispatch`, which acts for no user at all.
+| Table | Scoped by | Read before an owner is known |
+| --- | --- | --- |
+| `projects` | `platform_projects_rls_0023`, legacy membership flag or bound owner | none |
+| `scan_dispatch_outbox` | `platform_dispatch_queue_0024`, claimed through a definer function | `basira_dispatch` acts for no user |
+| `auth_sessions` | `platform_session_lookup_0025`, one owner policy | `basira_session_owner`, `basira_revoke_session` |
+| `organization_invitations` | `platform_invitation_scope_0026`, organization policy | `basira_invitation_org` |
+| `users`, `memberships` | `platform_org_members_0027`, owner and organization policy | `basira_login_identity` |
+| `password_credentials`, `password_attempt_limits` | `platform_credentials_scope_0028`, owner policy; the counter is definer-only | `basira_reserve_attempt` |
+| `organizations`, `project_grants` | `platform_org_grants_0029`, organization, owner and legacy-membership policy | none |
 
-Plan, one small change at a time:
+The definer functions are all SECURITY DEFINER with `search_path = pg_catalog` and
+`row_security = off`, EXECUTE revoked from PUBLIC and granted only to `basira_app`; `basira_dispatch`
+keeps its own role for the queue. The application role loses DELETE wherever rows are deactivated
+rather than deleted, and loses direct access entirely on the attempt counter.
 
-1. Move each pre-identity read into a SECURITY DEFINER function with `search_path = pg_catalog`,
-   EXECUTE revoked from PUBLIC and granted only to the roles that need it, the way
-   `basira_project_owner` already resolves the dispatch owner.
-2. Then add a policy per table: `users` by `id = current_setting('basira.owner_user_id')`;
-   `organizations`, `memberships` and `project_grants` by the bound org or owner; the session,
-   credential, attempt-limit and invitation tables readable only through their functions.
-3. Extend `backend/test_postgres_schema.py` to assert each policy, and run the login, session-expiry,
-   invitation and dispatch lifecycles as `basira_app` before each merge.
+Two properties are deliberate and worth remembering:
 
-Done when a session bound to one owner cannot read another account's rows from any of these tables and
-those four lifecycles still pass end to end as the application role.
+- Policies are ENABLE, not FORCE. The deploy role owns the tables, and a definer function reading a
+  table it owns with `row_security = off` raises instead of returning rows when that owner is subject
+  to row level security. The application role is never the owner, so it is filtered as intended.
+- The context flags (`basira.owner_user_id`, `basira.org_id`, `basira.legacy_project_access`) are set per
+  transaction with `set_config(..., true)`. They are session-settable, so this narrows the blast radius
+  of a compromised query path; it does not defend against one that can run `set_config` itself.
+
+Result: a session bound to one owner reads only that account's rows and the rows of the organization it
+bound, and the login, session-expiry, invitation, dispatch, organization, grant and personal-project
+lifecycles all pass end to end as `basira_app`. `backend/test_postgres_schema.py` asserts each policy, the
+grant set for each table, and that no definer function is executable by PUBLIC.
 
 ### P23 Quality gates
 
