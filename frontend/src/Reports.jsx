@@ -12,7 +12,6 @@ const copy = {
     reports: "سجل التقارير",
     report: "تقرير فحص HTML",
     projectReport: "تقرير فحص المشروع",
-    archiveIntro: "راجع فحوصات HTML المحفوظة وافتح الأدلة والإصلاحات.",
     newScan: "فحص جديد",
     back: "كل التقارير",
     search: "بحث في التقارير",
@@ -182,7 +181,6 @@ const copy = {
     reports: "Reports",
     report: "HTML review report",
     projectReport: "Project review report",
-    archiveIntro: "Open saved HTML reviews to see their evidence and fixes.",
     newScan: "New scan",
     back: "All reports",
     search: "Search reports",
@@ -1050,7 +1048,7 @@ function ReportContext({ location, navigate, lang, active, state, retry }) {
   </section>;
 }
 
-export function Reports({ location, navigate, revision, lang: preferredLanguage = "ar", session, personal }) {
+export function Reports({ location, navigate, lang: preferredLanguage = "ar", session, personal }) {
   const { pathname, search, hash } = location;
   const params = new URLSearchParams(search);
   const locale = params.get("lang");
@@ -1059,22 +1057,19 @@ export function Reports({ location, navigate, revision, lang: preferredLanguage 
   const id = /^\/reports\/([^/]+)\/?$/.exec(pathname)?.[1];
   const project = params.get("project");
   const projectApi = /^[a-f0-9]{32}$/.test(project ?? "") ? `/api/platform/projects/${project}/reports` : null;
-  const explicitDemo = !personal && params.get("scope") === "demo";
   const lookup = Boolean(personal && id && !project);
   const [projects, retryProjects] = useReportProjects(!id || lookup);
   const [lookedUp, setLookedUp] = useState(false);
-  const demoArchive = !personal && (explicitDemo || projects?.guest);
   const badProject = Boolean((project || (personal && id && lookedUp)) && !projectApi);
   const guestProject = Boolean((projectApi || personal) && (session.user === null || projects?.guest));
-  const archive = projectApi || (demoArchive && !badProject ? "/api/history" : null);
+  const archive = projectApi;
   const url = guestProject || badProject || lookup ? null : id ? (projectApi || "/api/reports") + "/" + encodeURIComponent(id) : archive;
-  const archiveRevision = id ? null : revision;
   const [state, setState] = useState(null);
   const [retry, reload] = useState(0);
   const heading = useRef(null);
-  const current = state?.url === url && state.retry === retry && state.archiveRevision === archiveRevision ? state : null;
+  const current = state?.url === url && state.retry === retry ? state : null;
   const scanProject = projects?.projects?.find((item) => item.id === project && item.role !== "viewer");
-  const showNewScan = !personal && !id && !demoArchive && !guestProject && (scanProject || (!project && projects?.projects?.some((item) => item.role !== "viewer")));
+  const showNewScan = !personal && !id && !guestProject && (scanProject || (!project && projects?.projects?.some((item) => item.role !== "viewer")));
 
   // Reports belong to a project and the project lives in the URL. A link without it (typed or shared by hand)
   // is resolved here by asking the user's own projects which one holds the report.
@@ -1096,11 +1091,11 @@ export function Reports({ location, navigate, revision, lang: preferredLanguage 
     if (!url) return;
     const controller = new AbortController();
     fetchJson(url, { signal: controller.signal }).then(
-      (data) => { if (!controller.signal.aborted) setState({ url, retry, archiveRevision, data }); },
-      (error) => { if (!controller.signal.aborted) setState({ url, retry, archiveRevision, error: error.message }); },
+      (data) => { if (!controller.signal.aborted) setState({ url, retry, data }); },
+      (error) => { if (!controller.signal.aborted) setState({ url, retry, error: error.message }); },
     );
     return () => controller.abort();
-  }, [url, retry, archiveRevision]);
+  }, [url, retry]);
   useEffect(() => { if (!hash.startsWith("#report-")) heading.current?.focus(); }, [pathname]);
   useEffect(() => {
     if (current?.data && hash.startsWith("#report-") && document.activeElement === document.body) {
@@ -1119,7 +1114,6 @@ export function Reports({ location, navigate, revision, lang: preferredLanguage 
             : params.get("focus") === "remediation" ? t.remediation : t.reports}</h1>
           {!id && params.get("focus") === "remediation" &&
             <p>{lang === "ar" ? "افتحي تقريرًا لمراجعة توصيات الإصلاح لكل نتيجة." : "Open a report to review the recommended fix for each finding."}</p>}
-          {!id && demoArchive && !projectApi && <p>{t.archiveIntro}</p>}
         </div>
         {showReportActions && <div className="report-header-actions">
           <div className="report-language" role="group" aria-label={lang === "ar" ? "لغة التقرير" : "Report language"}>
@@ -1134,15 +1128,12 @@ export function Reports({ location, navigate, revision, lang: preferredLanguage 
         {showNewScan && <Link className="reports-button reports-primary" navigate={navigate}
           href={scanProject ? reportPath("/new-scan", new URLSearchParams(), { project }) : "/new-scan"}>{t.newScan}</Link>}
       </header>
-      {!id && !explicitDemo && <ReportContext location={location} navigate={navigate} lang={lang} active={Boolean(project)}
+      {!id && <ReportContext location={location} navigate={navigate} lang={lang} active={Boolean(project)}
         state={projects} retry={retryProjects} />}
       {id && guestProject && <div className="reports-panel reports-state">
         <p>{lang === "ar" ? "سجّل الدخول لعرض تقرير المشروع." : "Sign in to see this project report."}</p>
         <Link className="reports-button reports-primary" href={"/signin?next=" + encodeURIComponent(location.pathname + location.search)} navigate={navigate}>{lang === "ar" ? "تسجيل الدخول" : "Sign in"}</Link>
       </div>}
-      {explicitDemo && !id && <Link className="reports-button" href="/reports" navigate={navigate}>
-        {lang === "ar" ? "تقارير المشاريع" : "Project reports"}
-      </Link>}
       {badProject && <div className="reports-panel reports-state" role="alert">
         <p>{project ? (lang === "ar" ? "المشروع المطلوب غير متاح." : "The requested project is unavailable.")
           : (lang === "ar" ? "مفيش تقرير بالرقم ده في مشاريعك. افتح التقرير من قائمة تقارير المشروع." : "No report with this ID in your projects. Open it from the project's report list.")}</p>

@@ -107,11 +107,11 @@ function CoverageDirectory({ follow, t }) {
   );
 }
 
-export function OverviewSidebar({ lang, follow, location, personal }) {
+export function OverviewSidebar({ lang, follow, location }) {
   const t = (ar, en) => lang === "ar" ? ar : en;
   const { pathname, hash } = location;
   const home = pathname === "/overview" || pathname === "/";
-  const scanPath = personal === false ? "/demo" : "/new-scan";
+  const scanPath = "/new-scan";
   const links = [
     [Grid2X2, "/overview", t("نظرة عامة", "Overview")],
     [Folder, "/projects", t("المشاريع", "Projects")],
@@ -141,10 +141,10 @@ export function OverviewSidebar({ lang, follow, location, personal }) {
   );
 }
 
-export function Landing({ follow, lang, authenticated, personal }) {
+export function Landing({ follow, lang, authenticated }) {
   const t = (ar, en) => lang === "ar" ? ar : en;
   const number = (value) => value.toLocaleString(lang === "ar" ? "ar-EG" : "en");
-  const start = !personal ? "/demo" : authenticated ? "/new-scan" : "/signin?mode=register";
+  const start = authenticated ? "/new-scan" : "/signin?mode=register";
   const sampleRisk = { high: 5, medium: 17, low: 12 };
   const sampleScans = [
     [t("متجر إلكتروني", "E-commerce store"), "completed", 8, t("دقيقتان و١٤ ثانية", "2m 14s")],
