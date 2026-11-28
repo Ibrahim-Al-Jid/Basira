@@ -373,11 +373,11 @@ Five stages run in order. They are responsibilities, not model calls; queueing, 
 
 | Role | Reads | Writes | Denied |
 |---|---|---|---|
-| Coordinator | Snapshot envelope, approved source identity, limits | Source kind, routing decision | Scope or digest mismatch |
-| Planning | Source kind, artifact inventory, pinned policy and registry | Immutable tool selection with reason, expected coverage | Model-originated commands, network, installs |
-| Analysis | Matched artifacts, allowlisted adapters | Candidate findings, per-tool status and coverage | Network, project code execution, writes |
-| Verification | Artifacts, plan, candidates, results | Validated findings, evidence digest | Invalid scope, path, position or rule cannot publish |
-| Reporting | Validated findings, scope, coverage | `ReportModel` and projections | Publishing a provisional result |
+| Maestro | Snapshot envelope, approved source identity, limits | Source kind, routing decision | Scope or digest mismatch |
+| Scout | Source kind, artifact inventory, pinned policy and registry | Immutable tool selection with reason, expected coverage | Model-originated commands, network, installs |
+| Hunter | Matched artifacts, allowlisted adapters | Candidate findings, per-tool status and coverage | Network, project code execution, writes |
+| Auditor | Artifacts, plan, candidates, results | Validated findings, evidence digest | Invalid scope, path, position or rule cannot publish |
+| Scribe | Validated findings, scope, coverage | `ReportModel` and projections | Publishing a provisional result |
 
 Role manifests carry ID, typed input and output, allowed tools, budgets, failure behavior and fixtures. The ten-role specialist catalogue (injection, authentication, authorization, API, client, infrastructure, file, business logic, remediation, coordinator) is a design target. A role is added only when it fills a named gap and beats the simpler alternative on held-out fixtures at equal budget.
 
