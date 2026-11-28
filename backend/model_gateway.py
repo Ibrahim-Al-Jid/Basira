@@ -35,6 +35,20 @@ ADVISOR_EVIDENCE_LIMIT = 12
 ADVISOR_HINT_LIMIT = 3
 PROVIDER_URL = "https://openrouter.ai/api/v1"
 ServiceAuth = Annotated[str | None, Header(alias="Authorization")]
+CATALOG_LIMIT = 4 * 1024 * 1024
+REPLY_LIMIT = 256 * 1024
+
+
+def fetch_limited(method, url, limit, **kwargs):
+    """httpx.request with a cap on the body, for providers whose address a user chose. A plain request reads the
+    whole body into memory, so a hostile endpoint could stream gigabytes inside the timeout."""
+    with httpx.stream(method, url, **kwargs) as response:
+        body = bytearray()
+        for chunk in response.iter_bytes():
+            body += chunk
+            if len(body) > limit:
+                raise ValueError("Provider response is too large")
+        return httpx.Response(response.status_code, request=response.request, content=bytes(body))
 
 
 @app.exception_handler(RequestValidationError)
@@ -211,7 +225,8 @@ def other_provider_models(provider, key, base_url=None):
     except ValueError as error:
         raise HTTPException(422, str(error)) from None
     try:
-        response = httpx.get(request["url"], headers=request["headers"], timeout=8.0, trust_env=False, follow_redirects=False)
+        response = fetch_limited("GET", request["url"], CATALOG_LIMIT, headers=request["headers"], timeout=8.0,
+                                 trust_env=False, follow_redirects=False)
         if response.status_code in (401, 403):
             raise HTTPException(422, "The provider rejected the API key")
         response.raise_for_status()
@@ -230,8 +245,8 @@ def other_provider_reply(provider, key, model, system, user, base_url=None):
     except ValueError as error:
         raise HTTPException(422, str(error)) from None
     try:
-        response = httpx.post(request["url"], headers=request["headers"], json=request["body"], timeout=12.0,
-                              trust_env=False, follow_redirects=False)
+        response = fetch_limited("POST", request["url"], REPLY_LIMIT, headers=request["headers"], json=request["body"],
+                                 timeout=12.0, trust_env=False, follow_redirects=False)
         response.raise_for_status()
         payload = response.json()
     except (ValueError, httpx.HTTPError, RecursionError):
