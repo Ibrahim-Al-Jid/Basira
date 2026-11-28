@@ -76,7 +76,7 @@ All are pydantic models with `extra="forbid"`, as the gateway already does for a
 | gitleaks, osv-scanner | snapshot copy | fixed argv, no network, time and output caps (`backend/source_adapters.py`) |
 | read_file | one file from the pinned snapshot | line window and byte cap |
 | search_code | the snapshot | length-limited pattern, child process with a timeout (`search_lines`) |
-| domain collector | DNS over HTTPS to one fixed resolver, TLS facts, a fixed set of well-known paths, certificate-transparency names | approved hosts and apex only, rate limited, public addresses only |
+| domain collector | DNS over HTTPS to one fixed resolver, TLS facts, a fixed set of well-known paths, certificate-transparency names | approved hosts and apex only, rate limited, public addresses only; module done (#157, `backend/domain_collector.py`), not wired into any role or scan yet |
 | remediation catalog | rule id and language | curated text |
 
 An agent cannot call anything outside its allow-list. Every call is recorded as a task run with tool id, version, duration and result size.
