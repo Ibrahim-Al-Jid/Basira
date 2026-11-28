@@ -86,7 +86,10 @@ export function Entry({ follow, lang, preferences }) {
               <a className="entry-ghost" href="/overview" onClick={(event) => follow(event, "/overview")}>{t("شوف العرض التجريبي", "Try the demo")}</a>
             </div>
           </div>
-          <div className="entry-globe" aria-hidden="true"><DeferredGlobe /></div>
+          <figure className="entry-visual">
+            <div className="entry-globe" aria-hidden="true"><DeferredGlobe /></div>
+            <figcaption className="entry-tagline">{t("رؤية كاملة لمشروعك، دليل على كل نقطة.", "A full view of your project, evidence for every point.")}</figcaption>
+          </figure>
         </section>
         <section className="entry-section reveal" aria-labelledby="entry-does">
           <h2 id="entry-does">{t("بصيرة بتعمل إيه", "What Basira does")}</h2>

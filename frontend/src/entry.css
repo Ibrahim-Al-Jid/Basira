@@ -79,3 +79,9 @@
 .entry-footer a { color: inherit; }
 .entry-globe .planet:not(.ready) { opacity: 0; }
 .entry-globe .planet { transition: opacity 700ms ease; }
+.entry-visual { margin: 0; display: grid; justify-items: center; gap: .4rem; min-inline-size: 0; }
+.entry-visual .entry-globe { inline-size: 100%; }
+.entry-tagline { max-inline-size: 24rem; text-align: center; text-wrap: balance; font-size: clamp(1.05rem, 1.6vw, 1.3rem); line-height: 1.5; font-weight: 600;
+  background: var(--accent-gradient, var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; padding-block-end: .2rem; }
+@media (max-width: 820px) { .entry-visual { gap: 0; margin-block-start: .5rem; } .entry-tagline { margin-block-start: -.6rem; } }
+@media (forced-colors: active) { .entry-tagline { color: CanvasText; background: none; } }

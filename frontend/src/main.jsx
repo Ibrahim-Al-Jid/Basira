@@ -186,9 +186,11 @@ function App() {
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "light" ? "#edf5fd" : "#000b19");
   }, [theme]);
   useEffect(() => {
-    document.title = landingPage ? "BASIRA | Web Security Workspace"
+    const arabic = lang === "ar";
+    document.title = entryPage ? (arabic ? "بصيرة | رؤية كاملة لمشروعك" : "BASIRA | A full view of your project")
+      : landingPage ? "BASIRA | Demo overview"
       : demoPage ? "BASIRA | Demo" : "BASIRA | Workspace";
-  }, [landingPage, demoPage]);
+  }, [entryPage, landingPage, demoPage, lang]);
   useEffect(() => {
     if (initialPath.current !== location.pathname) {
       initialPath.current = location.pathname;
