@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from sqlalchemy import (
     CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, LargeBinary, String,
-    UniqueConstraint, create_engine, event, func, select, text,
+    UniqueConstraint, create_engine, event, func, select, text, update,
 )
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
@@ -223,6 +223,27 @@ def personal_namespace_id(db, user_id, *, create=False):
 def bind_owner(db, user_id):
     if db.get_bind().dialect.name == "postgresql":
         db.execute(text("SELECT set_config('basira.owner_user_id', :owner, true)"), {"owner": user_id})
+
+
+def session_owner(db, digest):
+    """Resolve an active session's user before any owner context exists."""
+    if db.get_bind().dialect.name == "postgresql":
+        return db.scalar(text("SELECT user_id FROM public.basira_session_owner(:digest)"),
+                         {"digest": digest})
+    return db.scalar(select(AuthSession.user_id).where(
+        AuthSession.token_digest == digest, AuthSession.revoked_at.is_(None),
+        AuthSession.expires_at > utc_now(),
+    ))
+
+
+def revoke_session(db, digest):
+    """Revoke a session by token digest. The digest alone identifies the row, so no owner is needed."""
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(text("SELECT public.basira_revoke_session(:digest)"), {"digest": digest})
+    else:
+        db.execute(update(AuthSession).where(
+            AuthSession.token_digest == digest, AuthSession.revoked_at.is_(None),
+        ).values(revoked_at=utc_now()))
 
 
 def bind_legacy_project_access(db):
