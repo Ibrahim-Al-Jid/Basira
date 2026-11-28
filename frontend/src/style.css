@@ -131,9 +131,8 @@ a:hover {
 }
 
 
-.event-light,
-.connection i,
-.standby i {
+
+.connection i{
   display: inline-block;
   border-radius: 50%;
   width: 7px;
@@ -146,7 +145,6 @@ a:hover {
   letter-spacing: -1.6px;
 }
 .heading p,
-.card-intro,
 .hint {
   color: var(--muted);
   font-size: 14px;
@@ -169,12 +167,7 @@ a:hover {
 .connection.connected i {
   background: #75a94c;
 }
-.desk {
-  display: grid;
-  grid-template-columns: minmax(260px, 0.85fr) minmax(0, 1.9fr);
-  gap: 18px;
-  align-items: stretch;
-}
+
 .card {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -183,37 +176,20 @@ a:hover {
 .setup {
   padding: 22px 22px 20px;
 }
-.card-head,
-.net-title,
-.provider-label,
-.results-heading,
-.utility,
-.measure{
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
+
 h2 {
   font-size: 20px;
   line-height: 1.45;
   letter-spacing: -0.4px;
 }
-.title-icon,
-.net-title-icon,
-.tile,
-.stat-icon,
+
 .square {
   display: grid;
   place-items: center;
   flex-shrink: 0;
 }
-.title-icon {
-  color: var(--muted);
-}
-.card-intro {
-  font-size: 13px;
-  margin: 4px 0 19px;
-}
+
+
 
 .modal-body > label {
   display: block;
@@ -221,8 +197,7 @@ h2 {
   font-size: 13px;
   margin: 12px 0 5px;
 }
-.option,
-.agent-list button {
+.option{
   display: flex;
   align-items: center;
   gap: 10px;
@@ -236,16 +211,12 @@ h2 {
   border-radius: 10px;
   padding: 8px 10px;
 }
-.option > span:nth-child(2),
-.agent-list button > span:nth-child(2) {
+.option > span:nth-child(2){
   min-width: 0;
   flex: 1;
 }
 .option strong,
-.option small,
-.provider-label small,
-.agent-list strong,
-.agent-list small {
+.option small{
   display: block;
 }
 .option strong {
@@ -253,9 +224,7 @@ h2 {
   font-weight: 600;
   overflow-wrap: anywhere;
 }
-.option small,
-.agent-list small,
-.provider-label small{
+.option small{
   font-size: 11px;
   color: var(--muted);
   text-align: right;
@@ -263,16 +232,9 @@ h2 {
 .option > svg {
   color: var(--muted);
 }
-.tile {
-  height: 34px;
-  width: 34px;
-  border-radius: 8px;
-}
 
-.lilac{
-  background: var(--surface-alt);
-  color: #79639e;
-}
+
+
 .launch {
   display: flex;
   align-items: center;
@@ -289,47 +251,11 @@ h2 {
 .launch svg {
   color: #ccfc8a;
 }
-.net-card {
-  position: relative;
-  isolation: isolate;
-  min-width: 0;
-  min-height: 330px;
-  display: flex;
-  flex-direction: column;
-  border-radius: 15px;
-  background: #20212d;
-  color: #f4f1fa;
-  overflow: hidden;
-}
-.net-card.expanded {
-  position: fixed;
-  inset: 5vh 4vw;
-  z-index: 5;
-  box-shadow: 0 0 0 100vmax #10121fb8;
-}
-.net-head {
-  padding: 20px 23px 10px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.net-title-icon {
-  width: 35px;
-  height: 35px;
-  border: 1px solid #555261;
-  border-radius: 9px;
-  color: #d6c6ee;
-  background: #333140;
-}
-.net-title small {
-  display: block;
-  text-align: right;
-  letter-spacing: 1.8px;
-  color: #aca9bb;
-  font:
-    500 9px/1.5 Inter,
-    sans-serif;
-}
+
+
+
+
+
 .square {
   width: 31px;
   height: 31px;
@@ -342,89 +268,18 @@ h2 {
   border-color: #504d60;
   color: #d9d4e3;
 }
-.net-stage {
-  position: relative;
-  flex: 1;
-  min-height: 200px;
-  margin: 4px 14px 2px;
-  background-image: radial-gradient(#8783973d 0.8px, transparent 0.9px);
-  background-size: 13px 13px;
-}
-.corner {
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  border-color: #878098;
-  opacity: 0.7;
-}
-.corner.tr {
-  top: 4px;
-  right: 3px;
-  border-top: 1px solid;
-  border-right: 1px solid;
-}
-.corner.bl {
-  bottom: 4px;
-  left: 3px;
-  border-bottom: 1px solid;
-  border-left: 1px solid;
-}
-.orbital {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-}
-.orbit {
-  width: 100%;
-  height: 100%;
-  max-height: 275px;
-}
-.standby {
-  position: absolute;
-  bottom: 6%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 2px 11px;
-  border: 1px solid #555166;
-  background: #2c2c3a;
-  border-radius: 15px;
-  color: #d8d4e1;
-  font-size: 11px;
-}
-.standby i {
-  background: #c9ef89;
-  width: 5px;
-  height: 5px;
-}
-.net-foot {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  color: #c3bece;
-  padding: 12px 22px;
-  border-top: 1px solid #393945;
-}
-.event-light {
-  background: #9694a5;
-  width: 5px;
-  height: 5px;
-}
-.event-light.live {
-  background: #c4ff82;
-}
-.langgraph {
-  margin-inline-start: auto;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font:
-    500 10px Inter,
-    sans-serif;
-  color: #c3bed1;
-}
+
+
+
+
+
+
+
+
+
+
+
+
 .map {
   position: absolute;
   inset: 8px 2px 25px;
@@ -462,13 +317,8 @@ h2 {
 .node.start {
   outline: 4px solid #83709d35;
 }
-.results-heading {
-  justify-content: space-between;
-  margin: 25px 1px 12px;
-}
-.results-heading h2 {
-  font-size: 19px;
-}
+
+
 .stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
@@ -480,11 +330,7 @@ h2 {
   gap: 12px;
   padding: 16px 20px;
 }
-.stat-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 11px;
-}
+
 
 .stat small,
 .stat strong {
@@ -501,23 +347,9 @@ h2 {
     "IBM Plex Sans Arabic",
     sans-serif;
 }
-.utility {
-  border-top: 1px solid var(--line);
-  margin: 28px 0 24px;
-  padding-top: 15px;
-  flex-wrap: wrap;
-}
-.utility button,
-.subtle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--muted);
-}
-.utility button {
-  color: var(--muted);
-}
+
+
+
 .modal {
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -546,18 +378,8 @@ h2 {
 .modal-body .hint {
   font-size: 13px;
 }
-.provider-label {
-  padding: 12px;
-  border: 1px solid var(--line);
-  background: var(--surface-alt);
-  border-radius: 10px;
-  margin-bottom: 15px;
-}
-.provider-label strong {
-  font:
-    600 15px Inter,
-    sans-serif;
-}
+
+
 .modal input:not([type="radio"], [type="checkbox"], [type="file"]),
 textarea {
   min-width: 0;
@@ -655,13 +477,8 @@ textarea {
     monospace;
 }
 
-.agent-list button{
-  padding: 13px 4px;
-  border-bottom: 1px solid var(--line);
-}
-.agent-list button:last-child{
-  border: 0;
-}
+
+
 .archive {
   padding: 12px 20px;
 }
@@ -682,21 +499,10 @@ textarea {
   margin: 0;
   overflow-wrap: anywhere;
 }
-.trace {
-  padding-right: 22px;
-}
-.trace li {
-  padding: 7px;
-  font-size: 13px;
-}
-.trace small {
-  color: var(--muted);
-  margin-right: 8px;
-}
-.trace p {
-  overflow-wrap: anywhere;
-  color: var(--muted);
-}
+
+
+
+
 
 .report-meta {
   overflow-wrap: anywhere;
@@ -719,11 +525,8 @@ textarea {
   font-size: 15px;
   line-height: 1.8;
 }
-.measure {
-  margin: 14px 0;
-  flex-wrap: wrap;
-}
-.measure span,
+
+
 .benchmark {
   font-size: 13px;
   color: var(--muted);
@@ -759,19 +562,12 @@ textarea {
   }
 }
 @media (max-width: 800px) {
-  .desk {
-    grid-template-columns: minmax(225px, 0.9fr) minmax(0, 1.4fr);
-    gap: 12px;
-  }
+  
   .setup {
     padding: 17px;
   }
-  .net-head {
-    padding: 17px 15px 8px;
-  }
-  .net-foot {
-    padding: 9px 12px;
-  }
+  
+  
   .map .node {
     width: 32px;
     height: 32px;
@@ -780,9 +576,7 @@ textarea {
   .map .node small {
     font-size: 9px;
   }
-  .net-stage {
-    margin-inline: 5px;
-  }
+  
   .stat {
     padding: 12px;
     gap: 8px;
@@ -825,24 +619,18 @@ textarea {
     padding: 4px 7px;
     margin-top: 22px;
   }
-  .desk {
-    display: flex;
-    flex-direction: column;
-  }
+  
   .setup {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: 0 10px;
     padding: 15px;
   }
-  .card-head,
-  .card-intro,
+  
   .launch {
     grid-column: 1/-1;
   }
-  .card-intro {
-    margin: 3px 0 7px;
-  }
+  
   .option {
     min-width: 0;
     padding: 6px;
@@ -851,30 +639,17 @@ textarea {
   .option strong {
     font-size: 12px;
   }
-  .option .tile {
-    width: 27px;
-    height: 29px;
-  }
+  
   .launch {
     margin-top: 13px;
     height: 37px;
   }
   
-  .net-card {
-    min-height: 257px;
-  }
-  .net-stage {
-    min-height: 150px;
-  }
-  .net-title h2 {
-    font-size: 17px;
-  }
-  .net-head {
-    padding: 13px 14px 5px;
-  }
-  .net-foot {
-    font-size: 10px;
-  }
+  
+  
+  
+  
+  
   .stats {
     gap: 7px;
   }
@@ -885,14 +660,8 @@ textarea {
     gap: 5px;
     border-radius: 11px;
   }
-  .stat-icon {
-    width: 28px;
-    height: 28px;
-    border-radius: 7px;
-  }
-  .stat-icon svg {
-    width: 16px;
-  }
+  
+  
   .stat small {
     font-size: 11px;
   }
@@ -904,12 +673,8 @@ textarea {
     padding: 16px;
   }
   
-  .measure {
-    gap: 4px;
-  }
-  .utility {
-    margin-top: 17px;
-  }
+  
+  
 }
 @media (max-width: 365px) {
   .brand span {
@@ -925,9 +690,7 @@ textarea {
   .connection {
     margin-top: 7px;
   }
-  .option .tile {
-    display: none;
-  }
+  
 }
 @media (prefers-reduced-motion: reduce) {
   .spin {
