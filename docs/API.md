@@ -1,6 +1,6 @@
 # HTTP API reference
 
-Basira serves its own API and the React app from the same origin. This page lists every operation the app exposes on `main` at commit `8d5319c` (28 November 2026): 73 operations on 55 paths. The OpenAPI schema at `/openapi.json` and the interactive page at `/docs` are generated from the code and are the authority if this page ever drifts; see "Regenerate this list" at the end.
+Basira serves its own API and the React app from the same origin. This page lists every operation the app exposes on `main` at commit `ccf076c` (28 November 2026): 72 operations on 54 paths. The OpenAPI schema at `/openapi.json` and the interactive page at `/docs` are generated from the code and are the authority if this page ever drifts; see "Regenerate this list" at the end.
 
 Related: [architecture](ARCHITECTURE.md), [configuration](CONFIGURATION.md), [data model](ERD.md).
 
@@ -184,4 +184,4 @@ for path in sorted(schema["paths"]):
 PY
 ```
 
-The count printed on `main` at `8d5319c` is 55 paths and 73 operations. `GET /openapi.json` returns the same schema from the running app, and `/docs` renders it.
+The count printed on `main` at `ccf076c` is 54 paths and 72 operations. `GET /openapi.json` returns the same schema from the running app, and `/docs` renders it.

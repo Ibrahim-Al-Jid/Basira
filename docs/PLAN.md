@@ -73,7 +73,7 @@ A future addition may be started early only if Release 1 is complete, or if it b
 Phases P01 to P08 are built; this plan has 24 phases (P01 to P24). P09 has its live view and model lane in place; P10 slices a to f and P20 are merged, and the design question is closed (28 November 2026: keep the current look, no new design); open: the automatic default project (scan flow is 4 actions, target 3), then future additions. Release 1 scope is defined above; everything else is a future addition. Section 3b lists every merged pull request, which is where the evidence for a status lives.
 
 Verified on 28 November 2026 at commit `8d5319c`, Linux, Python 3.13.18, Node 22.23.5:
-- Backend suite: `python -m pytest backend -q` gave 617 passed, 23 skipped in 29.1 s. The frontend build ran first, as `backend/test_api.py` serves `frontend/dist`.
+- Backend suite: `python -m pytest backend -q` gave 617 passed, 24 skipped in 29.1 s. The frontend build ran first, as `backend/test_api.py` serves `frontend/dist`.
 - Frontend: `npm --prefix frontend ci` and `npm run build` succeed; `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs frontend/src/modelOrder.test.mjs` gave 11 pass.
 - App start: `/`, `/demo`, `/signin`, `/projects`, `GET /api/taxonomy` and `GET /api/product` returned 200.
 - Documentation set: [SETUP](SETUP.md), [CONFIGURATION](CONFIGURATION.md), [API](API.md) and [TROUBLESHOOTING](TROUBLESHOOTING.md) added, with the commands they contain checked in the same run.

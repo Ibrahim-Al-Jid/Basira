@@ -4,7 +4,7 @@
 
 **A multi-agent security-review workspace for project files.**
 
-Pick a project and an evidence source, follow the scan as it runs, and open a report in Arabic or English.
+Pick a project and an input (repository ZIP, HTML, HAR, OpenAPI, configuration, ZAP), follow the scan as it runs, and open a report in Arabic or English.
 
 [العربية](README.ar.md) &nbsp;·&nbsp; English
 
@@ -21,7 +21,7 @@ Pick a project and an evidence source, follow the scan as it runs, and open a re
 ## Highlights
 
 - **Five LangGraph agent roles.** A coordinator routes the work, then planning, analysis, verification, and reporting roles run it, with parallel branches that merge before verification.
-- **114 defensive checks.** A documented catalog of rules. Projects accept HTML files, ZIP archives, HAR captures, and JSON snapshots.
+- **114 defensive checks.** A documented catalog of rules. A scan takes one of six inputs: a repository ZIP, an HTML file, a HAR capture, an OpenAPI document, a configuration file or bundle, and a saved ZAP report.
 - **Reports people can use.** Findings come with redacted evidence, line numbers, severity, and a fix. Export to HTML (Arabic or English), JSON, and PDF.
 - **Model-optional by design.** Optional model enrichment is configured per account. If the provider fails, Basira completes the scan with local analysis instead of failing.
 - **Bilingual UI.** Arabic and English, RTL and LTR, dark and light themes.
@@ -59,7 +59,7 @@ Accounts and projects need option 2.
 
 Set `PORT` to change the port. Run the tests with `npm test`.
 
-Verified on 28 November 2026 on Linux with Python 3.13.18 and Node 22.23.5, following exactly the commands above at commit `8d5319c`: the build succeeds (Vite, 489 ms), the app starts, `/`, `/demo` (the redirect page), `/signin`, `/projects`, `GET /api/taxonomy` and `GET /api/product` return 200, `python -m pytest backend -q` gave 617 passed and 23 skipped, and `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs frontend/src/modelOrder.test.mjs` gave 11 pass. The Docker path and the Windows script were not run in that environment, and the [setup guide](docs/SETUP.md) says so per item.
+Verified on 28 November 2026 on Linux with Python 3.13.18 and Node 22.23.5, following exactly the commands above at commit `8d5319c`: the build succeeds (Vite, 489 ms), the app starts, `/`, `/demo` (the redirect page), `/signin`, `/projects`, `GET /api/taxonomy` and `GET /api/product` return 200, `python -m pytest backend -q` gave 617 passed and 24 skipped, and `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs frontend/src/modelOrder.test.mjs` gave 11 pass. The Docker path and the Windows script were not run in that environment, and the [setup guide](docs/SETUP.md) says so per item.
 
 ### Run locally on Windows (accounts, projects, Connect GitHub)
 
@@ -99,7 +99,7 @@ Verification status: the Docker image build and these Compose commands have not 
 ## Status
 
 - Five LangGraph roles are implemented. Reports are stored per owner and project in PostgreSQL.
-- The release catalog has 114 defensive checks. Projects accept ZIP, HAR, and JSON snapshots, and add scan comparison, comments, finding statuses, and PDF (Arabic and English) export.
+- The release catalog has 114 defensive checks. A scan takes one of the same six inputs (repository ZIP, HTML, HAR, OpenAPI, configuration file or bundle, saved ZAP report), and adds scan comparison, comments, finding statuses, and PDF (Arabic and English) export.
 - Optional enrichment through Account → Model connection. The scan continues with local analysis if the provider is down.
 - Detection quality is measured against a reference sample, and the project states plainly that there is no real-world data yet to measure general accuracy or model cost.
 

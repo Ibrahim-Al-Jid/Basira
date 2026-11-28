@@ -11,6 +11,16 @@ Related: [setup](SETUP.md) for the commands, [API](API.md) for the endpoints the
 - Anything named `*_KEY`, `*_SECRET`, `*_TOKEN` or `*_PASSWORD` is a server-side secret: never in a report, a log line, a screenshot or a chat message.
 - Empty means "off" for most settings. Where empty has a different meaning, the table says so.
 
+## Database passwords
+
+Each database role has its own password. Compose refuses to start when the first three are unset, and `ops/start-local.sh` and `ops/start-local.ps1` write random values for all three into `.env.local`.
+
+| Variable | Default | Effect |
+|---|---|---|
+| `BASIRA_DB_PASSWORD` | none | Password of `basira_app`, the role the app and the worker connect as. Row-level security applies to it. |
+| `BASIRA_DISPATCH_PASSWORD` | none | Password of `basira_dispatch`, the outbox-only role the dispatcher connects as. `ops/postgres-init.sh` creates both roles on a fresh database. |
+| `BASIRA_MIGRATION_PASSWORD` | none | Password of the PostgreSQL superuser Compose creates the cluster with (`POSTGRES_PASSWORD`); `BASIRA_PLATFORM_MIGRATION_URL` is built from it. |
+
 ## Application and runtime
 
 | Variable | Default | Effect |
@@ -115,6 +125,21 @@ Apply `ops/intake-quarantine-lifecycle.json` to the bucket so abandoned uploads 
 | `BASIRA_TEST_URL` | Origin for `tests/browser_local_build.py`, default `http://127.0.0.1:8766`. CI uses `http://127.0.0.1:8901`. |
 | `BASIRA_TEST_PLATFORM_URL` | Origin for the release suite and the suites that import it (account, workspace, password, source intake, compose release), default `http://127.0.0.1:8901`. |
 | `BASIRA_BROWSER_CHANNEL` | Browser channel for the Playwright suites, for example `msedge`. |
+| `BASIRA_EVAL_CACHE` | Directory where the detection experiment (`backend/detection_experiment.py`) caches its pinned downloads, one file per sha256. Every read still verifies the digest, so a stale or poisoned entry fails the same check a bad download would. Unset means download on every run. |
+| `BASIRA_TEST_SESSION` | Value of an existing `basira_platform_session` cookie, for `tests/browser_release.py` when it runs without `--password-account`. CI passes the flag and does not set this. |
+
+## Backup and restore
+
+`ops/backup-platform.py` dumps with `pg_dump -Fc`; `ops/verify_restore.sh` restores that dump into a scratch database and compares shape and posture. The script reads four variables and stops with a message when one of the first three is unset.
+
+| Variable | Default | Effect |
+|---|---|---|
+| `BASIRA_RESTORE_SOURCE_URL` | none | libpq connection string of the database to dump. |
+| `BASIRA_RESTORE_ADMIN_URL` | none | Connection string of an admin database on the target server (`postgres`), used to drop and recreate the scratch database. |
+| `BASIRA_RESTORE_TARGET_URL` | none | Connection string of the scratch database the dump is restored into. It is dropped and recreated, so point it at a database nobody else uses. |
+| `BASIRA_RESTORE_SCRATCH_DB` | `basira_restore_check` | Name of the scratch database. |
+
+`PG_DUMP` and `PG_RESTORE` choose which binaries the script runs, when the defaults do not match the server's major version.
 
 ## Checking a configuration
 

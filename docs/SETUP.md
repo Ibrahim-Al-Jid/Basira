@@ -41,7 +41,7 @@ Accounts and projects need Mode 2 or 3.
 Checks that should pass:
 
 ```bash
-.venv/bin/python -m pytest backend -q            # 617 passed, 23 skipped on 28 Nov 2026
+.venv/bin/python -m pytest backend -q            # 617 passed, 24 skipped on 28 Nov 2026
 node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs frontend/src/modelOrder.test.mjs   # 8 pass
 ```
 
@@ -173,7 +173,7 @@ After the app is installed, open Settings, then GitHub, press "Connect GitHub" a
 |---|---|---|
 | Install | `python -m venv .venv`, `pip install -r requirements-dev.txt` | ok, Python 3.13.18 |
 | Frontend | `npm --prefix frontend ci`, `npm run build` | ok, Vite build 489 ms |
-| Backend suite | `.venv/bin/python -m pytest backend -q` | 617 passed, 23 skipped, 29.1 s |
+| Backend suite | `.venv/bin/python -m pytest backend -q` | 617 passed, 24 skipped, 29.1 s |
 | Frontend unit tests | `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs frontend/src/modelOrder.test.mjs` | 11 pass |
 | App start | `python -m uvicorn backend.main:app --host 127.0.0.1 --port 8765` | `/`, `/demo`, `/signin`, `/projects`, `/api/taxonomy`, `/api/product` all 200 |
 
