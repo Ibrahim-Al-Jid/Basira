@@ -3,10 +3,13 @@
 ## 2026-11-28
 
 ### Fixed
-- `alembic check` passes again. `project_ownership_reviews` was created by `platform_personal_0012` with raw SQL and never modelled, so autogenerate wanted to drop the table that `ops/review-project-ownership.py` writes. `ProjectOwnershipReview` in `backend/platform_db.py` now matches the migration; `alembic check` reports no new upgrade operations.
+- Scan idempotency keys are scoped to one project. The unique constraint on `project_scans` spanned the whole organization while the API looked the key up per project, so reusing the same `Idempotency-Key` in a second project of the same organization returned 409 "the key is linked to a different request" instead of creating the scan. Migration `platform_idempotency_0017` replaces `uq_project_scans_request` with `uq_project_scans_project_request` on (org, project, user, key). Reproduced and re-checked on PostgreSQL 16 with the `basira_app` role: before, 409; after, 202 in both projects.
 ### Added
 - Container operations: every service and the database and broker log through the `json-file` driver capped at 10 MB times 3 files, the `app` service has a healthcheck and the image has a `HEALTHCHECK`, so a hung process is restarted or routed around instead of looking up. `app`, `worker`, `dispatcher` and `model-gateway` run with `cap_drop: [ALL]` and `no-new-privileges`, which they do not need (they already run as an unprivileged user); the scanner keeps its own isolation.
 - The image build runs `pip check` after installing the requirements and sets `PYTHONDONTWRITEBYTECODE=1`; `.dockerignore` keeps `tests/`, `docs/` and `backend/test_*.py` out of the build context and the runtime image.
+
+### Fixed
+- Report "technical" tab no longer blanks the whole page: `ToolRuns` (frontend/src/ReportAdvanced.jsx) called the translation object as a function (`t("...")`), throwing on every report that shows tool execution. The copy now uses the component's own bilingual strings like the rest of the file.
 
 ## 2026-11-27
 
@@ -77,6 +80,7 @@
 - Arabic header now mirrors with the sidebar: search on the right, theme, language and account controls on the left (one CSS rule in `frontend/src/command-center.css`). Checked in a browser in Arabic at 1280 and 390 px and English at 1280 px: no overflow. This branch builds on the Arabic sidebar PR (#57), merge that first.
 - A visible focus box appeared around the page title (Reports, report, scan wizard) on every page load, because the title is focused for screen readers. Non-control elements that are focused only by code (`tabindex=-1`) no longer draw a ring; buttons, links and fields keep theirs (`frontend/src/workspace.css`).
 - Unknown browser URLs now open the app's own "Page not found" screen (HTTP 404) instead of a blank page with a raw server 404, and `/projects/<id>` and `/projects/<id>/reports/<id>` open the project and the report instead of an empty page (`backend/main.py`, `frontend/src/main.jsx`). API routes still return JSON 404. Found by a full product audit; test added in `backend/test_api.py`.
+- New scan: pressing Review scan with no file chosen now says "Choose a file first." in the app language (it showed the browser's own English text in the Arabic UI). Root cause: the file field relied on the browser's built-in required message. `frontend/src/Platform.jsx`. Checked in a browser in English and Arabic.
 
 ### Removed
 - `work/` folder (its content moved into `docs/PLAN.md`).
