@@ -52,6 +52,7 @@ ADAPTERS = (
     Adapter("source-code", "source_code", rule_ids(("SRC", 1, 14)), "تحليل الكود المصدري"),
 )
 EXTENDED_IDS = [rule for adapter in ADAPTERS for rule in adapter.rules]
+CONFIG_NAMES = ("dockerfile", ".env", ".npmrc", "docker-compose", "compose.")
 TEXT_SUFFIXES = {
     ".html", ".htm", ".css", ".json", ".yaml", ".yml", ".env", ".properties", ".ini", ".conf",
     ".cfg", ".py", ".sql", ".lock", ".toml", ".pem", ".key", ".txt", ".tf", ".xml",
@@ -158,7 +159,11 @@ def zip_texts(raw, *, manifest=None, metrics=None):
                     payload = stream.read(MAX_FILE + 1)
                 if len(payload) != entry.file_size or payload.startswith((b"PK\x03\x04", b"\x1f\x8b", b"7z\xbc\xaf\x27\x1c", b"Rar!")):
                     raise InputError("محتوى ZIP تالف أو يحتوي على أرشيف متداخل.")
-                build = bool({".git", "node_modules", "dist", "build", "__pycache__", "vendor"} & set(parsed.parts[:-1]))
+                skipped_dirs = {".git", "node_modules", "dist", "build", "__pycache__", "vendor"} & set(parsed.parts[:-1])
+                # Output folders of the project itself still hold deployment config (build/Dockerfile, dist/.env).
+                # Third-party and VCS folders stay out entirely.
+                kept_config = skipped_dirs <= {"build", "dist"} and parsed.name.lower().startswith(CONFIG_NAMES)
+                build = bool(skipped_dirs) and not kept_config
                 supported = supported and not build
                 if supported:
                     files[path] = plain_text(payload)

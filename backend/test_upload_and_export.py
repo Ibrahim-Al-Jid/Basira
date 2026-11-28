@@ -184,3 +184,29 @@ def test_hostile_report_text_in_the_pdf_export_stays_text_with_no_active_content
             assert len(pdf) < 2_000_000
     cleaned = printable(hostile)
     assert len(cleaned) <= 450 and "\x00" not in cleaned and "\x1b" not in cleaned and "\u202e" not in cleaned
+
+
+def test_deployment_config_in_output_folders_is_scanned_but_third_party_folders_stay_skipped():
+    manifest = []
+    files = zip_texts(build([
+        ("app/index.html", PAGE),
+        ("build/Dockerfile", b"FROM python:3\nUSER 0\n"),
+        ("dist/.env", b"TOKEN=placeholder\n"),
+        ("build/docker-compose.yml", b"services: {}\n"),
+        ("build/app.js", b"console.log(1)"),
+        ("node_modules/pkg/Dockerfile", b"FROM scratch\n"),
+        ("vendor/lib/.env", b"A=1\n"),
+        (".git/.npmrc", b"x=1\n"),
+    ]), manifest=manifest)
+    assert set(files) == {"app/index.html", "build/Dockerfile", "dist/.env", "build/docker-compose.yml"}
+    status = {row["path"]: (row["status"], row["reason"]) for row in manifest}
+    assert status["build/app.js"] == ("skipped", "build_artifact")
+    assert status["node_modules/pkg/Dockerfile"] == ("skipped", "build_artifact")
+    assert status["vendor/lib/.env"] == ("skipped", "build_artifact")
+    assert status[".git/.npmrc"] == ("skipped", "build_artifact")
+
+
+def test_a_risky_dockerfile_under_build_produces_a_finding():
+    raw = build([("app/index.html", PAGE), ("build/Dockerfile", b"FROM python:3\nUSER 0\n")])
+    report = defensive_review("repository", "source.zip", raw, {})
+    assert "build/Dockerfile" in {row["path"] for row in report["findings"]}
