@@ -131,6 +131,10 @@ docker compose -p basira-local -f compose.yaml -f compose.local.yaml --env-file 
 
 `options` reports `password` and `registration` booleans, which is the fastest way to confirm that `compose.local.yaml` actually applied.
 
+## Settings Compose does not pass through
+
+`BASIRA_LOG_LEVEL`, `BASIRA_LAB_RUN_LIMIT` and `BASIRA_LAB_RUN_CONCURRENCY` are read from the process environment, but `compose.yaml` does not forward them to the `app` service yet, so setting them in `.env.local` has no effect in the Compose modes. They work when the app is started directly (the local lab, `python -m uvicorn ...`, or a process manager). To change them under Compose today, add them to the `app` service's `environment` block.
+
 ## Limits the gateway enforces
 
 These are constants in `backend/model_gateway.py`, not settings; they exist because a provider address can be chosen by a user.
