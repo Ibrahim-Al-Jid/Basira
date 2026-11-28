@@ -520,4 +520,4 @@ def review_prepared(prepared, policy, *, kind=None, external=False):
         "tool_selection": [item.model_dump(mode="json") for item in decisions.values()],
         "metrics": {"checksRun": applied, "findingsCount": len(findings), "validatedCount": len(findings),
                     "modelCalls": 0, "durationMs": round((time.monotonic() - started) * 1000)},
-            }
+    }
