@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from playwright.sync_api import expect, sync_playwright
 
-from browser_release import ORIGIN
+from browser_release import ORIGIN, catalog_rule_count
 
 API = ORIGIN + "/api/platform"
 FORBIDDEN_COPY = re.compile(
@@ -114,7 +114,7 @@ def main():
         credential_ui(page, org)
         for path in ("/checks", "/checks/"):
             assert owner.request.get(ORIGIN + path).status == 404
-        assert len(owner.request.get(ORIGIN + "/api/catalog").json()["rules"]) == 100
+        assert catalog_rule_count(owner.request) >= 100  # Release 1 baseline; the catalog grows as checks are added
 
         project_link = f"{ORIGIN}/projects?project={project}"
         page.goto(project_link)
