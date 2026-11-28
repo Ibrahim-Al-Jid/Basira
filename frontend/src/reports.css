@@ -911,3 +911,7 @@
 .reports-agent-summary h3 { margin: 0; font-size: 1rem; }
 .reports-agent-summary p { margin: 0; overflow-wrap: anywhere; }
 .reports-agent-summary small { color: var(--muted); }
+
+.reports-guidance { margin-top: .75rem; padding-top: .6rem; border-top: 1px dashed var(--line); }
+.reports-guidance h4 { margin: .5rem 0 .2rem; font-size: .95rem; }
+.reports-guidance p { margin: 0; overflow-wrap: anywhere; }

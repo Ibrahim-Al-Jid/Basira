@@ -71,6 +71,8 @@ const copy = {
     confidence: "الثقة",
     evidence: "الدليل",
     remediation: "الإصلاح",
+    guidanceFix: "خطوات الإصلاح",
+    guidanceVerify: "إزاي تتأكد إن الإصلاح اشتغل",
     executive: "ملخص الفحص",
     decisionTitle: "القرار",
     decisionClear: "مفيش نتايج في اللي اتفحص",
@@ -235,6 +237,8 @@ const copy = {
     confidence: "Confidence",
     evidence: "Evidence",
     remediation: "Remediation",
+    guidanceFix: "How to fix it",
+    guidanceVerify: "How to check the fix worked",
     executive: "Scan summary",
     decisionTitle: "Decision",
     decisionClear: "No findings in what was checked",
@@ -497,6 +501,14 @@ function FindingList({ findings, coverage, imported, priority, t, lang, params, 
   const findingsPath = (changes) => reportPath(pathname, params, changes) + hash;
   const update = (name, value) => navigate(findingsPath({ [name]: value }), { replace: name === "finding" });
   const titleOf = (finding) => (lang === "ar" ? finding.title_ar : finding.title) || finding.title || finding.rule;
+  // finding.guidance carries per-rule fix and verify text in both languages; either part can be missing.
+  const guidanceOf = (finding) => {
+    const g = finding.guidance;
+    if (!g) return null;
+    const fix = (lang === "ar" ? g.fix_ar : g.fix) || g.fix;
+    const verify = (lang === "ar" ? g.verify_ar : g.verify) || g.verify;
+    return fix || verify ? { fix, verify } : null;
+  };
   const remediationOf = (finding) => (lang === "ar" ? finding.remediation_ar : finding.remediation) || finding.remediation;
   const grouped = new Map();
   for (const finding of findings) {
@@ -573,6 +585,10 @@ function FindingList({ findings, coverage, imported, priority, t, lang, params, 
                   <div className="reports-fix">
                     <h3>{t.remediation}</h3>
                     <p dir="auto">{remediationOf(selected[0]) || t.unavailable}</p>
+                    {guidanceOf(selected[0]) && <div className="reports-guidance" data-finding-guidance>
+                      {guidanceOf(selected[0]).fix && <><h4>{t.guidanceFix}</h4><p dir="auto">{guidanceOf(selected[0]).fix}</p></>}
+                      {guidanceOf(selected[0]).verify && <><h4>{t.guidanceVerify}</h4><p dir="auto">{guidanceOf(selected[0]).verify}</p></>}
+                    </div>}
                   </div>
                   <h3>{t.evidence}</h3>
                   <ul>
