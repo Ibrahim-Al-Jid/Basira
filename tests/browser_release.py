@@ -41,7 +41,6 @@ def report_locale(page, language):
 
 def project_scan(page, project, text):
     page.goto(f"{ORIGIN}/new-scan?project={project}")
-    page.get_by_role("button", name="متابعة إلى الملف").click()
     page.locator('input[name="kind"][value="html"]').check()
     page.locator('input[type="file"][name="file"]').set_input_files({
         "name": "portal.html", "mimeType": "text/html", "buffer": text.encode(),
