@@ -24,14 +24,21 @@ const knownErrors = {
   "اتصال GitHub اتغيّر قبل تسجيل الفحص.": "The GitHub connection changed before the scan was recorded. Try again.",
   "GitHub تعذّر عليه إرجاع اللقطة.": "GitHub could not return the snapshot. Try again.",
 };
-export const errorText = (err, t) => t(err.message, knownErrors[err.message] || ({
-  401: "Check your credentials or sign in again.",
-  403: "This account cannot perform the requested action.",
-  404: "This item is unavailable.",
-  409: "This item already exists or its state changed.",
-  422: "Check the form values and try again.",
-  429: "Too many requests. Wait a moment and try again.",
-})[err.status] || (/^[\x00-\x7f]+$/.test(err.message) ? err.message : "The request could not be completed."));
+const isArabic = (text) => /[\u0600-\u06ff]/.test(text);
+// A browser network failure has no HTTP status and an English engine message ("Failed to fetch").
+const isNetwork = (err) => err instanceof TypeError || (!err.status && /^(failed to fetch|load failed|networkerror)/i.test(err.message));
+export const errorText = (err, t) => {
+  if (isNetwork(err)) return t("تعذّر الاتصال بالخادم. اتأكد من الإنترنت وحاول تاني.", "Could not reach the server. Check your connection and try again.");
+  const english = knownErrors[err.message] || ({
+    401: "Check your credentials or sign in again.",
+    403: "This account cannot perform the requested action.",
+    404: "This item is unavailable.",
+    409: "This item already exists or its state changed.",
+    422: "Check the form values and try again.",
+    429: "Too many requests. Wait a moment and try again.",
+  })[err.status] || (/^[\x00-\x7f]+$/.test(err.message) ? err.message : "The request could not be completed.");
+  return t(isArabic(err.message) ? err.message : "تعذّر تنفيذ الطلب.", english);
+};
 export const json = (method, body) => ({ ...post(body), method });
 
 export async function action(path, options) {
