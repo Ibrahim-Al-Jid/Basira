@@ -32,11 +32,11 @@ Pick a project and an evidence source, follow the scan as it runs, and open a re
 
 | Role | Input | What it does | Output |
 |---|---|---|---|
-| Coordinator | Item counts and the previous scan of the session | Chooses one path or two parallel branches, using the model's decision when it is valid | Routing decision and its source |
-| Planning | Routing decision and available rule groups | Accepts the model's ordering if it is complete, otherwise uses the local order | One or two analysis branches |
-| Analysis | Properties extracted locally from the HTML | Matches rules from the catalog and compares model suggestions against the facts | Branch events and match status |
-| Verification | All local evidence matches | Confirms findings from the rule catalog and keeps every matching location | Findings with redacted evidence, line number, severity, and fix |
-| Reporting | Confirmed findings, coverage, and fix guidance | Builds both summaries from a local template and accepts the model's priority order when it covers all matches | Saved report with HTML (both languages) and JSON export |
+| Maestro | Item counts and the previous scan of the session | Chooses one path or two parallel branches, using the model's decision when it is valid | Routing decision and its source |
+| Scout | Routing decision and available rule groups | Accepts the model's ordering if it is complete, otherwise uses the local order | One or two analysis branches |
+| Hunter | Properties extracted locally from the HTML | Matches rules from the catalog and compares model suggestions against the facts | Branch events and match status |
+| Auditor | All local evidence matches | Confirms findings from the rule catalog and keeps every matching location | Findings with redacted evidence, line number, severity, and fix |
+| Scribe | Confirmed findings, coverage, and fix guidance | Builds both summaries from a local template and accepts the model's priority order when it covers all matches | Saved report with HTML (both languages) and JSON export |
 
 Working memory is the LangGraph state. Completed reports persist in SQLite, tied to the browser session profile; a session keeps its last 100 reports for 30 days.
 
