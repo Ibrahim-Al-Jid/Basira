@@ -29,14 +29,26 @@ def load_manifest(path=MANIFEST):
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
-def fetch_sources(manifest):
-    """Download each pinned file and verify its digest; nothing is cached in the repo."""
+def fetch_sources(manifest, cache_dir=None):
+    """Download each pinned file and verify its digest; nothing is cached in the repo.
+
+    cache_dir (or BASIRA_EVAL_CACHE) is an optional download cache for CI: entries are named by
+    the manifest's sha256, and every read still verifies the digest, so a poisoned or stale entry
+    fails the same check a bad download would.
+    """
+    cache_root = cache_dir or os.environ.get("BASIRA_EVAL_CACHE")
     sources = {}
     for case in manifest["cases"]:
-        with urlopen(RAW.format(commit=manifest["commit"], path=case["path"]), timeout=30) as response:
-            body = response.read()
+        cached = Path(cache_root) / case["sha256"] if cache_root else None
+        body = cached.read_bytes() if cached and cached.is_file() else None
+        if body is None:
+            with urlopen(RAW.format(commit=manifest["commit"], path=case["path"]), timeout=30) as response:
+                body = response.read()
         if sha256(body).hexdigest() != case["sha256"]:
             raise ValueError(f"Digest mismatch for {case['path']}")
+        if cached is not None and not cached.exists():
+            cached.parent.mkdir(parents=True, exist_ok=True)
+            cached.write_bytes(body)
         sources[case["id"]] = body.decode("utf-8")
     return sources
 
