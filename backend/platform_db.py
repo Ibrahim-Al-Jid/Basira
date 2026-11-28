@@ -7,6 +7,7 @@ import os
 from uuid import uuid4
 
 from sqlalchemy import (
+    Text,
     CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, LargeBinary, String,
     UniqueConstraint, create_engine, event, func, select, text, update,
 )
@@ -44,6 +45,7 @@ class User(Base):
     first_name: Mapped[str | None] = mapped_column(String(80))
     last_name: Mapped[str | None] = mapped_column(String(80))
     username: Mapped[str | None] = mapped_column(String(30))
+    avatar: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     disabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
