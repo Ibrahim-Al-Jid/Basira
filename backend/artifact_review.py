@@ -14,6 +14,7 @@ import unicodedata
 from zipfile import BadZipFile, ZIP_DEFLATED, ZIP_STORED, ZipFile
 import zlib
 
+from . import guidance
 from .checks.markers import Incomplete
 from .checks import openapi_contract, zap_passive
 from .checks.source_code import OTHER_CODE_SUFFIXES, language
@@ -525,7 +526,7 @@ def review_prepared(prepared, policy, *, kind=None, external=False):
         "summary_source": "system",
         "status": "partial" if errors else "completed",
         "enrichment": "disabled",
-        "findings": findings,
+        "findings": guidance.attach(findings),
         "api_inventory": api_inventory,
         "imported_evidence": imported_evidence,
         "input_manifest": input_manifest,

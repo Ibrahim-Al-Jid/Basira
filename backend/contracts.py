@@ -51,6 +51,14 @@ class AdvisoryEvidence(BaseModel):
     database_date: date
 
 
+class Guidance(BaseModel):
+    """Rule-table fix example and verify step for one finding. Fixed text, never model output."""
+    fix: str = Field(max_length=2000)
+    fix_ar: str = Field(max_length=2000)
+    verify: str = Field(max_length=1000)
+    verify_ar: str = Field(max_length=1000)
+
+
 class Finding(BaseModel):
     rule: str
     severity: Severity
@@ -67,6 +75,7 @@ class Finding(BaseModel):
     fingerprint: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     origins: list[FindingOrigin] = Field(default_factory=list)
     advisory: AdvisoryEvidence | None = None
+    guidance: Guidance | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class AgentFinding(BaseModel):
