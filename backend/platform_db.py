@@ -241,7 +241,18 @@ def bind_project_context(db, context):
 
 
 def bind_job_project(db, org_id, project_id, *, lock=False):
-    # The queue contains IDs only. Resolve ownership from the project in the database.
+    # The queue contains IDs only, so ownership comes from the project row. On PostgreSQL that read
+    # happens before any owner is bound, which means it cannot go through row level security: the
+    # definer function `basira_project_owner` resolves it, and only then is the context bound.
+    if db.get_bind().dialect.name == "postgresql":
+        row = db.execute(text("SELECT owner_user_id FROM public.basira_project_owner(:org_id, :project_id)"),
+                         {"org_id": org_id, "project_id": project_id}).first()
+        if row is None:
+            return None
+        if personal_projects_enabled() and not row[0]:
+            return None
+        bind_project(db, org_id, project_id, owner_user_id=row[0])
+        return db.get(Project, project_id, with_for_update=lock) if lock else db.get(Project, project_id)
     project = db.get(Project, project_id, with_for_update=lock)
     if not project or project.org_id != org_id or project.deleted_at is not None:
         return None
