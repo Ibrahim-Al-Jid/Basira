@@ -56,9 +56,15 @@ npm run build
 npm start
 ```
 
-Open http://127.0.0.1:8765/demo, choose an HTML file, paste markup, or use the built-in sample. Set `PORT` to change the port. Run the tests with `npm test`.
+The HTML review page at `/demo` is retired: it opens the workspace when you are signed in and the sign-in page when you are not. The lab API still works and streams one JSON line per step:
 
-Verified on 28 November 2026 on Linux with Python 3.13.18 and Node 22.23.5, following exactly the commands above at commit `0438894`: the build succeeds (Vite, 444 ms), the app starts, `/`, `/demo`, `/signin`, `/projects`, `GET /api/taxonomy` and `GET /api/product` return 200, `python -m pytest backend -q` gave 443 passed and 19 skipped, and `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs` gave 8 pass. The lab keeps reports in SQLite; accounts and projects need option 2. The Docker path and the Windows script were not run in that environment, and the [setup guide](docs/SETUP.md) says so per item.
+```bash
+curl -N -X POST http://127.0.0.1:8765/api/run -H 'content-type: application/json' -d '{"source":"<form action=\"/x\"><input name=p type=password></form>"}'
+```
+
+Set `PORT` to change the port. Run the tests with `npm test`.
+
+Verified on 28 November 2026 on Linux with Python 3.13.18 and Node 22.23.5, following exactly the commands above at commit `14193c9`: the build succeeds (Vite, 355 ms), the app starts, `/`, `/demo` (the redirect page), `/signin`, `/projects`, `GET /api/taxonomy` and `GET /api/product` return 200, `python -m pytest backend -q` gave 513 passed and 22 skipped, and `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs` gave 8 pass. The lab keeps reports in SQLite; accounts and projects need option 2. The Docker path and the Windows script were not run in that environment, and the [setup guide](docs/SETUP.md) says so per item.
 
 ### Run locally on Windows (accounts, projects, Connect GitHub)
 
