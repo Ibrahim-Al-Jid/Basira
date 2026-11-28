@@ -343,3 +343,8 @@ main:has(.signin-page) {
   transform: none;
 }
 .signin-form .signin-secret button:hover { background: var(--pop-lemon); }
+
+/* Phones: the form comes first, the product notes follow. */
+@media (max-width: 960px) {
+  .signin-card { order: -1; }
+}

@@ -411,3 +411,14 @@
 }
 /* Arabic: the header mirrors too (search on the right, controls on the left). */
 .workspace-layout:has(> main[dir="rtl"]) > .site-header .site-header-inner { direction: rtl; }
+
+/* Signed out: a labelled Sign in button instead of a bare icon. */
+.site-controls .site-account.site-signin {
+  inline-size: auto;
+  border-radius: 99rem;
+  padding-inline: .9rem;
+  background: var(--accent-gradient);
+  color: var(--on-accent);
+  border-color: transparent;
+}
+.site-controls .site-account.site-signin span { display: inline; }
