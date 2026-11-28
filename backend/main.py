@@ -3,6 +3,7 @@ import asyncio
 import base64
 from contextlib import closing, contextmanager
 from datetime import datetime, timezone
+from functools import lru_cache
 import hashlib
 import html
 import json
@@ -29,7 +30,6 @@ from .artifact_review import RULESET_VERSION, catalog as rule_catalog, redact_la
 from .offline_worker import scan_payload
 from .taxonomy import public as taxonomy_public
 from .platform_db import personal_projects_enabled
-from .observability import install_observability
 
 ROOT = Path(__file__).resolve().parents[1]
 COOKIE = "basira_session"
@@ -107,31 +107,43 @@ async def protect_requests(request, call_next):
     return await call_next(request)
 
 
-@contextmanager
-def database():
-    path = Path(os.environ.get("BASIRA_DB_PATH", ROOT / "data" / "basira.sqlite3"))
-    path.parent.mkdir(parents=True, exist_ok=True)
+REPORT_SCHEMA = """
+    CREATE TABLE IF NOT EXISTS sessions(owner TEXT PRIMARY KEY, expires_at INTEGER);
+    CREATE TABLE IF NOT EXISTS legacy_session_window(id INTEGER PRIMARY KEY CHECK(id = 1), ends_at INTEGER);
+    CREATE TABLE IF NOT EXISTS reports(
+        id TEXT PRIMARY KEY, owner TEXT NOT NULL, created_at TEXT NOT NULL,
+        model TEXT NOT NULL, finding_count INTEGER NOT NULL, report_json TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS owner_reports ON reports(owner,created_at DESC);
+    CREATE TABLE IF NOT EXISTS report_index(
+        id TEXT PRIMARY KEY REFERENCES reports(id) ON DELETE CASCADE, summary_json TEXT NOT NULL
+    );
+"""
+
+
+@lru_cache(maxsize=8)
+def prepared_database(path):
+    """Create the report schema, and upgrade a legacy sessions table, once per process and path."""
     with closing(sqlite3.connect(path, timeout=5)) as db, db:
         db.row_factory = sqlite3.Row
-        db.execute("PRAGMA foreign_keys = ON")
-        db.executescript("""
-            CREATE TABLE IF NOT EXISTS sessions(owner TEXT PRIMARY KEY, expires_at INTEGER);
-            CREATE TABLE IF NOT EXISTS legacy_session_window(id INTEGER PRIMARY KEY CHECK(id = 1), ends_at INTEGER);
-            CREATE TABLE IF NOT EXISTS reports(
-                id TEXT PRIMARY KEY, owner TEXT NOT NULL, created_at TEXT NOT NULL,
-                model TEXT NOT NULL, finding_count INTEGER NOT NULL, report_json TEXT NOT NULL
-            );
-            CREATE INDEX IF NOT EXISTS owner_reports ON reports(owner,created_at DESC);
-            CREATE TABLE IF NOT EXISTS report_index(
-                id TEXT PRIMARY KEY REFERENCES reports(id) ON DELETE CASCADE, summary_json TEXT NOT NULL
-            );
-        """)
+        db.executescript(REPORT_SCHEMA)
         if "expires_at" not in {row["name"] for row in db.execute("PRAGMA table_info(sessions)")}:
             db.execute("BEGIN IMMEDIATE")
             if "expires_at" not in {row["name"] for row in db.execute("PRAGMA table_info(sessions)")}:
                 db.execute("ALTER TABLE sessions ADD COLUMN expires_at INTEGER")
                 db.execute("INSERT INTO legacy_session_window VALUES (1,?)", (int(time.time()) + LEGACY_GRACE_SECONDS,))
             db.commit()
+    return True
+
+
+@contextmanager
+def database():
+    path = Path(os.environ.get("BASIRA_DB_PATH", ROOT / "data" / "basira.sqlite3"))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    prepared_database(str(path))
+    with closing(sqlite3.connect(path, timeout=5)) as db, db:
+        db.row_factory = sqlite3.Row
+        db.execute("PRAGMA foreign_keys = ON")
         yield db
 
 
@@ -453,7 +465,6 @@ from .personal_github import router as personal_github_router
 from .personal_intake import router as personal_intake_router
 
 install_identity(app)
-install_observability(app)
 app.include_router(platform_router)
 app.include_router(evidence_links_router)
 app.include_router(github_import_router)
