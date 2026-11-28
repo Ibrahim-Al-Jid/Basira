@@ -119,6 +119,11 @@ jobs:
         working-directory: tests
         env:
           BASIRA_QA_ORIGIN: http://127.0.0.1:8901
+      - name: Browser acceptance - local build report and exports
+        run: python browser_local_build.py
+        working-directory: tests
+        env:
+          BASIRA_TEST_URL: http://127.0.0.1:8901
       - name: Compose state and logs (personal mode)
         if: always()
         # Guarded: when the boot step never ran there is no .env.local, and an
