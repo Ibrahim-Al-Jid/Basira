@@ -51,7 +51,7 @@ OIDC is the alternative to local passwords, for a team install:
 | `BASIRA_PROJECT_MODEL_ENABLED` | `0` | Lets scans use a model connection. `1` also makes the start script launch the `model` profile. |
 | `BASIRA_GATEWAY_URL` | empty | Gateway address as seen from the app. `http://model-gateway:8001` inside Compose. |
 | `BASIRA_GATEWAY_TOKEN` | empty | Shared secret between app and gateway. Random, independent of every password. |
-| `BASIRA_AGENT_LOOP` | `0` | `1` turns the agent path on: a repository or config scan with a model connection whose requested mode is `agents` or `hybrid` runs the Hunter tool loop in the worker, and its findings appear in `report.agent_findings`. Every turn goes through the gateway `/chat` route, which holds the key and caps calls per scan. Off by default; with it off, every scan runs the rules. With it off, `hybrid` runs as `rules` with `fallback_reason: "agent_path_unavailable"` and `agents` is refused with 422. HTML, HAR, OpenAPI and ZAP inputs always run the rules. |
+| `BASIRA_AGENT_LOOP` | `0` | `1` turns the agent path on: a repository or config scan with a model connection whose requested mode is `agents` or `hybrid` runs Maestro, Scout, the Hunter tool loop with the Auditor, and Scribe in the worker; Hunter findings appear in `report.agent_findings` and Scribe's summary in `report.agent_summary`. Every turn goes through the gateway `/chat` route, which holds the key and caps calls per scan. Off by default; with it off, every scan runs the rules. With it off, `hybrid` runs as `rules` with `fallback_reason: "agent_path_unavailable"` and `agents` is refused with 422. HTML, HAR, OpenAPI and ZAP inputs always run the rules. |
 | `BASIRA_MODEL_DB_PASSWORD` | empty | Password for the gateway's database role. 24 to 128 letters or digits; the start script refuses anything else. |
 | `BASIRA_MODEL_MASTER_KEY_FILE` | `/srv/basira/model-secrets/master.key` | Master key file that encrypts stored provider keys. Created by the `model-secrets` service. |
 | `BASIRA_MODEL_DAILY_LIMIT` | unset | Overrides the per-model daily request cap. A `:free` model defaults to 50 requests a day; a paid model has no default cap. `0` blocks the model, a negative value means no cap. |
@@ -111,7 +111,9 @@ Apply `ops/intake-quarantine-lifecycle.json` to the bucket so abandoned uploads 
 |---|---|
 | `BASIRA_EVAL_NETWORK` | `1` lets the evaluation and quality gate download the pinned DVWA files. CI sets it. |
 | `BASIRA_REAL_ADAPTERS` | Runs the real Gitleaks and OSV-Scanner instead of fakes. |
-| `BASIRA_QA_ORIGIN` | Origin the browser suites drive, default `http://127.0.0.1:8776`. |
+| `BASIRA_QA_ORIGIN` | Origin for `tests/browser_smoke.py` and `tests/browser_personal_projects.py`. No default: the suite fails when it is unset. CI uses `http://127.0.0.1:8901`. |
+| `BASIRA_TEST_URL` | Origin for `tests/browser_local_build.py`, default `http://127.0.0.1:8766`. CI uses `http://127.0.0.1:8901`. |
+| `BASIRA_TEST_PLATFORM_URL` | Origin for the release suite and the suites that import it (account, workspace, password, source intake, compose release), default `http://127.0.0.1:8901`. |
 | `BASIRA_BROWSER_CHANNEL` | Browser channel for the Playwright suites, for example `msedge`. |
 
 ## Checking a configuration
