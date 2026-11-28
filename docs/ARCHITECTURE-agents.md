@@ -106,6 +106,46 @@ Memory never crosses organizations or owners. A rejection reason is stored so th
 - A scan that cannot finish records which stage failed through the existing coverage statuses (`skipped`, `error`) with a fixed reason code, never a free-text model message.
 - Background failures are logged with exception class and location only.
 
+## 7a. Run modes
+
+Every scan has one `analysis_mode`, chosen at scan creation. It is a closed enum, recorded on the scan and copied into the report contract, so a report always says how it was made.
+
+| Mode | Value | What runs | Model needed | Reproducible |
+|---|---|---|---|---|
+| Rules only | `rules` | Today's deterministic path: rules, scanners and adapters, no model | No | Yes |
+| Agents only | `agents` | Maestro, Scout, Hunter, Auditor and Scribe, with the rules not exposed as tools | Yes | No |
+| Hybrid | `hybrid` | The same five roles, with the rules and scanners as the Hunter's tools and as the Auditor's ground truth | Yes | Rules part only |
+
+Default is `hybrid`. If no model is configured or the model path fails, a hybrid scan completes as `rules` and the report says so in `mode_effective` and `fallback_reason` (a fixed code, never model text). An `agents` scan that cannot reach a model fails with a fixed error and does not silently fall back, because its result would then not be what the user asked for. A `rules` scan never calls a model. Scans created before this field read as `rules`.
+
+Budgets are per mode and set by the Maestro: `rules` keeps today's limits; `agents` and `hybrid` carry maximum tool calls, input and output tokens and wall time per role. Over-budget output is dropped and the deterministic result stands (hybrid) or the stage is marked `error` (agents). The modes are also the benchmark configurations: `rules` is C1, `agents` is C2, `hybrid` is C4 in `docs/research/detection-experiment.md`.
+
+Report contract fields: `analysis_mode` (requested), `mode_effective`, `fallback_reason` (nullable), `budget` (limits and use per role).
+
+Selector copy (interface, Arabic and English, using the role names):
+
+| Mode | English | Arabic |
+|---|---|---|
+| `rules` | Rules only. Fast and repeatable. No AI. | القواعد فقط. سريع وقابل للتكرار، بدون ذكاء اصطناعي. |
+| `agents` | AI agents only. Maestro directs Scout, Hunter, Auditor and Scribe. Results can vary. | الوكلاء فقط. المايسترو يدير الكشّاف والصيّاد والمدقّق والكاتب. قد تختلف النتائج. |
+| `hybrid` | Recommended. The agents use the rules as tools and Auditor checks every finding. Falls back to rules if the model is unavailable. | الموصى به. يستخدم الوكلاء القواعد كأدوات ويراجع المدقّق كل نتيجة. يعود إلى القواعد إذا تعذّر النموذج. |
+
+### Phases and acceptance criteria
+
+Each phase is one small PR. The DB agent owns migrations: the `analysis_mode` column, project and episodic memory tables, and agent run and step records, with row-level security and retention. This document owns the shapes below.
+
+| Phase | Scope | Acceptance |
+|---|---|---|
+| P0 | This section | Docs test passes; names match `agent_roles.py` |
+| P1 | `analysis_mode` setting, validation, contract fields, default `hybrid` with fallback to `rules` | Invalid value gives 422; old scans read as `rules`; hybrid without a model completes as `rules` with `fallback_reason`; contract round trip test |
+| P2 | Deterministic `ProjectMap` (Scout): languages, entry points, routes, config files, dependency manifests, trust boundaries, keyed by snapshot digest | Same input gives the same map; map holds paths and counts only, no file bodies; unit tests on the sample projects |
+| P3 | Auditor upgrade: location exists, quote present at the location, rule or deterministic check reproduces | Candidates with a missing file, line or quote are rejected with a reason code; the existing corpus recall does not drop |
+| P4 | Bounded Hunter tool loop behind a flag, rules as tools | Mocked model only in tests; budget exhaustion keeps the deterministic result; injected text in a snapshot never changes tool calls |
+| P5 | Interface selector and copy above | Both languages render; the selected mode shows in the report |
+| P6 | Benchmark runner mapping modes to C1, C2, C4 using recorded responses | Reproduces the recorded scores without network |
+
+`ProjectMap` shape (P2, data for the DB agent): `{digest, languages: {name: file_count}, entry_points: [path], routes: [{method, path, file}], config_files: [path], manifests: [path], boundaries: [{kind, file}]}`. Agent run record (P4): `{scan_id, role_id, status, steps, tokens_in, tokens_out, started_at, ended_at, reason_code}` where `role_id` is a stable id from section 1a.
+
 ## 8. Prompt-injection and output defenses
 
 - Submitted code, comments, README text and captured responses are data. They are passed inside delimiters as bounded excerpts, redacted as today's evidence is, and the system prompt states that nothing inside them is an instruction. The existing test that places an "ignore the policy" note in a snapshot stays as a regression test and gains a model-backed case.
