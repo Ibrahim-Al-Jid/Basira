@@ -126,6 +126,14 @@ services:
       migrate: {condition: service_completed_successfully}
       broker: {condition: service_healthy}
     networks: [internal]
+    healthcheck:
+      # No HTTP port: liveness is "the dispatcher loop process is alive".
+      # A heartbeat-based check needs backend instrumentation (follow-up).
+      test: ["CMD", "python", "-c", "import pathlib,sys; sys.exit(0 if b'platform_jobs' in pathlib.Path('/proc/1/cmdline').read_bytes() else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   worker:
     <<: *app
@@ -139,6 +147,14 @@ services:
       broker: {condition: service_healthy}
       scanner: {condition: service_started}
     networks: [internal]
+    healthcheck:
+      # Celery's own liveness probe: proves the worker process is up AND can
+      # still reach the broker, which a bare process check cannot.
+      test: ["CMD", "celery", "-A", "backend.platform_jobs:celery_app", "inspect", "--timeout", "5", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   scanner:
     <<: *app
@@ -160,6 +176,15 @@ services:
     pids_limit: 64
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      # No network (network_mode: none) and no shell tools to spare: liveness
+      # is "the offline worker loop is PID 1 and alive". /proc is available
+      # even with read_only.
+      test: ["CMD", "python", "-c", "import pathlib,sys; sys.exit(0 if b'offline_worker' in pathlib.Path('/proc/1/cmdline').read_bytes() else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   model-secrets:
     <<: *app
@@ -182,6 +207,15 @@ services:
       migrate: {condition: service_completed_successfully}
       model-secrets: {condition: service_completed_successfully}
     networks: [internal, egress]
+    healthcheck:
+      # /health is bearer-gated (hmac compare); use the same env token the
+      # gateway verifies against. With no token configured the gateway 401s
+      # everything and this check fails, which is the correct signal.
+      test: ["CMD", "python", "-c", "import os,urllib.request; req=urllib.request.Request('http://127.0.0.1:8001/health', headers={'Authorization': 'Bearer ' + os.environ.get('BASIRA_GATEWAY_TOKEN', '')}); urllib.request.urlopen(req, timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
 networks:
   internal: {internal: true}
