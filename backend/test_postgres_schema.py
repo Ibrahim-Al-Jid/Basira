@@ -269,6 +269,48 @@ def test_app_role_has_no_access_to_the_ownership_queue_or_legacy_connections(db)
                 assert granted == (False, False, False, False), f"basira_app must have no access to {table}"
 
 
+def test_credentials_are_scoped_and_attempts_are_definer_only(db):
+    """A password hash belongs to one account; the attempt counter belongs to no account at all."""
+    with db.connect() as connection:
+        enabled, _ = connection.execute(sa.text(
+            "SELECT c.relrowsecurity, c.relforcerowsecurity FROM pg_class AS c "
+            "JOIN pg_namespace AS n ON n.oid = c.relnamespace "
+            "WHERE n.nspname = 'public' AND c.relname = 'password_credentials'")).one()
+        assert enabled, "password_credentials must enable row level security"
+        policies = connection.execute(sa.text(
+            "SELECT policyname, permissive FROM pg_policies "
+            "WHERE schemaname = 'public' AND tablename = 'password_credentials'")).all()
+        assert ("personal_credential_access", "PERMISSIVE") in policies
+        attempts_enabled, _ = connection.execute(sa.text(
+            "SELECT c.relrowsecurity, c.relforcerowsecurity FROM pg_class AS c "
+            "JOIN pg_namespace AS n ON n.oid = c.relnamespace "
+            "WHERE n.nspname = 'public' AND c.relname = 'password_attempt_limits'")).one()
+        assert attempts_enabled, "password_attempt_limits must enable row level security"
+        attempts_policies = connection.execute(sa.text(
+            "SELECT policyname FROM pg_policies "
+            "WHERE schemaname = 'public' AND tablename = 'password_attempt_limits'")).all()
+        assert attempts_policies == [], "the counter is definer-only and needs no policy"
+        if not connection.execute(sa.text("SELECT 1 FROM pg_roles WHERE rolname = 'basira_app'")).first():
+            pytest.skip("basira_app role is not provisioned")
+        credential_grants = connection.execute(sa.text(
+            "SELECT has_table_privilege('basira_app', 'password_credentials', 'SELECT'), "
+            "has_table_privilege('basira_app', 'password_credentials', 'INSERT'), "
+            "has_table_privilege('basira_app', 'password_credentials', 'UPDATE'), "
+            "has_table_privilege('basira_app', 'password_credentials', 'DELETE')")).one()
+        assert credential_grants == (True, True, True, False), "a password row is replaced, never deleted"
+        assert connection.execute(sa.text(
+            "SELECT has_table_privilege('basira_app', 'password_attempt_limits', :privilege)"),
+            {"privilege": "SELECT"}).scalar_one() is False
+        assert connection.execute(sa.text(
+            "SELECT has_function_privilege('basira_app', "
+            "CAST(:signature AS regprocedure), 'EXECUTE')"),
+            {"signature": "public.basira_reserve_attempt(text,bigint,integer)"}).scalar_one()
+        assert not connection.execute(sa.text(
+            "SELECT has_function_privilege('public', "
+            "CAST(:signature AS regprocedure), 'EXECUTE')"),
+            {"signature": "public.basira_reserve_attempt(text,bigint,integer)"}).scalar_one()
+
+
 def test_no_connection_is_left_checked_out(db):
     """A leaked connection here exhausts the pool the rest of the suite shares."""
     assert db.pool.checkedout() == 0
