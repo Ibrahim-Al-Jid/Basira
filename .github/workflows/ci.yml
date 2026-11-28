@@ -46,6 +46,7 @@ jobs:
     timeout-minutes: 20
     env:
       BASIRA_EVAL_NETWORK: "1"
+      BASIRA_EVAL_CACHE: /tmp/basira-dvwa-cache
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -66,6 +67,13 @@ jobs:
         run: node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs
       - name: Backend tests (includes self-security tests)
         run: python -m pytest backend -q
+      # Digest-named download cache for the pinned DVWA files; entries are still
+      # sha256-verified on every read, so a poisoned cache fails the same check
+      # a bad download would. Keyed on the manifest so a re-pin starts fresh.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: /tmp/basira-dvwa-cache
+          key: dvwa-${{ hashFiles('tests/fixtures/detection-targets/manifest.json') }}
       - name: Quality gate (corpus and DVWA, fails on a drop in precision or recall or a rise in false positives)
         run: python -m backend.quality_gate --network
 
