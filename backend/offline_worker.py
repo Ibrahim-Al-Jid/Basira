@@ -17,6 +17,7 @@ from .artifact_review import (
 )
 from .checks import openapi_contract, zap_passive
 from .contracts import AgentExecution
+from .observability import log_failure
 from .scan_contracts import ALL_INPUTS, ROLE_TOOLS, json_digest
 from .rules import RULES
 from .source_adapters import SOURCE_TOOLS
@@ -206,7 +207,8 @@ def scan_payload(data, *, external=False, progress=None):
                            "task_runs": [*before_analysis, *result["task_runs"], *after_analysis]}}
     except InputError as exc:
         return {"error": str(exc)}
-    except Exception:
+    except Exception as exc:
+        log_failure("analysis_failed", exc)
         return {"error": "تعذّر تحليل الملفات المقدّمة."}
 
 
@@ -242,8 +244,8 @@ def run():
                 result = scan_payload(data, external=True, progress=progress)
                 if claimed.exists():
                     write_json(item.with_suffix(".result"), result)
-            except (OSError, ValueError, RecursionError):
-                pass
+            except (OSError, ValueError, RecursionError) as exc:
+                log_failure("spool_request_failed", exc)
             finally:
                 claimed.unlink(missing_ok=True)
         time.sleep(0.25)

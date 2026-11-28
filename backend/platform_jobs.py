@@ -3,7 +3,6 @@ import base64
 import json
 import os
 from pathlib import Path
-import sys
 import time
 
 from celery import Celery
@@ -12,6 +11,7 @@ from . import model_budget, platform_runtime as store
 from .artifact_review import RULESET_VERSION
 from .contracts import Report
 from .model_gateway import enrich
+from .observability import log_failure
 from .offline_worker import scan_payload, write_json
 
 broker = os.environ.get("BASIRA_REDIS_URL", "redis://127.0.0.1:6379/0")
@@ -125,8 +125,9 @@ def execute_scan(org_id, project_id, scan_id):
             context = restore_review_context(org_id, project_id, scan_id, row["lease"], review)
             if context:
                 report["review_context"] = context
-    except (OSError, ValueError, KeyError, RuntimeError):
+    except (OSError, ValueError, KeyError, RuntimeError) as exc:
         # Leave the lease and outbox in place for another bounded attempt.
+        log_failure("scan_attempt_failed", exc)
         return
     store.finish(org_id, project_id, scan_id, row["lease"], report=report)
 
@@ -167,8 +168,8 @@ def dispatcher():
                 store.purge_expired_rows()
             if dispatch_once():
                 continue
-        except Exception:
-            print("Task delivery unavailable; retrying.", file=sys.stderr)
+        except Exception as exc:
+            log_failure("dispatch_failed", exc)
         time.sleep(1)
 
 
