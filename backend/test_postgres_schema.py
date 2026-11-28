@@ -20,6 +20,9 @@ TENANT_TABLES = (
     "project_evidence_records", "project_evidence_links", "project_github_sources",
 )
 
+AGENT_MEMORY_TABLES = ("project_maps", "project_candidate_verdicts", "scan_agent_runs",
+                       "scan_agent_steps")
+
 FUNCTIONS = (
     "basira_expire_artifacts()", "basira_purge_expired()",
     "basira_model_credential(text,text)", "basira_start_model_call(text,text,text,text,text,text)",
@@ -338,6 +341,32 @@ def test_organizations_and_grants_are_scoped(db):
             "has_table_privilege('basira_app', 'project_grants', 'DELETE')")).one()
         assert granted == (True, True, True, False, True, True, True, False), (
             "organizations are never dropped and grants are revoked, never deleted")
+
+
+def test_agent_memory_is_scoped_and_expires(db):
+    """Project memory and the agent trail hold tenant data, so they are scoped and they expire."""
+    policies = all_rows(db,
+        "SELECT tablename, policyname, permissive FROM pg_policies WHERE schemaname = 'public' "
+        "AND tablename = ANY(:names)", names=list(AGENT_MEMORY_TABLES))
+    for name in AGENT_MEMORY_TABLES:
+        found = {(row[1], row[2]) for row in policies if row[0] == name}
+        assert ("project_access", "PERMISSIVE") in found, f"{name} needs the bound-project policy"
+        assert ("personal_project_access", "RESTRICTIVE") in found, f"{name} needs the owner path"
+    body = scalar(db, "SELECT prosrc FROM pg_proc WHERE oid = CAST(:signature AS regprocedure)",
+                  signature="public.basira_purge_expired()")
+    for name in AGENT_MEMORY_TABLES:
+        assert name in body, f"basira_purge_expired must delete stale rows from {name}"
+    default = scalar(db,
+        "SELECT column_default FROM information_schema.columns "
+        "WHERE table_schema = 'public' AND table_name = 'project_scans' "
+        "AND column_name = 'analysis_mode'")
+    assert default and "rules" in default
+    assert scalar(db,
+        "SELECT count(*) FROM pg_constraint WHERE conname = 'ck_project_scans_analysis_mode'") == 1
+    if scalar(db, "SELECT count(*) FROM pg_roles WHERE rolname = 'basira_app'"):
+        for name in AGENT_MEMORY_TABLES:
+            assert not scalar(db, "SELECT has_table_privilege('basira_app', CAST(:name AS text), 'DELETE')",
+                              name=name), f"basira_app must not delete from {name}"
 
 
 def test_no_connection_is_left_checked_out(db):
