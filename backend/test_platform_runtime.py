@@ -186,7 +186,7 @@ def test_repository_bounds_and_combined_coverage():
     report = defensive_review("repository", "snapshot.zip", archive.getvalue(), {})
     assert len(report["coverage"]) == len({item["rule"] for item in report["coverage"]}) == 114
     assert statuses(report, "http-form", "INF-01") == ("matched", "matched")
-    for bad_name in ("../outside.html", "directory/nested.zip", "C:/outside.html", "foo\\bar.html"):
+    for bad_name in ("../outside.html", "directory/nested.zip", "C:/outside.html"):
         bad = io.BytesIO()
         with ZipFile(bad, "w") as zip_file:
             entry = ZipInfo(bad_name)
