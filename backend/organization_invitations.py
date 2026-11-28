@@ -6,11 +6,11 @@ from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, select
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, select, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .identity import require_membership, require_user
-from .platform_db import Base, Membership, Organization, new_id, platform_session, utc_now
+from .platform_db import Base, Membership, Organization, bind_org, new_id, platform_session, utc_now
 
 router = APIRouter(prefix="/api/platform", tags=["Organization invitations"])
 INVITATION_TTL = timedelta(hours=24)
@@ -73,6 +73,7 @@ def invitations(org_id: str, request: Request):
     user = require_user(request)
     with platform_session() as db:
         require_owner(db, org_id, user.id)
+        bind_org(db, org_id)
         rows = db.scalars(active_invitations(org_id, utc_now()).order_by(OrganizationInvitation.expires_at))
         return {"invitations": [public_row(row) for row in rows]}
 
@@ -82,6 +83,7 @@ def create_invitation(org_id: str, body: InvitationInput, request: Request):
     user = require_user(request)
     with platform_session() as db:
         require_owner(db, org_id, user.id)
+        bind_org(db, org_id)
         lock_organization(db, org_id)
         now = utc_now()
         if len(db.scalars(active_invitations(org_id, now).limit(MAX_ACTIVE)).all()) >= MAX_ACTIVE:
@@ -99,6 +101,7 @@ def revoke_invitation(org_id: str, invitation_id: str, request: Request):
     user = require_user(request)
     with platform_session() as db:
         require_owner(db, org_id, user.id)
+        bind_org(db, org_id)
         lock_organization(db, org_id)
         now = utc_now()
         row = db.scalar(active_invitations(org_id, now).where(OrganizationInvitation.id == invitation_id))
@@ -112,13 +115,20 @@ def accept_invitation(body: AcceptInvitation, request: Request):
     user = require_user(request)
     with platform_session() as db:
         token_digest = digest(body.token)
-        org_id = db.scalar(select(OrganizationInvitation.org_id).where(
-            OrganizationInvitation.token_digest == token_digest,
-            OrganizationInvitation.closed_at.is_(None),
-            OrganizationInvitation.expires_at > utc_now(),
-        ))
+        # The token is the only input here, so the organization is resolved outside row level
+        # security; everything after that runs with the organization bound.
+        if db.get_bind().dialect.name == "postgresql":
+            org_id = db.scalar(text("SELECT org_id FROM public.basira_invitation_org(:digest)"),
+                               {"digest": token_digest})
+        else:
+            org_id = db.scalar(select(OrganizationInvitation.org_id).where(
+                OrganizationInvitation.token_digest == token_digest,
+                OrganizationInvitation.closed_at.is_(None),
+                OrganizationInvitation.expires_at > utc_now(),
+            ))
         if not org_id:
             raise HTTPException(404, "الدعوة غير متاحة.")
+        bind_org(db, org_id)
         org = lock_organization(db, org_id)
         now = utc_now()
         row = db.scalar(active_invitations(org_id, now).where(

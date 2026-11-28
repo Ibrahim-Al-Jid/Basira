@@ -246,6 +246,12 @@ def revoke_session(db, digest):
         ).values(revoked_at=utc_now()))
 
 
+def bind_org(db, org_id):
+    """Bind the organization for the tables that are scoped by organization rather than by project."""
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(text("SELECT set_config('basira.org_id', :org_id, true)"), {"org_id": org_id})
+
+
 def bind_legacy_project_access(db):
     """Open the membership-scoped path: those queries carry their own membership and grant checks."""
     if personal_projects_enabled():
