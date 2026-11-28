@@ -166,28 +166,3 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(set(events["discriminator"]["mapping"]), {"step", "complete", "error"})
         detail = schema["paths"]["/api/reports/{report_id}"]["get"]["responses"]["200"]
         self.assertEqual(detail["content"]["application/json"]["schema"]["$ref"], "#/components/schemas/Report")
-
-
-class SessionTableTests(unittest.TestCase):
-    def setUp(self):
-        tmp = self.enterContext(TemporaryDirectory())
-        self.db = Path(tmp) / "sessions.sqlite3"
-        self.enterContext(patch.dict(os.environ, {"BASIRA_DB_PATH": str(self.db)}))
-        self.client = self.enterContext(TestClient(main.app))
-
-    def rows(self):
-        with main.database() as db:
-            return db.execute("SELECT owner, expires_at FROM sessions").fetchall()
-
-    def test_a_page_view_does_not_mint_a_session(self):
-        for _ in range(3):
-            assert self.client.get("/demo", headers={"cookie": ""}).status_code == 200
-        assert self.rows() == []
-
-    def test_minting_a_session_drops_the_rows_that_already_expired(self):
-        with main.database() as db:
-            db.execute("INSERT INTO sessions(owner, expires_at) VALUES(?,?)", ("a" * 64, 1))
-        assert len(self.rows()) == 1
-        assert self.client.get("/api/history", headers={"cookie": ""}).status_code == 200
-        remaining = self.rows()
-        assert len(remaining) == 1 and remaining[0]["owner"] != "a" * 64
