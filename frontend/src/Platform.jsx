@@ -50,6 +50,8 @@ const eventText = {
   "scan.failed_input_expired": ["انتهت مدة الاحتفاظ بالمدخل قبل اكتمال الفحص.", "The input expired before the scan finished."],
   "scan.failed_provenance": ["تعذّر التحقق من مصدر الفحص أو النطاق المسجّل.", "The scan source or recorded scope could not be verified."],
   "scan.failed_retry_limit": ["وصلت المهمة للحد الأقصى لمحاولات التشغيل.", "The scan reached its retry limit."],
+  "scan.agent_failed": ["تعذّر تشغيل وضع الوكلاء، فمتّحسبش النتيجة كفحص وكلاء.", "Agent mode could not run, so this result is not counted as an agent scan."],
+  "scan.agent_fallback": ["مسار الوكلاء ما اكتملش، وكمّلنا بالقواعد.", "The agent path did not finish, so the scan continued with rules."],
   "scan.failed": ["تعذّر تنفيذ الفحص.", "The scan could not be completed."],
 };
 const attemptText = {
