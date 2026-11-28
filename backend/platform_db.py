@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from sqlalchemy import (
     CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, LargeBinary, String,
-    UniqueConstraint, create_engine, event, select, text,
+    UniqueConstraint, create_engine, event, func, select, text,
 )
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
@@ -135,6 +135,18 @@ class PersonalGitHubState(Base):
     session_digest: Mapped[str] = mapped_column(String(64))
     ciphertext: Mapped[bytes] = mapped_column(LargeBinary)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ProjectOwnershipReview(Base):
+    """A project held back from the personal workspace until an administrator records a decision."""
+
+    __tablename__ = "project_ownership_reviews"
+
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), primary_key=True)
+    reason: Mapped[str] = mapped_column(String(32))
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    resolution_ref: Mapped[str | None] = mapped_column(String(160))
 
 
 class ProjectGrant(Base):
