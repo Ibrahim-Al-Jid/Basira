@@ -3,18 +3,8 @@
 ## 2026-11-28
 
 ### Added
-- Documentation set for running and operating Basira, in English, with every command checked against `main` at `3586a5e` on 28 November 2026 (Python 3.13.18, Node 22.23.5):
-  - `docs/SETUP.md`: the three run modes (local lab, Windows `ops/start-local.ps1`, Docker Compose), the model gateway, the GitHub App, where the data lives, and a per-item record of what was and was not run.
-  - `docs/CONFIGURATION.md`: every `BASIRA_*` variable with its default and effect, the two separate GitHub paths, the model gateway and the secrets rules.
-  - `docs/API.md`: the 78 operations on 60 paths, grouped, with the session cookies, the role-to-action mapping, the error codes, request examples and the snippet that regenerates the list from the code.
-  - `docs/TROUBLESHOOTING.md`: symptoms, causes and the check that confirms each one, for sign-in, Compose, scans, the gateway, tests and exports.
-- `docs/README.md` lists the new pages and `docs/two-account-flow.md`, which was missing from the index.
-
-### Changed
-- Plan: current position re-verified at `3586a5e` (407 passed, 2 skipped, 8 subtests; frontend build; six routes at 200) and the older 251-test figure kept as an earlier record. New section 3b lists every merged pull request (#1 to #53) under its phase, so each status can be traced to its evidence.
-- Plan statuses corrected: P09 is partial with its open items named (per-tool progress, slow-scan confirmation, parity test) instead of "slice (a) tokens done"; P10 records that the look is settled and points at the merged frontend; P18 is partial with the release checklist and Windows setup merged and Docker still unverified.
-- Plan decisions G to L recorded with their source: keep the current look and overhaul in place, remove the bell and palette picker, Arabic sidebar on the right, two-account pull requests with merge autonomy, and no paid model spend. G to I, K and L come from the owner's own messages on 28 November 2026 (WhatsApp, 08:11, 08:25, 08:26 and 08:33).
-- README: the verification paragraph now states the 28 November run and its numbers, and the documentation section links the setup, configuration, API and troubleshooting pages.
+- Container operations: every service and the database and broker log through the `json-file` driver capped at 10 MB times 3 files, the `app` service has a healthcheck and the image has a `HEALTHCHECK`, so a hung process is restarted or routed around instead of looking up. `app`, `worker`, `dispatcher` and `model-gateway` run with `cap_drop: [ALL]` and `no-new-privileges`, which they do not need (they already run as an unprivileged user); the scanner keeps its own isolation.
+- The image build runs `pip check` after installing the requirements and sets `PYTHONDONTWRITEBYTECODE=1`; `.dockerignore` keeps `tests/`, `docs/` and `backend/test_*.py` out of the build context and the runtime image.
 
 ## 2026-11-27
 
