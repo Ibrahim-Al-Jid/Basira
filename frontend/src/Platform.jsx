@@ -794,4 +794,4 @@ export function Platform({ location, navigate, lang, session, preferences, perso
     onLogout={() => { setUser(null); navigate("/", { replace: true }); }} />;
   return <Dashboard location={location} navigate={navigate} user={user} lang={lang} invitationRevision={invitationRevision}
     personal={personal} onProjectsChanged={onProjectsChanged} />;
-                                                   }
+}
