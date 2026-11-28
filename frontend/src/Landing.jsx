@@ -107,40 +107,6 @@ function CoverageDirectory({ follow, t }) {
   );
 }
 
-export function OverviewSidebar({ lang, follow, location }) {
-  const t = (ar, en) => lang === "ar" ? ar : en;
-  const { pathname, hash } = location;
-  const home = pathname === "/overview" || pathname === "/";
-  const scanPath = "/new-scan";
-  const links = [
-    [Grid2X2, "/overview", t("نظرة عامة", "Overview")],
-    [Folder, "/projects", t("المشاريع", "Projects")],
-    [ScanLine, scanPath, t("فحص جديد", "New scan")],
-    ...(home ? [
-      [Workflow, "#agents", t("فريق المراجعة", "Review agents")],
-    ] : []),
-    [FileCheck2, "/reports", t("التقارير", "Reports")],
-    [History, "/scans", t("سجل الفحوصات", "Scan history")],
-    [Settings, "/settings", t("الإعدادات", "Settings")],
-  ];
-  return (
-    <aside className="overview-sidebar">
-      <WorkspaceBrand href="/" follow={follow} lang={lang} />
-      <nav className="overview-nav" aria-label={t("التنقل الرئيسي", "Main navigation")}>
-        {links.map(([Icon, path, label]) => (
-          <a key={path} href={path} aria-label={label} title={label}
-            aria-current={path === hash ? "location"
-              : (path === pathname && (!home || !hash)) ? "page" : undefined}
-            onClick={path.startsWith("#") ? undefined : (event) => follow(event, path)}>
-            <Icon size={18} aria-hidden="true" />
-            <span>{label}</span>
-          </a>
-        ))}
-      </nav>
-    </aside>
-  );
-}
-
 export function Landing({ follow, lang, authenticated }) {
   const t = (ar, en) => lang === "ar" ? ar : en;
   const number = (value) => value.toLocaleString(lang === "ar" ? "ar-EG" : "en");
