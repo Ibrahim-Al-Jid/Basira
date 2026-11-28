@@ -23,7 +23,7 @@ Facts that matter for the design:
 
 ## 1a. Names
 
-The five roles have one stable id and one display name each. The id is what rows, events, contracts and tool allow-lists store, and it never changes, so existing data stays valid. The name is what the interface and the docs show. The registry is `backend/agent_roles.py`, and `backend/test_agent_roles.py` fails if the interface or the docs drift from it.
+The five roles have one stable id and one display name each. The id is what rows, events, contracts and tool allow-lists store, and it never changes, so existing data stays valid. The name is what the interface and the docs show.
 
 | Id (stored) | English | Arabic | Job |
 |---|---|---|---|
@@ -138,7 +138,7 @@ Each phase is one small PR. The DB agent owns migrations: the `analysis_mode` co
 
 | Phase | Scope | Acceptance |
 |---|---|---|
-| P0 | This section | Docs test passes; names match `agent_roles.py` |
+| P0 | This section | Docs test passes; names match this section |
 | P1 | `analysis_mode` setting, validation, contract fields, default `hybrid` with fallback to `rules` | Invalid value gives 422; old scans read as `rules`; hybrid without a model completes as `rules` with `fallback_reason`; contract round trip test |
 | P2 (**done**, #148) | Deterministic `ProjectMap` (Scout): languages, entry points, routes, config files, dependency manifests, trust boundaries, keyed by snapshot digest | Same input gives the same map; map holds paths and counts only, no file bodies; unit tests on the sample projects |
 | P3 (**done**, #150) | Auditor upgrade: location exists, quote present at the location, rule or deterministic check reproduces | Candidates with a missing file, line or quote are rejected with a reason code; the existing corpus recall does not drop |
