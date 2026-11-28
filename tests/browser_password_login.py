@@ -37,15 +37,10 @@ def main():
         report = project_scan(page, project, '<form action="/session"><input name="password" type="password"></form>')
         report_link = f"{ORIGIN}/reports/{report}?project={project}"
 
-        # Lab report created before signup is claimable from the reports archive and lands in the project.
-        lab = context.request.post(ORIGIN + "/api/run", data={"source": "<form action='http://evil.example/'>"})
-        assert lab.status == 200, lab.text()
+        # The project reports archive lists the scan and has no lab-report claim panel (the claim flow is retired).
         page.goto(f"{ORIGIN}/reports?project={project}")
-        panel = page.locator(".reports-claim")
-        expect(panel.get_by_role("heading", name="تقارير المختبر في جلستك", exact=True)).to_be_visible()
-        panel.get_by_role("button", name="احفظ في المشروع", exact=True).click()
-        expect(panel).to_have_count(0)
-        expect(page.locator(".reports-list .reports-row strong").get_by_text("كود ملصوق", exact=True)).to_be_visible()
+        expect(page.locator(".reports-list .reports-row").first).to_be_visible()
+        assert page.locator(".reports-claim").count() == 0
         page.goto(report_link)
         open_report_section(page, "coverage")
         expect(page.locator(".reports-coverage tbody tr")).to_have_count(catalog_rule_count(context.request))
@@ -66,7 +61,7 @@ def main():
         expect(page.locator(".reports-coverage tbody tr")).to_have_count(catalog_rule_count(context.request))
         assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
         browser.close()
-    print("Password browser flow passed: signup, scoped project, upload, background scan, lab report claim, logout, login and report reload.")
+    print("Password browser flow passed: signup, scoped project, upload, background scan, logout, login and report reload.")
 
 
 if __name__ == "__main__":
