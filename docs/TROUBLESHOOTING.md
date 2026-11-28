@@ -55,7 +55,7 @@ Symptoms are grouped by where they appear. Each entry gives the cause and the ch
 | Backend tests fail in odd ways on Python 3.10 | The project targets 3.13 | Use 3.13. A 3.10 run is not evidence (see [RELEASE.md](RELEASE.md)) |
 | `python -m backend.quality_gate` exits 1 with `REGRESSION` | Precision or recall dropped, or false positives rose, against `tests/fixtures/quality-baseline.json` | Read the printed numbers. Fix the regression. Never lower the baseline to pass; a lower number needs the owner's decision recorded in the plan |
 | Quality gate cannot download DVWA files | The network is blocked | The offline corpus still runs. Use `--network` only where the pinned files can be fetched |
-| Playwright suite cannot find the app | The suites expect `BASIRA_QA_ORIGIN`, default `http://127.0.0.1:8776` | Start a separate stack on that port with test data, or set the variable |
+| Playwright suite cannot find the app | The suites read their origin from different variables: `BASIRA_QA_ORIGIN` (no default; `browser_smoke.py` and `browser_personal_projects.py`), `BASIRA_TEST_URL` (default `http://127.0.0.1:8766`; `browser_local_build.py`) and `BASIRA_TEST_PLATFORM_URL` (default `http://127.0.0.1:8901`; the release, account, workspace, password, source intake and compose-release suites). CI boots the stack on port 8901 | Start a stack with test data and set the variable the suite reads, or the default port it expects |
 
 ## Reports and exports
 
