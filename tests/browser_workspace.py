@@ -25,7 +25,7 @@ def landing(browser):
             expect(page.locator("html")).to_have_attribute("data-theme", "dark")
             expect(page.locator("#entry-title")).to_be_visible()
             expect(page.locator("a.entry-cta[href='/signin']").first).to_be_visible()
-            assert page.locator(".overview-sidebar").count() == 0
+            assert page.locator(".overview-sidebar, .workspace-sidebar").count() == 0
             reflows(page)
             page.goto(ORIGIN + "/overview")
             expect(page.locator("#landing-title")).to_be_visible()
@@ -63,7 +63,7 @@ def workspace(browser):
     })
     assert account.status == 201, account.text()
     assert page.goto(ORIGIN + "/signin").ok
-    page.wait_for_url("**/dashboard")
+    page.wait_for_url("**/projects")
     org = context.request.post(ORIGIN + "/api/platform/organizations", data={"name": "Workspace QA"})
     assert org.status == 201
     project = context.request.post(f"{ORIGIN}/api/platform/organizations/{org.json()['id']}/projects", data={"name": "Workspace scope"})

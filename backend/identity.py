@@ -121,6 +121,21 @@ class ProfileInput(BaseModel):
         return value.lower()
 
 
+class AvatarInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    image: str | None = Field(default=None, max_length=60000)
+
+    @field_validator("image")
+    @classmethod
+    def clean_image(cls, value):
+        if not value:
+            return None
+        if not re.fullmatch(r"data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+", value):
+            raise ValueError("Use a JPEG, PNG or WebP image")
+        return value
+
+
 def public_name(name):
     return name if name and "@" not in name else ""
 
@@ -133,6 +148,7 @@ def account_view(user):
     created = user.created_at
     return {"id": user.id, "display_name": public_name(user.display_name),
             "first_name": user.first_name, "last_name": user.last_name, "username": user.username,
+            "avatar": user.avatar or "",
             "created_at": created if created.tzinfo else created.replace(tzinfo=UTC)}
 
 
@@ -387,6 +403,19 @@ def update_profile(body: ProfileInput, request: Request):
     except IntegrityError:
         raise HTTPException(409, "اسم المستخدم مستخدم بالفعل.") from None
     return updated
+
+
+@router.put("/auth/avatar")
+def update_avatar(body: AvatarInput, request: Request):
+    actor = require_user(request)
+    with platform_session() as db:
+        bind_owner(db, actor.id)
+        user = db.scalar(select(User).where(User.id == actor.id, User.disabled_at.is_(None)).with_for_update())
+        if not user:
+            raise HTTPException(401, "الحساب غير متاح.")
+        user.avatar = body.image
+        db.flush()
+        return account_view(user)
 
 
 @router.post("/auth/logout", status_code=204)

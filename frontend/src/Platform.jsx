@@ -1,15 +1,16 @@
 import React, { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { Activity, FileText, Plus, UploadCloud } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, Folder, Plus, UploadCloud } from "lucide-react";
 import { post } from "./data";
 import { api, action, errorText, json, translate } from "./platformClient";
 import { AccountSettings } from "./AccountSettings";
 import { ProjectAccess } from "./ProjectAccess";
 import { DirectoryLink, ProjectDirectory } from "./ProjectDirectory";
-import { PersonalDirectory, PersonalGitHub, PersonalProjectManagement } from "./PersonalWorkspace";
+import { ProjectTabs } from "./ProjectTabs";
+import { PersonalDirectory, PersonalProjectManagement } from "./PersonalWorkspace";
 import { SignIn } from "./SignIn";
 import AgentLanes from "./AgentLanes";
 import ReplayPanel from "./ReplayPanel";
-import DashboardView from "./DashboardView";
+import { ProjectSummary } from "./Overview";
 import "./platform.css";
 import "./scan-source.css";
 
@@ -158,7 +159,7 @@ function ScanStatus({ projectId, scanId, lang }) {
     <div className="project-workspace scan-status-page">
       <header className="project-header">
         <div>
-          <a className="workspace-back" href={"/scans?project=" + projectId}>{t("سجل الفحوصات", "Scan history")}</a>
+          <a className="workspace-back" href={"/projects?project=" + projectId + "&view=scans"}>{t("فحوصات المشروع", "Project scans")}</a>
           <h1>{t("متابعة الفحص", "Scan progress")}</h1>
         </div>
         {scan?.report_available && <a className="btn primary" href={reportLink(projectId, scan.id)}>
@@ -195,15 +196,6 @@ function ScanStatus({ projectId, scanId, lang }) {
   );
 }
 
-function ProjectSelector({ projects, value, onChange, t, required = false }) {
-  return <label>{t("المشروع الحالي", "Project")}
-    <select value={value || ""} onChange={(event) => onChange(event.target.value)} required={required}>
-      <option value="">{t("اختار مشروع", "Select a project")}</option>
-      {projects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-    </select>
-  </label>;
-}
-
 function ScanList({ project, scans, lang, t, emptyMessage }) {
   return scans.length ? <ul className="workspace-scan-list">{scans.map((item) => <li key={item.id}>
     <a href={scanLink(project, item.id)} className="workspace-scan-title">
@@ -214,29 +206,9 @@ function ScanList({ project, scans, lang, t, emptyMessage }) {
   </li>)}</ul> : <p>{emptyMessage || t("لسه مفيش فحوصات للمشروع ده.", "This project has no scans yet.")}</p>;
 }
 
-function RecentScanTable({ project, scans, lang, t }) {
-  if (!scans.length) return <ScanList project={project} scans={scans} lang={lang} t={t} />;
-  return <div className="command-table-wrap" role="region" tabIndex={0} aria-label={t("جدول الفحوصات", "Scans table")}>
-    <table className="command-table">
-      <thead><tr>
-        <th scope="col">{t("مصدر الفحص", "Scan source")}</th>
-        <th scope="col">{t("الحالة", "Status")}</th>
-        <th scope="col">{t("التاريخ", "Date")}</th>
-      </tr></thead>
-      <tbody>{scans.map((item) => <tr key={item.id}>
-        <th scope="row"><a className="workspace-scan-title" href={scanLink(project, item.id)}>
-          <FileText size={18} aria-hidden="true" /><bdi>{item.artifact.name}</bdi>
-        </a></th>
-        <td><span className="workspace-badge" data-state={item.state}>{label(states, item.state, t)}</span></td>
-        <td><time dateTime={item.created_at}>{new Date(item.created_at).toLocaleDateString(lang === "ar" ? "ar-EG" : "en")}</time></td>
-      </tr>)}</tbody>
-    </table>
-  </div>;
-}
-
-function NewScan({ projects, project, choose, navigate, lang, personal }) {
+function NewScan({ projects, project, navigate, lang, personal }) {
   const t = translate(lang);
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(1);
   const [kind, setKind] = useState("");
   const [source, setSource] = useState(null);
   const [githubSource, setGithubSource] = useState(null);
@@ -277,20 +249,15 @@ function NewScan({ projects, project, choose, navigate, lang, personal }) {
   const validWebsite = /^https:\/\/[A-Za-z0-9.-]+(?::443)?(?:\/[A-Za-z0-9._~/-]*)?$/.test(targetReference.trim());
   const websiteEvidence = ["har", "openapi", "zap"].includes(kind);
   const requiresAddress = kind === "zap" && !profileValue?.asset_linked;
-  const labels = [t("المشروع", "Project"), t("الملف", "Source"), t("المراجعة", "Review")];
+  const labels = [t("الملف", "Source"), t("المراجعة", "Review")];
 
-  const skippedProject = useRef(false);
   useEffect(() => () => request.current?.abort(), []);
-  useEffect(() => { if (step > 0) heading.current?.focus(); }, [step]);
-  // Personal flow: the project is already chosen and the scope is loaded, so the first screen has nothing left to ask.
+  useEffect(() => { if (step > 1) heading.current?.focus(); }, [step]);
+  // The project comes from the page the scan was started on. Its default input type is chosen once the scope loads.
   useEffect(() => {
-    if (!personal || step !== 0 || skippedProject.current || !access || !allowedKinds.length) return;
-    skippedProject.current = true;
-    if (!sourceKinds.includes(kind)) {
-      setKind(allowedKinds.includes("repository") ? "repository" : allowedKinds[0]);
-      setSource(null);
-    }
-    setStep(1);
+    if (!access || !allowedKinds.length || sourceKinds.includes(kind)) return;
+    setKind(allowedKinds.includes("repository") ? "repository" : allowedKinds[0]);
+    setSource(null);
   });
   useEffect(() => {
     if (!policyPath) return;
@@ -374,23 +341,29 @@ function NewScan({ projects, project, choose, navigate, lang, personal }) {
     }
   }
 
-  if (!candidates.length) return <Panel title={t("اختار مشروع للفحص", "Choose a project to scan")}>
-    <p>{personal ? t("أنشئ مشروع قبل ما تبدأ أول فحص.", "Create a project before starting your first scan.")
-      : t("محتاج مشروع عندك فيه صلاحية تشغيل الفحص.", "Create a project or ask for permission to run scans in an existing project.")}</p>
-    {!personal && <a className="btn primary" href="/projects">{t("فتح المشاريع", "Open projects")}</a>}
+  if (!project) return <Panel title={t("اختار المشروع اللي هتفحصه", "Choose the project to scan")}>
+    {candidates.length ? <ul className="project-choice">{candidates.map((item) => <li key={item.id}>
+      <DirectoryLink to={newScanLink(item.id)} navigate={navigate}><Folder size={18} aria-hidden="true" /><bdi>{item.name}</bdi></DirectoryLink>
+    </li>)}</ul> : <p>{personal ? t("أنشئ مشروع قبل ما تبدأ أول فحص.", "Create a project before starting your first scan.")
+      : t("محتاج مشروع عندك فيه صلاحية تشغيل الفحص.", "Create a project or ask for permission to run scans in an existing project.")}</p>}
+    <DirectoryLink className="btn" to="/projects" navigate={navigate}>{t("فتح المشاريع", "Open projects")}</DirectoryLink>
+  </Panel>;
+  if (!access) return <Panel title={t("مفيش صلاحية فحص", "Scanning is not available")}>
+    <p>{t("مفيش عندك صلاحية تشغيل فحوصات في المشروع ده.", "You do not have permission to run scans in this project.")}</p>
+    <DirectoryLink className="btn" to={"/projects?project=" + project.id} navigate={navigate}>{t("رجوع للمشروع", "Back to the project")}</DirectoryLink>
   </Panel>;
 
   return <section className="card project-panel workspace-wizard" data-step={step} aria-labelledby={title}>
     <ol className="workspace-steps" aria-label={t("خطوات الفحص", "Scan steps")}>{labels.map((text, index) =>
-      <li key={index} aria-current={step === index ? "step" : undefined}><span>{number(index + 1, lang)}</span>{text}</li>)}</ol>
-    <h2 id={title} ref={heading} tabIndex={-1}>{labels[step]}</h2>
+      <li key={index} aria-current={step === index + 1 ? "step" : undefined}><span>{number(index + 1, lang)}</span>{text}</li>)}</ol>
+    <h2 id={title} ref={heading} tabIndex={-1}>{labels[step - 1]}</h2>
     {error && <p className="workspace-error" role="alert">{error}</p>}
     {staleProfile && <button className="btn" onClick={() => {
       setStaleProfile(false);
       setProfile(null);
       setAcknowledged(false);
       setError("");
-      setStep(0);
+      setStep(1);
       setRetryProfile((value) => value + 1);
       idempotency.current = crypto.randomUUID();
     }}>{t("راجع نطاق الفحص من جديد", "Review the updated scope")}</button>}
@@ -398,32 +371,6 @@ function NewScan({ projects, project, choose, navigate, lang, personal }) {
       setProfileFailure(null);
       setRetryProfile((value) => value + 1);
     }}>{t("إعادة المحاولة", "Retry")}</button></p>}
-    {step === 0 && <form className="project-form" onSubmit={(event) => {
-      event.preventDefault();
-      if (access && allowedKinds.length) {
-        if (!sourceKinds.includes(kind)) {
-          setKind(allowedKinds[0]);
-          setSource(null);
-        }
-        setStep(1);
-      }
-    }}>
-      <ProjectSelector projects={candidates} value={access ? project.id : ""} onChange={(value) => updateEvidence(() => {
-        choose(value);
-        setKind("");
-        setSource(null);
-        setRepository("");
-        setCommit("");
-        setTargetReference("");
-      })} t={t} required />
-      {access && !profileValue && !profileError && <p role="status">{t("بنحمّل نطاق الفحص…", "Loading scan scope…")}</p>}
-      {profileValue && !personal && sourceKinds.length === 1 && <p className="workspace-hint">
-        {t("سياسة المشروع بتسمح بنوع مدخل واحد حاليًا.", "The current project policy allows one input type.")}
-      </p>}
-      <div className="workspace-actions">
-        <button className="btn primary" disabled={!access || !allowedKinds.length}>{t("متابعة إلى الملف", "Continue to source")}</button>
-      </div>
-    </form>}
     {step === 1 && <form className="project-form" onSubmit={(event) => {
       event.preventDefault();
       if (useGithub) {
@@ -533,7 +480,7 @@ function NewScan({ projects, project, choose, navigate, lang, personal }) {
       </label>}
       </>}
       <div className="workspace-actions">
-        <button className="btn" type="button" onClick={() => setStep(0)}>{t("رجوع", "Back")}</button>
+        <DirectoryLink className="btn" to={"/projects?project=" + project.id} navigate={navigate}>{t("إلغاء", "Cancel")}</DirectoryLink>
         <button className="btn primary" disabled={(useGithub && (!githubConnection || !validCommit)) || (useWebsite && !validWebsite)}>{t("مراجعة الفحص", "Review scan")}</button>
       </div>
     </form>}
@@ -557,7 +504,7 @@ function NewScan({ projects, project, choose, navigate, lang, personal }) {
         }} />
         {t("استخدم الموديل لترتيب النتائج", "Use a model to prioritize findings")} <bdi>{model.model}</bdi>
       </label>}
-      {personal && !model && <DirectoryLink className="workspace-back" to="/settings#model-connection" navigate={navigate}>
+      {personal && !model && <DirectoryLink className="workspace-back" to="/settings?tab=model" navigate={navigate}>
         {t("إعداد اتصال الموديل", "Set up model connection")}
       </DirectoryLink>}
       <label className="project-check workspace-ack">
@@ -579,9 +526,7 @@ function Dashboard({ location, navigate, user, lang, invitationRevision, persona
   const t = translate(lang);
   const route = location.pathname.replace(/\/$/, "") || "/";
   const inProjects = route === "/projects";
-  const inOverview = route === "/dashboard";
   const inScan = route === "/new-scan";
-  const inHistory = route === "/scans";
   const [organizations, setOrganizations] = useState([]);
   const [projects, setProjects] = useState([]);
   const [error, setError] = useState("");
@@ -592,25 +537,18 @@ function Dashboard({ location, navigate, user, lang, invitationRevision, persona
   const [loadFailed, setLoadFailed] = useState(false);
   const [retry, setRetry] = useState(0);
   const params = new URLSearchParams(location.search);
-  const selection = params.get("project");
-  const fallback = inOverview || inHistory ? projects[0]?.id : "";
-  const selected = selection && (!inOverview || projects.some((item) => item.id === selection))
-    ? selection : fallback;
+  const selected = params.get("project") || "";
   const project = projects.find((item) => item.id === selected);
-  function choose(id) {
-    setError("");
-    navigate(id ? route + "?project=" + id : route);
-  }
   const path = project ? projectApi(project.id) : null;
   const activePath = useRef(path);
   const memory = memoryState?.path === path ? memoryState.value : null;
   const manage = project && ["owner", "admin"].includes(project.role);
   const requestedView = params.get("view");
-  const view = requestedView === "references" || (manage && (requestedView === "management" || (!personal && requestedView === "access")))
+  const view = ["references", "scans"].includes(requestedView) || (manage && (requestedView === "management" || (!personal && requestedView === "access")))
     ? requestedView : "activity";
   const policyView = inProjects && view === "management";
   const recentView = inProjects && view === "activity";
-  const scansView = inOverview || inHistory || recentView;
+  const scansView = inProjects && (view === "scans" || view === "activity");
   const needsSnapshot = policyView || scansView;
   const snapshotKey = path && [path, route, view].join(":");
   const snapshot = snapshotState?.key === snapshotKey ? snapshotState : null;
@@ -684,13 +622,14 @@ function Dashboard({ location, navigate, user, lang, invitationRevision, persona
   const creatingProject = personal && inProjects && !project && params.has("new");
   const title = {
     "/dashboard": t("نظرة عامة", "Overview"), "/projects": creatingProject ? t("مشروع جديد", "New Project") : t("المشاريع", "Projects"),
-    "/new-scan": t("فحص جديد", "New scan"), "/scans": t("سجل الفحوصات", "Scan history"),
+    "/new-scan": t("فحص جديد", "New scan"),
   }[route];
   const displayName = (user.display_name || "").trim();
   const showName = displayName && !displayName.includes("@");
-  const showNewScan = inOverview ? projects.some((item) => item.role !== "viewer")
-    : inProjects && project && project.role !== "viewer" && (!personal || view === "activity");
-  const showProjectNavigation = project && (inProjects || (personal && inHistory));
+  const canScan = project && project.role !== "viewer";
+  const showNewScan = inProjects && canScan && view === "activity";
+  const projectPage = inProjects && project;
+  const lostProject = (inProjects || inScan) && selected && !project && !loading && !loadFailed;
   const policyEditor = policyView && project && snapshot?.policy && <Panel title={t("سياسة المدخلات والهدف", "Input policy and target")}>
         <p>{t("عنوان الهدف للربط بس. الفحص بيحلل الملفات اللي رفعتها.", "The target is a reference. Scans analyze the files you upload.")}</p>
         <form className="project-form" onSubmit={(event) => submit(event, async (data) => {
@@ -709,77 +648,51 @@ function Dashboard({ location, navigate, user, lang, invitationRevision, persona
           <button className="btn" disabled={busy}>{t("حفظ السياسة", "Save policy")}</button>
         </form>
     </Panel>;
-  const activity = inOverview && !loading && !error && <section className="card project-panel workspace-activity" aria-labelledby="overview-activity">
-    <div className="directory-heading">
-      <div>
-        <h2 id="overview-activity"><Activity size={20} aria-hidden="true" />{t("أحدث الفحوصات", "Recent scans")}</h2>
-        {projects.length === 1 && <p><bdi>{project?.name}</bdi></p>}
-      </div>
-      {projects.length > 1 && <ProjectSelector projects={projects} value={project?.id} onChange={choose} t={t} required />}
-      {project && <DirectoryLink className="overview-text-link" to={"/scans?project=" + project.id} navigate={navigate}>
-        {t("عرض السجل", "Open scan history")}
-      </DirectoryLink>}
-    </div>
-    {!projects.length && <p>{t("النشاط هيظهر هنا لما يتعمل أول فحص من تبويب المشاريع.", "Activity appears here after the first scan from Projects.")}</p>}
-    {project && !snapshot && <p role="status">{t("بنحمّل الفحوصات…", "Loading scans…")}</p>}
-    {project && snapshot && <RecentScanTable project={project.id} scans={snapshot.scans.slice(0, 4)} lang={lang} t={t} />}
-  </section>;
+  const Back = lang === "ar" ? ChevronRight : ChevronLeft;
   return <div className="project-workspace" data-workspace-page={route.slice(1)}>
-    <header className={"project-header" + (inOverview ? " command-hero" : "")}>
-      <div>{((inProjects && project) || creatingProject) && <DirectoryLink className="workspace-back" to={personal ? "/projects" : "/projects?org=" + project.org_id} navigate={navigate}>{t("كل المشاريع", "All projects")}</DirectoryLink>}
-        {personal && inHistory && project && <DirectoryLink className="workspace-back" to={"/projects?project=" + project.id}
-          navigate={navigate}><bdi>{project.name}</bdi></DirectoryLink>}
-        <h1>{inOverview && showName ? <>{t("أهلًا،", "Welcome,")} <bdi>{displayName}</bdi></>
-          : inProjects && project ? <bdi>{project.name}</bdi> : title}</h1>
-        {inOverview && <p>{t("تابعي نتائج الفحوصات وتغطية المشروع.", "Monitor findings and project review coverage.")}</p>}</div>
-      {!loading && showNewScan && <DirectoryLink className="btn primary"
-        to={newScanLink(project?.role !== "viewer" ? project?.id : "")} navigate={navigate}>
-        <Plus size={17} aria-hidden="true" />{t("فحص جديد", "New scan")}
-      </DirectoryLink>}
+    <header className="project-header">
+      <div>{((inProjects && project) || creatingProject || (inScan && project)) && <DirectoryLink className="workspace-back"
+          to={inScan ? "/projects?project=" + project.id : personal ? "/projects" : "/projects?org=" + project.org_id} navigate={navigate}>
+          <Back size={15} aria-hidden="true" />{inScan ? <bdi>{project.name}</bdi> : t("المشاريع", "Projects")}</DirectoryLink>}
+        <h1>{inProjects && project ? <bdi>{project.name}</bdi> : title}</h1></div>
+      <div className="header-actions">
+        {!loading && !loadFailed && personal && inProjects && !project && !creatingProject && <DirectoryLink className="btn icon-plus"
+          to="/projects?new=1" navigate={navigate} aria-label={t("مشروع جديد", "New project")} title={t("مشروع جديد", "New project")}>
+          <Plus size={18} aria-hidden="true" /></DirectoryLink>}
+        {!loading && showNewScan && <DirectoryLink className="btn primary" to={newScanLink(project.id)} navigate={navigate}>
+          <Plus size={17} aria-hidden="true" />{t("فحص جديد", "New scan")}
+        </DirectoryLink>}
+      </div>
     </header>
     {error && <p className="workspace-error" role="alert">{error} <button className="btn" onClick={() => setRetry((value) => value + 1)}>{t("إعادة المحاولة", "Retry")}</button></p>}
     {loading && <p role="status">{t("بنحمّل المشاريع…", "Loading projects…")}</p>}
-    {!loadFailed && activity && <DashboardView key={project?.id ?? "empty"} path={path} projectId={project?.id} t={t} lang={lang}
-      reportLink={reportLink} activity={activity} projectCount={projects.length} projectScans={snapshot?.scans}
-      activityEvents={(snapshot?.scans ?? []).slice(0, 4).map((item) => ({
-        id: item.id, title: item.artifact.name, state: item.state, href: scanLink(project.id, item.id),
-        detail: label(states, item.state, t) + " · " + new Date(item.updated_at ?? item.created_at)
-          .toLocaleString(lang === "ar" ? "ar-EG" : "en", { dateStyle: "medium", timeStyle: "short" }),
-      }))} />}
-    {!loading && !loadFailed && inScan && <NewScan key={selected || "new"} projects={projects} project={project} choose={choose} navigate={navigate} lang={lang} personal={personal} />}
-    {inProjects && !project && !loading && !loadFailed && (personal ?
+    {lostProject && <Panel title={t("المشروع مش متاح", "Project not found")}>
+      <p>{t("المشروع المطلوب مش موجود أو مفيش عندك صلاحية عليه.", "This project does not exist or you cannot open it.")}</p>
+      <DirectoryLink className="btn" to="/projects" navigate={navigate}>{t("كل المشاريع", "All projects")}</DirectoryLink>
+    </Panel>}
+    {!loading && !loadFailed && inScan && !lostProject && <NewScan key={selected || "new"} projects={projects} project={project} navigate={navigate} lang={lang} personal={personal} />}
+    {inProjects && !project && !selected && !loading && !loadFailed && (personal ?
       <PersonalDirectory projects={projects} creating={params.has("new")} navigate={navigate}
         refresh={refreshPersonalProjects} submit={submit} busy={busy} lang={lang} />
       : <ProjectDirectory organizations={organizations} projects={projects}
         selectedOrg={params.get("org")} navigate={navigate} refresh={refreshDashboard} submit={submit} busy={busy} lang={lang} />)}
-    {showProjectNavigation && <nav className="project-section-nav" aria-label={t("أقسام المشروع", "Project sections")}>
-      {[
-        ["activity", t("النشاط والتقارير", "Activity and reports"), true],
-        ["management", t("إدارة المشروع", "Project management"), manage],
-        ["access", t("الوصول", "Access"), manage && !personal],
-        ["references", t("المراجع", "References"), true],
-      ].filter(([, , allowed]) => allowed).map(([section, name]) =>
-        <DirectoryLink key={section} to={(section === "history" ? "/scans" : "/projects") + "?project=" + project.id
-          + (["activity", "history"].includes(section) ? "" : "&view=" + section)}
-          navigate={(to) => { setError(""); navigate(to); }}
-          aria-current={(inHistory ? "history" : view) === section ? "page" : undefined}>{name}</DirectoryLink>
-      )}
-    </nav>}
-    {!loading && !loadFailed && inHistory && <Panel title={personal ? null : t("سجل الفحوصات", "Scan history")}>
-      {projects.length && (!personal || !selection) ? <ProjectSelector projects={projects} value={project?.id} onChange={choose} t={t} />
-        : !projects.length && <p>{t("سجل الفحوصات هيظهر لما يبقى عندك مشروع.", "Scan history appears after you have a project.")}</p>}
-      {project && !snapshot && !error && <p role="status">{t("بنحمّل الفحوصات…", "Loading scans…")}</p>}
-      {project && snapshot && <ScanList project={project.id} scans={snapshot.scans} lang={lang} t={t} />}
-    </Panel>}
+    {projectPage && <ProjectTabs project={project} active={view} manage={manage} personal={personal} t={t} navigate={navigate}
+      onNavigate={() => setError("")} />}
     {inProjects && project && needsSnapshot && !snapshot && !error && <p role="status">{t("بنحمّل تفاصيل المشروع…", "Loading project details…")}</p>}
-    {recentView && project && snapshot && <div className="project-grid" key={project.id}>
-      <Panel title={t("الفحوصات الجارية", "Current scans")}>
-        <ScanList project={project.id} scans={snapshot.scans.filter((item) => isActive(item.state)).slice(0, 5)}
-          lang={lang} t={t} emptyMessage={t("مفيش فحوصات جارية.", "No scans are running.")} />
-      </Panel>
-      <Panel title={t("آخر التقارير", "Recent reports")}>
-        <RecentReports reports={snapshot.reports || []} project={project.id} lang={lang} />
-      </Panel>
+    {projectPage && view === "scans" && snapshot && <Panel title={null}>
+      <ScanList project={project.id} scans={snapshot.scans} lang={lang} t={t} />
+    </Panel>}
+    {recentView && project && snapshot && <div className="project-overview" key={project.id}>
+      <ProjectSummary path={path} projectId={project.id} t={t} lang={lang} reportLink={reportLink} />
+      <div className="project-grid">
+        <Panel title={t("الفحوصات الجارية", "Current scans")}>
+          <ScanList project={project.id} scans={snapshot.scans.filter((item) => isActive(item.state)).slice(0, 5)}
+            lang={lang} t={t} emptyMessage={t("مفيش فحوصات جارية.", "No scans are running.")} />
+        </Panel>
+        <Panel title={t("آخر التقارير", "Recent reports")}>
+          <RecentReports reports={snapshot.reports || []} project={project.id} lang={lang} />
+        </Panel>
+      </div>
     </div>}
     {personal && policyView && project
       ? <PersonalProjectManagement key={project.id} project={project}
@@ -859,7 +772,7 @@ export function Platform({ location, navigate, lang, session, preferences, perso
     if (!user || !signingIn) return;
     const next = new URLSearchParams(location.search).get("next") || "";
     const safeReport = /^\/reports(?:\/[a-f0-9]{32})?(?:\?[^#]*)?$/.test(next);
-    const destination = pendingInvite ? "/settings" + location.hash : safeReport ? next : personal ? "/projects" : "/dashboard";
+    const destination = pendingInvite ? "/settings" + location.hash : safeReport ? next : "/projects";
     navigate(destination, { replace: true });
   }, [user, signingIn, location.hash, location.search, pendingInvite, personal, navigate]);
   if (failure) return <p className="workspace-error" role="alert">{errorText(failure, t)} <button className="btn" onClick={retry}>{t("إعادة المحاولة", "Retry")}</button></p>;
@@ -868,18 +781,15 @@ export function Platform({ location, navigate, lang, session, preferences, perso
     navigate={navigate} preferences={preferences}
     onAuthenticated={(account) => {
     setUser(account);
-    if (!signingIn && !pendingInvite) navigate(personal ? "/projects" : "/dashboard", { replace: true });
+    if (!signingIn && !pendingInvite) navigate("/projects", { replace: true });
   }} />;
   if (signingIn) return <p role="status">{t("بنفتح مساحة العمل…", "Opening your workspace…")}</p>;
   const match = /^\/projects\/([a-f0-9]{32})\/scans\/([a-f0-9]{32})\/?$/.exec(location.pathname);
   if (match) return <ScanStatus key={match[2]} projectId={match[1]} scanId={match[2]} lang={lang} />;
-  if (personal && /^\/settings\/?$/.test(location.pathname) && new URLSearchParams(location.search).get("tab") === "github") {
-    return <PersonalGitHub lang={lang} />;
-  }
-  if (/^\/settings\/?$/.test(location.pathname)) return <AccountSettings lang={lang} user={user} preferences={preferences} personal={personal}
+  if (/^\/settings\/?$/.test(location.pathname)) return <AccountSettings lang={lang} user={user} personal={personal} location={location} navigate={navigate}
     onProfileChange={setUser}
     key={user.id} invitation={pendingInvite ? location.hash.slice("#invite=".length) : ""}
-    clearInvite={() => navigate("/settings", { replace: true })}
+    clearInvite={() => navigate("/settings?tab=organization", { replace: true })}
     onJoined={() => setInvitationRevision((current) => current + 1)}
     onLogout={() => { setUser(null); navigate("/", { replace: true }); }} />;
   return <Dashboard location={location} navigate={navigate} user={user} lang={lang} invitationRevision={invitationRevision}

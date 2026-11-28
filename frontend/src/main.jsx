@@ -13,10 +13,9 @@ import "@fontsource/inter/latin-500.css";
 import "@fontsource/inter/latin-600.css";
 import { Reports } from "./Reports";
 import { Platform, usePlatformSession } from "./Platform";
-import { Landing, OverviewSidebar } from "./Landing";
+import { Landing } from "./Landing";
 import { Entry } from "./Entry";
 import { SiteHeader, readPreference, savePreference } from "./SiteHeader";
-import { PersonalSidebar } from "./PersonalWorkspace";
 import { action } from "./platformClient";
 import "./style.css";
 import "./workspace.css";
@@ -25,46 +24,13 @@ import "./security-overview.css";
 import "./command-center.css";
 import "./command-light.css";
 import "./entry.css";
-
-const rippleControls = ".btn, .launch, .square, .site-icon, .command-search, .overview-primary, .reports-button, .signin-control, .signin-submit, .signin-secondary, .overview-chart-filters button, .report-language a";
-
-function listenForButtonRipples() {
-  const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
-
-  function ripple(event) {
-    if (motion.matches || (event.type === "pointerdown" ? !event.isPrimary || event.button !== 0 : event.detail !== 0)) return;
-    const control = event.target instanceof Element ? event.target.closest(rippleControls) : null;
-    if (!control || control.matches(':disabled, [aria-disabled="true"]')) return;
-
-    const bounds = control.getBoundingClientRect();
-    const x = event.type === "pointerdown" ? event.clientX - bounds.left : bounds.width / 2;
-    const y = event.type === "pointerdown" ? event.clientY - bounds.top : bounds.height / 2;
-    const wave = document.createElement("i");
-    wave.className = "button-ripple";
-    wave.setAttribute("aria-hidden", "true");
-    wave.style.setProperty("--ripple-x", x + "px");
-    wave.style.setProperty("--ripple-y", y + "px");
-    wave.style.setProperty("--ripple-radius", Math.hypot(Math.max(x, bounds.width - x), Math.max(y, bounds.height - y)) + "px");
-    wave.addEventListener("animationend", () => wave.remove(), { once: true });
-    wave.addEventListener("animationcancel", () => wave.remove(), { once: true });
-    control.querySelector(":scope > .button-ripple")?.remove();
-    control.append(wave);
-  }
-
-  document.addEventListener("pointerdown", ripple, true);
-  document.addEventListener("click", ripple, true);
-  return () => {
-    document.removeEventListener("pointerdown", ripple, true);
-    document.removeEventListener("click", ripple, true);
-  };
-}
+import "./redesign.css";
 
 function currentLocation() {
   return { pathname: window.location.pathname, search: window.location.search, hash: window.location.hash };
 }
 
 function App() {
-  useEffect(listenForButtonRipples, []);
   const [location, setLocation] = useState(currentLocation);
   const [lang, setLang] = useState(() => {
     const browserLanguage = (navigator.languages?.[0] || navigator.language || "").split("-")[0].toLowerCase();
@@ -87,9 +53,9 @@ function App() {
   const initialPath = useRef(location.pathname);
   const findingsPage = /^\/findings\/?$/.test(location.pathname);
   const reportsPage = /^\/reports(?:\/|$)/.test(location.pathname);
-  const projectsPage = /^\/(?:projects(?:\/|$)|dashboard\/?$|scans\/?$|new-scan\/?$|settings\/?$|signin\/?$)/.test(location.pathname);
-  const personalWorkspace = Boolean(personal && session.user && !landingPage);
-  function navigate(path, { replace = false } = {}) {
+  const projectsPage = /^\/(?:projects(?:\/|$)|dashboard\/?$|new-scan\/?$|settings\/?$|signin\/?$)/.test(location.pathname);
+  const scansRedirect = /^\/scans\/?$/.test(location.pathname);
+    function navigate(path, { replace = false } = {}) {
     const previousPath = window.location.pathname;
     const update = replace ? "replaceState" : "pushState";
     if (path !== previousPath + window.location.search + window.location.hash) window.history[update](null, "", path);
@@ -172,18 +138,41 @@ function App() {
     navigate(session.user ? "/new-scan" : "/signin", { replace: true });
   }, [demoPage, session.user]);
   useEffect(() => {
-    if (landingPage && session.user && !location.hash) navigate("/dashboard", { replace: true });
+    // Scan history is a project tab now. Old links open it for the project they name, or for the first project.
+    if (!/^\/scans\/?$/.test(location.pathname) || !session.user) return;
+    const named = new URLSearchParams(location.search).get("project");
+    if (named) { navigate("/projects?project=" + encodeURIComponent(named) + "&view=scans", { replace: true }); return; }
+    const controller = new AbortController();
+    action("/api/platform/projects", { signal: controller.signal }).then(
+      ({ projects }) => navigate(projects.length ? "/projects?project=" + projects[0].id + "&view=scans" : "/projects", { replace: true }),
+      () => {},
+    );
+    return () => controller.abort();
+  }, [location.pathname, location.search, session.user]);
+  useEffect(() => {
+    // Reports belong to a project. A bare /reports opens the first project's reports.
+    if (!/^\/reports\/?$/.test(location.pathname) || !session.user || new URLSearchParams(location.search).get("project")) return;
+    const controller = new AbortController();
+    action("/api/platform/projects", { signal: controller.signal }).then(
+      ({ projects }) => navigate(projects.length ? "/reports?project=" + projects[0].id : "/projects", { replace: true }),
+      () => {},
+    );
+    return () => controller.abort();
+  }, [location.pathname, location.search, session.user]);
+  useEffect(() => {
+    // There is no separate Overview page: Projects is home.
+    if (/^\/dashboard\/?$/.test(location.pathname) && session.user) navigate("/projects", { replace: true });
+  }, [location.pathname, session.user]);
+  useEffect(() => {
+    if (landingPage && session.user && !location.hash) navigate("/projects", { replace: true });
   }, [landingPage, location.hash, session.user]);
   if (entryPage && session.user === null) return <Entry follow={follow} lang={lang} preferences={preferences} />;
   if (entryPage && session.user === undefined && !session.failure) return <p role="status" className="entry-loading">{t("جاري تحميل بصيرة…", "Loading Basira…")}</p>;
   return (
     <>
-      <div className={signingInPage ? undefined : "workspace-layout"} dir={signingInPage ? undefined : "ltr"}>
-      {!signingInPage && <SiteHeader pathname={location.pathname} follow={follow} lang={lang} authenticated={Boolean(session.user)}
-        preferences={preferences} />}
-      {personalWorkspace && <PersonalSidebar key={session.user.id} location={location} navigate={navigate} lang={lang}
-        follow={follow} revision={projectRevision} onLogout={() => { session.setUser(null); navigate("/", { replace: true }); }} />}
-      {!signingInPage && !personalWorkspace && <OverviewSidebar lang={lang} follow={follow} location={location} />}
+      <div className={signingInPage ? undefined : "workspace-layout"} dir={signingInPage ? undefined : lang === "ar" ? "rtl" : "ltr"}>
+      {!signingInPage && <SiteHeader pathname={location.pathname} follow={follow} navigate={navigate} lang={lang} user={session.user}
+        preferences={preferences} onLogout={() => { session.setUser(null); navigate("/", { replace: true }); }} />}
       <main ref={mainContent} id="main-content" tabIndex={-1} dir={lang === "ar" ? "rtl" : "ltr"}
         className={landingPage ? "site-landing-main" : "site-workspace-main"}>
         {productError ? <div role="alert"><p>{t("تعذّر تحميل إعدادات بصيرة.", "Basira settings could not be loaded.")}</p>
@@ -191,6 +180,7 @@ function App() {
           : !product ? <p role="status">{t("جاري تحميل بصيرة…", "Loading Basira…")}</p>
           : landingPage ? <Landing follow={follow} lang={lang} authenticated={Boolean(session.user)} />
           : reportsPage ? <Reports location={location} navigate={navigate} lang={lang} session={session} personal={personal} />
+          : scansRedirect ? <p role="status">{t("جاري فتح الفحوصات…", "Opening scans…")}</p>
           : findingsPage ? <p role="status">{t("جاري فتح التقارير…", "Opening reports…")}</p>
           : projectsPage ? <Platform location={location} navigate={navigate} lang={lang} session={session}
             personal={personal} onProjectsChanged={() => setProjectRevision((revision) => revision + 1)}

@@ -1,10 +1,17 @@
 """Exercise the release in a disposable Compose project."""
 
+import re
+
 from playwright.sync_api import expect, sync_playwright
 
 from browser_release import ORIGIN
-from browser_account import API, FORBIDDEN_COPY, register
+from browser_account import API, FORBIDDEN_COPY, register, set_language, set_theme
 
+
+
+def set_theme(page, theme):
+    page.locator(".account-menu .menu-trigger").click()
+    page.get_by_role("menuitem", name=re.compile("Light mode|الوضع الفاتح" if theme == "light" else "Dark mode|الوضع الغامق")).click()
 
 def assert_no_overflow(page):
     assert page.evaluate("document.documentElement.scrollWidth === innerWidth"), page.url
@@ -26,41 +33,27 @@ def authenticated_workspace(browser):
     layout = page.locator("html")
     for language in ("ar", "en"):
         page.goto(ORIGIN + "/settings")
-        page.locator(".account-preferences select").first.select_option(language)
+        set_language(page, language)
         expect(layout).to_have_attribute("lang", language)
         for width in (320, 566, 1280):
             page.set_viewport_size({"width": width, "height": 850})
             for route in ("/settings", "/dashboard", f"/projects?project={project}", f"/new-scan?project={project}"):
                 page.goto(ORIGIN + route)
-                expect(page.locator(".site-account")).to_have_count(1)
+                expect(page.locator(".account-menu")).to_have_count(1)
                 expect(page.locator("main h1")).to_have_count(1)
                 expect(page.locator("body")).not_to_contain_text(FORBIDDEN_COPY)
                 expect(layout).to_have_attribute("dir", "rtl" if language == "ar" else "ltr")
                 expect(page.locator("header a[href='/checks']")).to_have_count(0)
                 # The shell renders one persistent main-navigation entry; the
                 # workspace may add one contextual primary action inside main.
-                label = "فحص جديد" if language == "ar" else "New scan"
-                nav = page.locator(".overview-nav")
-                expect(nav.get_by_role("link", name=label, exact=True)).to_have_count(1)
-                assert page.get_by_role("main").get_by_role("link", name=label, exact=True).count() <= 1, page.url
+                expect(page.locator(".overview-nav, .workspace-sidebar, .personal-sidebar")).to_have_count(0)
+                assert page.get_by_role("main").get_by_role("link", name=re.compile("^(New scan|فحص جديد)$")).count() <= 1, page.url
                 assert_no_overflow(page)
     page.goto(ORIGIN + "/settings")
-    page.get_by_label("Theme").select_option("light")
+    set_theme(page, "light")
     page.reload()
     expect(layout).to_have_attribute("data-theme", "light")
     page.set_viewport_size({"width": 320, "height": 850})
-    # Keyboard path through the header's only dialog: open with Enter, the
-    # search field is there, Escape closes. Focus placement on open/close is a
-    # known frontend follow-up, so it is deliberately not asserted here.
-    search = page.get_by_role("button", name="Search projects and reports", exact=False)
-    search.focus()
-    page.keyboard.press("Enter")
-    dialog = page.get_by_role("dialog", name="Search workspace", exact=True)
-    expect(dialog).to_be_visible()
-    expect(dialog.get_by_role("searchbox")).to_be_visible()
-    page.keyboard.press("Escape")
-    expect(dialog).to_have_count(0)
-
     fake_key = "raw-credential-fixture"
     removed = request.post(ORIGIN + "/api/models", data={"key": fake_key})
     rejected = request.post(ORIGIN + "/api/run", data={"source": "<p>Fixture</p>", "key": fake_key, "model": "fixture/demo"})
@@ -69,14 +62,14 @@ def authenticated_workspace(browser):
     assert rejected.headers["cache-control"] == "no-store"
 
     page.goto(f"{ORIGIN}/new-scan?project={project}")
-    page.get_by_role("button", name="Continue to source").click()
     page.locator('input[name="kind"][value="github"]').check()
     expect(page.get_by_text("This project needs an authorized GitHub connection.", exact=False)).to_be_visible()
     expect(page.get_by_role("button", name="Review scan")).to_be_disabled()
     page.locator('input[name="kind"][value="repository"]').check()
     expect(page.locator('input[type="file"][accept=".zip"]')).to_be_visible()
 
-    page.get_by_role("link", name="Account", exact=True).click()
+    page.get_by_role("button", name="Account menu").click()
+    page.get_by_role("menuitem", name="Settings", exact=True).click()
     page.get_by_role("button", name="Sign out", exact=True).click()
     expect(page.get_by_role("button", name="Sign out", exact=True)).to_have_count(0)
     assert request.get(API + f"/projects/{project}/scan-profile").status == 401

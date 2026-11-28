@@ -1,9 +1,9 @@
-import React, { useEffect, useId, useRef, useState } from "react";
-import { ArrowUpRight, CheckCircle2, ChevronLeft, ChevronRight, FileCheck2, Folder, FolderPlus, GitBranch, Grid2X2, History, LogOut, Menu, Pencil, Plus, RefreshCw, RotateCcw, ScanLine, Search, Settings, Trash2, Workflow } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { ArrowUpRight, CheckCircle2, Folder, GitBranch, RefreshCw, RotateCcw, Search, Trash2 } from "lucide-react";
+import { Menu } from "./Menu";
 import { post } from "./data";
 import { action, api, errorText, json, translate } from "./platformClient";
-import { DirectoryLink } from "./ProjectDirectory";
-import { WorkspaceBrand } from "./SiteHeader";
+import { ProjectGroup, readPins, writePins } from "./ProjectGroup";
 import "./personal-workspace.css";
 
 // Only link to GitHub over https, whatever the API returns.
@@ -12,110 +12,8 @@ function safeGithubUrl(value) {
   catch { return ""; }
 }
 
-export function PersonalSidebar({ location, navigate, follow, lang, revision, onLogout }) {
-  const t = translate(lang);
-  const [projects, setProjects] = useState([]);
-  const [failure, setFailure] = useState(null);
-  const [retry, setRetry] = useState(0);
-  const [open, setOpen] = useState(false);
-  const [leaving, setLeaving] = useState(false);
-  const linksId = useId();
-  const menu = useRef(null);
-  const params = new URLSearchParams(location.search);
-  const projectId = params.get("project") || /^\/projects\/([a-f0-9]{32})\/scans\//.exec(location.pathname)?.[1];
-  const projectDirectory = location.pathname.replace(/\/$/, "") === "/projects" && !projectId;
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setFailure(null);
-    action(api + "/projects", { signal: controller.signal }).then(
-      ({ projects }) => { if (!controller.signal.aborted) setProjects(projects); },
-      (error) => { if (!controller.signal.aborted) setFailure(error); },
-    );
-    return () => controller.abort();
-  }, [revision, retry]);
-  useEffect(() => setOpen(false), [location.pathname, location.search]);
-
-  async function logout() {
-    setLeaving(true);
-    setFailure(null);
-    try {
-      await action(api + "/auth/logout", { method: "POST" });
-      onLogout();
-    } catch (error) {
-      setFailure(error);
-      setLeaving(false);
-    }
-  }
-
-  const projectQuery = projectId ? "?project=" + encodeURIComponent(projectId) : "";
-  return <nav className="personal-sidebar" data-project-directory={projectDirectory || undefined}
-    aria-label={t("مساحة العمل", "Workspace navigation")} onKeyDown={(event) => {
-    if (event.key === "Escape" && open) {
-      setOpen(false);
-      menu.current?.focus();
-    }
-  }}>
-    <WorkspaceBrand href="/" follow={follow} lang={lang} />
-    <button ref={menu} className="btn personal-menu" type="button" aria-expanded={open} aria-controls={linksId}
-      onClick={() => setOpen((value) => !value)}><Menu size={18} aria-hidden="true" />{t("القائمة", "Menu")}</button>
-    <div id={linksId} className={"personal-links" + (open ? " is-open" : "")}>
-      <DirectoryLink to={"/dashboard" + projectQuery} navigate={navigate} aria-current={location.pathname === "/dashboard" ? "page" : undefined}>
-        <Grid2X2 size={18} aria-hidden="true" />{t("نظرة عامة", "Overview")}
-      </DirectoryLink>
-      <DirectoryLink to={"/new-scan" + projectQuery} navigate={navigate} aria-current={location.pathname === "/new-scan" ? "page" : undefined}>
-        <ScanLine size={18} aria-hidden="true" />{t("فحص جديد", "New scan")}
-      </DirectoryLink>
-      <DirectoryLink to={"/dashboard" + projectQuery + "#agents"} navigate={navigate}
-        aria-current={location.pathname === "/dashboard" && location.hash === "#agents" ? "location" : undefined}>
-        <Workflow size={18} aria-hidden="true" />{t("فريق المراجعة", "Review agents")}
-      </DirectoryLink>
-      <DirectoryLink to={"/reports" + projectQuery} navigate={navigate}
-        aria-current={location.pathname.startsWith("/reports") ? "page" : undefined}>
-        <FileCheck2 size={18} aria-hidden="true" />{t("التقارير", "Reports")}
-      </DirectoryLink>
-      <DirectoryLink to={"/scans" + projectQuery} navigate={navigate} aria-current={location.pathname === "/scans" ? "page" : undefined}>
-        <History size={18} aria-hidden="true" />{t("سجل الفحوصات", "Scan history")}
-      </DirectoryLink>
-      <DirectoryLink to="/projects" navigate={navigate} aria-current={projectDirectory && !params.has("new") ? "page" : undefined}>
-        <Folder size={18} aria-hidden="true" />{t("المشاريع", "Projects")}
-      </DirectoryLink>
-      {!projectDirectory && projects.length > 0 && <div className="personal-nav-group">
-        <p className="personal-nav-label">{t("مشاريعي", "My projects")}</p>
-        <ul aria-label={t("مشاريعي", "My projects")}>
-          {projects.map((project) => <li key={project.id}>
-            <DirectoryLink to={"/projects?project=" + project.id} navigate={navigate}
-              aria-current={project.id === projectId ? "location" : undefined}>
-              <Folder size={16} aria-hidden="true" /><bdi>{project.name}</bdi>
-            </DirectoryLink>
-            <DirectoryLink className="personal-nav-add" to={"/new-scan?project=" + encodeURIComponent(project.id)} navigate={navigate}
-              aria-label={t("فحص جديد في " + project.name, "New scan in " + project.name)}>
-              <Plus size={14} aria-hidden="true" />
-            </DirectoryLink>
-          </li>)}
-        </ul>
-      </div>}
-      <div className="personal-nav-account">
-        <DirectoryLink to="/settings?tab=github" navigate={navigate} aria-current={params.get("tab") === "github" ? "page" : undefined}>
-          <GitBranch size={18} aria-hidden="true" />{t("اتصال GitHub", "GitHub Connection")}
-        </DirectoryLink>
-        <DirectoryLink to="/settings" navigate={navigate} aria-current={location.pathname === "/settings" && !params.has("tab") ? "page" : undefined}>
-          <Settings size={18} aria-hidden="true" />{t("الإعدادات", "Settings")}
-        </DirectoryLink>
-        <button type="button" onClick={logout} disabled={leaving}>
-          <LogOut size={18} aria-hidden="true" />{t("تسجيل الخروج", "Logout")}
-        </button>
-      </div>
-      {failure && <p className="workspace-error" role="alert">{errorText(failure, t)}{" "}
-        <button type="button" onClick={() => setRetry((count) => count + 1)}>{t("إعادة تحميل القائمة", "Reload menu")}</button>
-      </p>}
-    </div>
-  </nav>;
-}
-
 export function PersonalDirectory({ projects, creating, navigate, refresh, submit, busy, lang }) {
   const t = translate(lang);
-  const Chevron = lang === "ar" ? ChevronLeft : ChevronRight;
   if (creating) return <section className="card project-panel personal-project-editor">
     <form className="project-form" onSubmit={(event) => submit(event, async (data) => {
       const project = await action(api + "/projects", post({ name: data.get("name") }));
@@ -133,8 +31,14 @@ export function PersonalDirectory({ projects, creating, navigate, refresh, submi
 
 function ProjectList({ projects, navigate, refresh, submit, busy, lang }) {
   const t = translate(lang);
-  const Chevron = lang === "ar" ? ChevronLeft : ChevronRight;
-  const [query, setQuery] = useState("");
+  const [pins, setPins] = useState(readPins);
+  const [collapsed, setCollapsed] = useState([]);
+  const togglePin = (id) => setPins((current) => {
+    const next = current.includes(id) ? current.filter((item) => item !== id) : [id, ...current];
+    writePins(next);
+    return next;
+  });
+  const toggleOpen = (id) => setCollapsed((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [archived, setArchived] = useState(null);
@@ -152,18 +56,13 @@ function ProjectList({ projects, navigate, refresh, submit, busy, lang }) {
     return () => controller.abort();
   }, [showArchived, projects]);
 
-  const needle = query.trim().toLowerCase();
-  const visible = projects.filter((project) => project.name.toLowerCase().includes(needle));
+  const visible = [...projects].sort((a, b) => Number(pins.includes(b.id)) - Number(pins.includes(a.id)));
+  const allCollapsed = visible.length > 0 && visible.every((project) => collapsed.includes(project.id));
   const toolbar = <div className="personal-project-toolbar">
-    <DirectoryLink className="btn primary" to="/projects?new=1" navigate={navigate}>
-      <FolderPlus size={16} aria-hidden="true" />{t("مشروع جديد", "New project")}
-    </DirectoryLink>
-    {projects.length > 0 && <label className="personal-project-search">
-      <Search size={16} aria-hidden="true" />
-      <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} dir="auto"
-        placeholder={t("ابحث في المشاريع", "Search projects")} aria-label={t("ابحث في المشاريع", "Search projects")} />
-    </label>}
-    <button className="btn" type="button" aria-pressed={showArchived} onClick={() => setShowArchived((value) => !value)}>
+    {projects.length > 0 && <button className="btn quiet" type="button" onClick={() => setCollapsed(allCollapsed ? [] : visible.map((project) => project.id))}>
+      {allCollapsed ? t("افتح الكل", "Expand all") : t("اطوِ الكل", "Collapse all")}
+    </button>}
+    <button className="btn quiet" type="button" aria-pressed={showArchived} onClick={() => setShowArchived((value) => !value)}>
       <Trash2 size={16} aria-hidden="true" />{showArchived ? t("إخفاء المحذوف", "Hide deleted") : t("المشاريع المحذوفة", "Deleted projects")}
     </button>
   </div>;
@@ -172,24 +71,18 @@ function ProjectList({ projects, navigate, refresh, submit, busy, lang }) {
     {toolbar}
     {!projects.length && <section className="card project-panel personal-project-empty">
       <h2>{t("لسه مفيش مشاريع", "No projects yet")}</h2>
-      <p>{t("اضغط «مشروع جديد» لبدء أول فحص.", "Choose New project to start your first scan.")}</p>
+      <p>{t("اضغط زر + جنب العنوان لإنشاء أول مشروع.", "Use the + button next to the heading to create your first project.")}</p>
     </section>}
-    {projects.length > 0 && !visible.length && <p role="status">{t("مفيش مشروع بالاسم ده.", "No project matches that name.")}</p>}
     {visible.length > 0 && <ul className="personal-project-list" aria-label={t("مشاريع الحساب", "Your projects")}>
       {visible.map((project) => {
         const updated = project.updated_at || project.created_at;
         const path = api + "/projects/" + project.id;
         return <li key={project.id}>
-          <DirectoryLink className="personal-project-card" to={"/projects?project=" + project.id}
-            navigate={navigate}>
-            <span className="personal-project-marker"><Folder size={20} aria-hidden="true" /></span>
-            <span><bdi>{project.name}</bdi>
-              {updated && <time dateTime={updated}>
-                {new Date(updated).toLocaleDateString(lang === "ar" ? "ar-EG" : "en", { dateStyle: "medium" })}
-              </time>}
-            </span>
-            <Chevron size={18} aria-hidden="true" />
-          </DirectoryLink>
+          <ProjectGroup project={project} lang={lang} navigate={navigate} busy={busy}
+            open={!collapsed.includes(project.id)} onToggle={() => toggleOpen(project.id)}
+            pinned={pins.includes(project.id)} onPin={() => togglePin(project.id)}
+            onRename={() => { setDeleting(null); setEditing(project.id); }}
+            onDelete={() => { setEditing(null); setDeleting(project.id); }} />
           {editing === project.id ? <form className="project-form personal-project-inline" onSubmit={(event) => submit(event, async (data) => {
             await action(path, json("PATCH", { name: data.get("name") }));
             await refresh();
@@ -210,18 +103,7 @@ function ProjectList({ projects, navigate, refresh, submit, busy, lang }) {
               <button className="btn danger-action" disabled={busy}>{t("تأكيد الحذف", "Confirm deletion")}</button>
               <button className="btn" type="button" disabled={busy} onClick={() => setDeleting(null)}>{t("رجوع", "Cancel")}</button>
             </div>
-          </form> : <div className="workspace-actions personal-project-actions">
-            <DirectoryLink className="btn primary" to={"/new-scan?project=" + encodeURIComponent(project.id)} navigate={navigate}
-              aria-label={t("فحص جديد، " + project.name, "Add scan, " + project.name)}>
-              <Plus size={14} aria-hidden="true" />{t("فحص جديد", "Add scan")}
-            </DirectoryLink>
-            <button className="btn" type="button" disabled={busy} onClick={() => { setDeleting(null); setEditing(project.id); }}>
-              <Pencil size={14} aria-hidden="true" />{t("تعديل الاسم", "Rename")}
-            </button>
-            <button className="btn danger-action" type="button" disabled={busy} onClick={() => { setEditing(null); setDeleting(project.id); }}>
-              <Trash2 size={14} aria-hidden="true" />{t("حذف", "Delete")}
-            </button>
-          </div>}
+          </form> : null}
         </li>;
       })}
     </ul>}
@@ -282,7 +164,7 @@ export function PersonalProjectManagement({ project, navigate, refresh, submit, 
   </div>;
 }
 
-export function PersonalGitHub({ lang }) {
+export function PersonalGitHub({ lang, embedded = false }) {
   const t = translate(lang);
   const [view, setView] = useState(null);
   const [failure, setFailure] = useState(null);
@@ -369,7 +251,7 @@ export function PersonalGitHub({ lang }) {
   }
 
   return <div className="project-workspace personal-github">
-    <header className="project-header"><h1>{t("اتصال GitHub", "GitHub Connection")}</h1></header>
+    {!embedded && <header className="project-header"><h1>{t("اتصال GitHub", "GitHub Connection")}</h1></header>}
     <section className="card project-panel github-account">
       {view ? <>
         <div className="github-account-identity">

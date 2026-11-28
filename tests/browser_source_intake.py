@@ -12,7 +12,6 @@ from browser_release import ORIGIN, open_report_section
 
 def submit(page, project, kind, name, content, target=None):
     page.goto(f"{ORIGIN}/new-scan?project={project}")
-    page.get_by_role("button", name="Continue to source").click()
     page.locator(f'input[name="kind"][value="{kind}"]').check()
     page.locator('input[type="file"]').set_input_files({
         "name": name, "mimeType": "application/octet-stream", "buffer": content,
@@ -41,13 +40,14 @@ def main():
         team = ctx.request.post(api + "/organizations", data={"name": "Intake QA"}).json()["id"]
         project = ctx.request.post(f"{api}/organizations/{team}/projects", data={"name": "Artifact sources"}).json()["id"]
         page = ctx.new_page()
-        page.goto(ORIGIN + "/dashboard")
+        page.goto(ORIGIN + "/projects")
+        page.get_by_role("button", name="Account menu").click()
         expect(page.get_by_text("Source Reviewer", exact=False)).to_be_visible()
-        expect(page.locator("main").get_by_role("link", name="New scan", exact=True)).to_have_count(1)
-        expect(page.locator("main a[href='/projects'], main a[href='/scans'], main a[href='/reports']")).to_have_count(0)
+        page.keyboard.press("Escape")
+        expect(page.locator("main a[href='/scans'], main a[href='/reports']")).to_have_count(0)
         page.goto(f"{ORIGIN}/projects?project={project}")
         page.locator(".site-brand").click()
-        page.wait_for_url("**/dashboard")
+        page.wait_for_url("**/projects")
         expect(page.locator("main details")).to_have_count(0)
 
         target = "https://evidence.example.test"

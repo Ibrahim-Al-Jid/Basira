@@ -48,8 +48,7 @@ def signup(page):
 
 
 def first_scan(page):
-    page.get_by_role("navigation", name="Workspace navigation").get_by_role(
-        "link", name="Projects", exact=True).click()
+    page.get_by_role("banner").get_by_role("link", name="Projects", exact=True).click()
     page.get_by_role("main").get_by_role("link", name="New project", exact=True).click()
     page.get_by_label("Project name").fill("Local build QA")
     page.get_by_role("button", name="Create project", exact=True).click()
