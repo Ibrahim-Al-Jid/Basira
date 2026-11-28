@@ -83,6 +83,7 @@ const copy = {
     decisionCaution: "ده مش معناه إن المشروع سليم: اللي ماتفحصش مكتوب في التغطية.",
     decisionOpen: "افتح النتيجة",
     pdf: "تحميل PDF",
+    alternatePdf: "تحميل PDF بالإنجليزي",
     findingTypes: "أنواع النتائج",
     rulesApplied: "قواعد اتنفذت",
     incompleteCoverage: "بعض القواعد ما اكتملتش. راجع تغطية الفحص للتفاصيل.",
@@ -247,6 +248,7 @@ const copy = {
     decisionCaution: "This does not mean the project is clean: what was not checked is listed under Coverage.",
     decisionOpen: "Open finding",
     pdf: "Download PDF",
+    alternatePdf: "Download Arabic PDF",
     findingTypes: "Finding types",
     rulesApplied: "Rules run",
     incompleteCoverage: "Some checks did not finish. Open scan coverage for details.",
@@ -843,6 +845,7 @@ function ReportDetails({ report, t, lang, params, pathname, hash, navigate, repo
   const source = report.source || report.input_artifact;
   const summary = lang === "ar" ? report.summary_ar : report.summary_en;
   const downloads = [
+    [`format=pdf&lang=${lang === "ar" ? "en" : "ar"}`, t.alternatePdf],
     ["lang=ar", t.downloadAr],
     ["lang=en", t.downloadEn],
     ["format=json", t.json],
@@ -1094,4 +1097,4 @@ export function Reports({ location, navigate, revision, lang: preferredLanguage 
         : <Archive reports={current.data.reports || []} t={t} lang={lang} params={params} navigate={navigate} />)}
     </section>
   );
-}
+    }
