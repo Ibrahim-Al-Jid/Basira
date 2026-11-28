@@ -57,6 +57,16 @@ def main():
                     page.wait_for_selector("main h1", timeout=8000)
                 except Exception:
                     raise AssertionError(f"no heading on {path} ({language}); url {page.url}; text {page.inner_text('body')[:200]!r}")
+            page.goto(origin + "/dashboard")
+            page.wait_for_selector("main h1")
+            opener = page.locator("button.command-search")
+            opener.focus()
+            opener.press("Enter")
+            page.wait_for_selector("dialog[open]")
+            assert page.evaluate("document.activeElement.type") == "search", f"search dialog did not focus its input ({language})"
+            page.keyboard.press("Escape")
+            page.wait_for_selector("dialog[open]", state="detached")
+            assert page.evaluate("document.activeElement.className") == "command-search", f"focus did not return to the search button ({language})"
             page.goto(f"{origin}/reports/{scan}")
             page.wait_for_url(f"{origin}/reports/{scan}?project={project}")
         assert not errors, (errors[:5], failed[:5])

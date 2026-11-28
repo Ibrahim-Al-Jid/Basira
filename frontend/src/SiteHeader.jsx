@@ -59,7 +59,7 @@ function WorkspaceSearch({ lang, authenticated, follow, close }) {
   return <Modal title={t("بحث في مساحة العمل", "Search workspace")} close={close} lang={lang}>
     <div className="command-search-dialog">
       <label className="overview-search"><Search size={19} aria-hidden="true" />
-        <input autoFocus type="search" value={query} onChange={(event) => setQuery(event.target.value)}
+        <input data-autofocus type="search" value={query} onChange={(event) => setQuery(event.target.value)}
           aria-label={t("اسم المشروع أو التقرير", "Project or report name")}
           placeholder={t("اسم المشروع أو التقرير", "Project or report name")} />
       </label>

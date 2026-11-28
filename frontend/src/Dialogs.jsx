@@ -7,8 +7,14 @@ export function Modal({ title, children, close, wide = false, lang = "ar" }) {
   const ref = useRef(null);
   useEffect(() => {
     const d = ref.current;
+    const opener = document.activeElement;
     d.showModal();
-    return () => d.close();
+    // React autoFocus runs before showModal, so the dialog would focus its first control (Close).
+    d.querySelector("[data-autofocus]")?.focus();
+    return () => {
+      d.close();
+      if (opener && opener !== document.body && opener.isConnected) opener.focus();
+    };
   }, []);
   return (
     <dialog
