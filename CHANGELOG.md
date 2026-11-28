@@ -9,6 +9,7 @@
 - PLAN status matches the merged state: P10 slices a to f and P20 are marked merged, with the automatic default project as the one open P10 item.
 
 ### Removed
+- Duplicate sidebar entries in the personal workspace: "New Project" (the Projects page and the dashboard have the same button) and the "Project security / Review agents" note card at the bottom of the sidebar (it was clipped on 900 px screens and linked to Overview). "Review agents" and "Remediation" stay, because they open their own views. `frontend/src/PersonalWorkspace.jsx`; the browser test now opens New project from the Projects page.
 - `frontend/src/design-pop.css` and `frontend/src/landing.css` (29 KB): not imported anywhere since the command-center frontend was merged. The build output is unchanged.
 - SARIF export, by owner decision: the download button, the `format=sarif` endpoint option, the generator in `backend/advanced_reporting.py`, its tests and every mention in the docs. Reports still export to HTML (Arabic and English), JSON and PDF.
 
@@ -64,6 +65,7 @@
 - Scan errors in English mode showed only "Check the form values and try again." for every 422. The UI now shows an English version of the real server reason for the common intake and GitHub errors (for example "The snapshot has no supported source files"), and the GitHub step of New scan lists the file types Basira reads (Markdown and images are not scanned; a repository with none of the supported files is rejected). Arabic mode already showed the server text.
 - Arabic layout: the sidebar now sits on the right (it stayed on the left before). Desktop and tablet widths; the phone layout (menu under the header) is unchanged. Measured in a browser at 1440, 1024 and 390 px in Arabic and English: sidebar right edge equals the viewport width in Arabic, left edge 0 in English, no horizontal overflow (`frontend/src/command-center.css`).
 - Arabic header now mirrors with the sidebar: search on the right, theme, language and account controls on the left (one CSS rule in `frontend/src/command-center.css`). Checked in a browser in Arabic at 1280 and 390 px and English at 1280 px: no overflow. This branch builds on the Arabic sidebar PR (#57), merge that first.
+- A visible focus box appeared around the page title (Reports, report, scan wizard) on every page load, because the title is focused for screen readers. Non-control elements that are focused only by code (`tabindex=-1`) no longer draw a ring; buttons, links and fields keep theirs (`frontend/src/workspace.css`).
 - Unknown browser URLs now open the app's own "Page not found" screen (HTTP 404) instead of a blank page with a raw server 404, and `/projects/<id>` and `/projects/<id>/reports/<id>` open the project and the report instead of an empty page (`backend/main.py`, `frontend/src/main.jsx`). API routes still return JSON 404. Found by a full product audit; test added in `backend/test_api.py`.
 
 ### Removed
