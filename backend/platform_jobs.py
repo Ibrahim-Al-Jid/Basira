@@ -1,6 +1,5 @@
 """Redis delivery for durable PostgreSQL jobs and offline analyzer calls."""
 import base64
-from datetime import timedelta
 import json
 import os
 from pathlib import Path
@@ -8,7 +7,6 @@ import sys
 import time
 
 from celery import Celery
-import sqlalchemy as sa
 
 from . import model_budget, platform_runtime as store
 from .artifact_review import RULESET_VERSION
@@ -142,15 +140,11 @@ def dispatch_once(deliver=None):
     if deliver is None:
         deliver = scan_task.delay
     with store.platform_session() as db:
-        due = db.execute(sa.select(store.dispatch).where(store.dispatch.c.available_at <= store.now())
-                         .order_by(store.dispatch.c.available_at).limit(1)
-                         .with_for_update(skip_locked=True)).mappings().first()
+        # Retain the outbox until a terminal DB transaction commits; duplicate delivery is safe.
+        due = store.claim_dispatch(db)
         if not due:
             return False
         target = (due["org_id"], due["project_id"], due["scan_id"])
-        # Retain the outbox until a terminal DB transaction commits; duplicate delivery is safe.
-        db.execute(store.dispatch.update().where(store.dispatch.c.scan_id == due["scan_id"])
-                   .values(available_at=store.now() + timedelta(seconds=100)))
     # Deliver after the claim commits. A delivery can run the task inline (eager mode, tests,
     # single-process deployments), and that task writes to the same database: delivering
     # inside the claim transaction deadlocks the writer on SQLite.
@@ -158,8 +152,7 @@ def dispatch_once(deliver=None):
         deliver(*target)
     except Exception:
         with store.platform_session() as db:
-            db.execute(store.dispatch.update().where(store.dispatch.c.scan_id == target[2])
-                       .values(available_at=store.now()))
+            store.release_dispatch(db, target[2])
         raise
     return True
 

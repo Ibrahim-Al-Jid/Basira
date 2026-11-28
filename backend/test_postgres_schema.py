@@ -93,6 +93,33 @@ def test_projects_table_is_owner_scoped(db):
     assert ("personal_project_access", "PERMISSIVE") in policies
 
 
+def test_dispatch_queue_is_claimed_through_a_definer_function(db):
+    """The queue holds no payload, but the app role must not be able to read another tenant's rows."""
+    enabled, _ = db.connect().execute(sa.text(
+        "SELECT c.relrowsecurity, c.relforcerowsecurity FROM pg_class AS c "
+        "JOIN pg_namespace AS n ON n.oid = c.relnamespace "
+        "WHERE n.nspname = 'public' AND c.relname = 'scan_dispatch_outbox'")).one()
+    assert enabled, "scan_dispatch_outbox must enable row level security"
+    policies = db.connect().execute(sa.text(
+        "SELECT policyname, permissive FROM pg_policies "
+        "WHERE schemaname = 'public' AND tablename = 'scan_dispatch_outbox'")).all()
+    assert ("personal_project_access", "PERMISSIVE") in policies
+    with db.connect() as connection:
+        if not connection.execute(sa.text("SELECT 1 FROM pg_roles WHERE rolname = 'basira_app'")).first():
+            pytest.skip("basira_app role is not provisioned")
+        granted = connection.execute(sa.text(
+            "SELECT has_table_privilege('basira_app', 'scan_dispatch_outbox', 'SELECT'), "
+            "has_table_privilege('basira_app', 'scan_dispatch_outbox', 'UPDATE'), "
+            "has_table_privilege('basira_app', 'scan_dispatch_outbox', 'INSERT'), "
+            "has_table_privilege('basira_app', 'scan_dispatch_outbox', 'DELETE')")).one()
+        # SELECT stays for the DELETE that reads scan_id; the policy scopes the rows it can see.
+        assert granted == (True, False, True, True), "the queue is claimed through the function only"
+        for signature in ("basira_dispatch_claim(integer)", "basira_dispatch_release(text)"):
+            assert connection.execute(sa.text(
+                "SELECT has_function_privilege('basira_app', CAST(:signature AS regprocedure), 'EXECUTE')"),
+                {"signature": "public." + signature}).scalar_one()
+
+
 def test_checkpoint_trigger_exists(db):
     assert scalar(db, "SELECT count(*) FROM pg_trigger WHERE tgname = 'basira_clear_analysis_checkpoint'") == 1
 
