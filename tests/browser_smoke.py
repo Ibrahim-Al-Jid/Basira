@@ -28,9 +28,10 @@ def main():
         page.on("console", lambda message: errors.append("console: " + message.text[:160]) if message.type == "error" else None)
         failed = []
         page.on("response", lambda response: failed.append(f"{response.status} {response.url[len(origin):][:80]}") if response.status >= 400 else None)
-        context.request.post(origin + "/api/platform/auth/password/register", data={
+        account = context.request.post(origin + "/api/platform/auth/password/register", data={
             "email": f"smoke-{uuid4().hex[:10]}@example.test", "password": token_urlsafe(24),
-            "first_name": "Smoke", "last_name": "Tester"}).json()
+            "first_name": "Smoke", "last_name": "Tester"})
+        assert account.status == 201, account.text()
         project = context.request.post(origin + "/api/platform/projects", data={"name": "Smoke"}).json()["id"]
         version = context.request.get(f"{origin}/api/platform/projects/{project}/scan-profile").json().get("scope_version", 0)
         scan = context.request.post(f"{origin}/api/platform/projects/{project}/intake/zip", data=archive.getvalue(), headers={
