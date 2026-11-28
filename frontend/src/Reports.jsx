@@ -1110,4 +1110,4 @@ export function Reports({ location, navigate, lang: preferredLanguage = "ar", se
         : <Archive reports={current.data.reports || []} t={t} lang={lang} params={params} navigate={navigate} />)}
     </section>
   );
-      }
+}
