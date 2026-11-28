@@ -9,8 +9,7 @@ Related: [architecture](ARCHITECTURE.md), [configuration](CONFIGURATION.md), [da
 | Topic | Behaviour |
 |---|---|
 | Base URL | `http://127.0.0.1:8765` locally. Every path below is relative to it. |
-| Content type | JSON in, JSON out, except `/api/run` (NDJSON stream) and report downloads (HTML, JSON or PDF). |
-| Lab session | `basira_session` cookie, set by the first `/api/run`. Reports are tied to it. 100 reports per session, kept 30 days. |
+| Content type | JSON in, JSON out, except report downloads (HTML, JSON or PDF). |
 | Platform session | `basira_platform_session` cookie, set by sign-in. HttpOnly, 8 hours, revoked on sign-out. |
 | CSRF | A state-changing request (`POST`, `PUT`, `PATCH`, `DELETE`) that carries an `Origin` header must match the app origin, otherwise `403`. |
 | Idempotency | `POST /api/platform/projects/{project_id}/scans` requires an `Idempotency-Key` header, 8 to 100 characters. The same key returns the same scan instead of starting a second one. |
@@ -23,7 +22,7 @@ Error codes used by the platform API:
 |---|---|
 | 401 | No valid session. |
 | 403 | Signed in, but the role does not allow the action, or the request origin is not the app. |
-| 404 | The project, scan or report is not visible to this account. Also what the lab routes return when personal projects are on. |
+| 404 | The project, scan or report is not visible to this account. Also what the closed `/demo` and organization routes return when personal projects are on. |
 | 408 | A ZIP upload was cut off or ran past its 30-second window. |
 | 409 | Conflict, for example a repeated or stale scope version. |
 | 415 | A ZIP upload that did not declare a ZIP content type. |
@@ -45,29 +44,13 @@ Project access comes from the organization role, or from an explicit project gra
 
 An account that is not a member and has no grant gets `404`, not `403`, so project existence is not disclosed.
 
-## Lab (anonymous, single HTML review)
-
-Available only while `BASIRA_PERSONAL_PROJECTS=0`. With personal projects on, these paths return `404` and the app uses the platform routes below.
+## Public reference
 
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/api/run` | Analyze HTML. Body: `{"source": "<html>", "source_info": {"kind": "file", "name": "page.html"}, "profile": "baseline"}`. `profile` is `baseline` or `extended`. Response is `application/x-ndjson`: one JSON event per line, `step`, `complete` or `error`. |
-| GET | `/api/history` | The session's previous reports. |
-| GET | `/api/reports/{report_id}` | One stored report. |
-| GET | `/api/reports/{report_id}/download` | `lang=en|ar`, `format=html|json|pdf`. |
 | GET | `/api/catalog` | The rule catalog: rules, tools, ruleset version. |
 | GET | `/api/taxonomy` | The vulnerability taxonomy (17 domains, 75 subdomains, 159 problems) with CWE, OWASP and WSTG mapping. |
 
-
-`POST /api/run` is the anonymous lab path and has its own guard: a per-IP quota in a fixed 15-minute window (`BASIRA_LAB_RUN_LIMIT`, default 30) and a per-process concurrency cap (`BASIRA_LAB_RUN_CONCURRENCY`, default 8). Over either limit the answer is 429 with `Retry-After`, the same shape the auth limiter uses. `0` or less disables each limit. The counters live in memory per process.
-
-Example:
-
-```bash
-curl -s -c /tmp/basira.jar -X POST http://127.0.0.1:8765/api/run \
-  -H 'Content-Type: application/json' \
-  -d '{"source": "<html><body><a href=\"http://insecure.example/x\">x</a></body></html>", "profile": "extended"}'
-```
 
 ## Authentication and account
 
@@ -166,7 +149,6 @@ The response is `202` with the scan id. Then poll `GET .../scans/{scan_id}?after
 | GET | `/api/platform/projects/{project_id}/reports/{report_id}/download` | `lang=en|ar`, `format=html|json|pdf`. HTML carries a strict Content-Security-Policy. |
 | GET | `/api/platform/projects/{project_id}/reports/{report_id}/compare` | Compare with a baseline report. `?baseline=<32 hex>`. |
 | GET, POST | `/api/platform/projects/{project_id}/reports/{report_id}/review` | Read or update a finding's review state and comments. Human review is stored separately from the technical finding. |
-| POST | `/api/platform/projects/{project_id}/reports/{report_id}/claim` | Attach a lab report to a project. Body `{"confirm": true}`. |
 | GET | `/api/platform/projects/{project_id}/reports/{report_id}/link-candidates` | Evidence link candidates. |
 | GET, POST | `/api/platform/projects/{project_id}/reports/{report_id}/links` | Read or create evidence links. |
 | DELETE | `/api/platform/projects/{project_id}/reports/{report_id}/links/{link_id}` | Remove a link. |

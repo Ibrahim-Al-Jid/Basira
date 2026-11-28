@@ -1,5 +1,4 @@
 """Authenticated project scanning, report access and scoped memory."""
-from datetime import timedelta
 import json
 from typing import Annotated, Literal
 from urllib.parse import urlsplit
@@ -9,13 +8,12 @@ from fastapi import APIRouter, Header, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 import sqlalchemy as sa
-from sqlalchemy.exc import IntegrityError
 
 from . import platform_runtime as store
 from . import advanced_reporting as advanced
 from .analysis_mode import AnalysisMode, ModeUnavailable
 from .artifact_review import EXTENDED_IDS, MAX_ARTIFACT, InputError, RULESET_VERSION, decode_payload, redact_label, safe_path
-from .contracts import History, HistoryItem, Report, history_item
+from .contracts import History, HistoryItem, Report
 from .identity import ROLE_ACTIONS, require_project
 from .intake_storage import StorageUnavailable
 from .personal_intake import compatible_zip
@@ -90,10 +88,6 @@ class Knowledge(BaseModel):
     title: str = Field(min_length=1, max_length=160)
     reference: str = Field(min_length=1, max_length=500)
     note: str = Field(min_length=1, max_length=2000)
-
-
-class Claim(BaseModel):
-    confirm: Literal[True]
 
 
 def missing():
@@ -323,27 +317,6 @@ def read_review(project_id: str, report_id: str, request: Request):
 @router.post("/reports/{report_id}/review")
 def update_review(project_id: str, report_id: str, request: Request, body: advanced.ReviewAction):
     return advanced.change_review(project(request, project_id, "finding"), report_id, body)
-
-
-@router.post("/reports/{report_id}/claim", status_code=201)
-def claim_report(project_id: str, report_id: str, request: Request, body: Claim):
-    from .main import claimable_legacy_report
-    ctx = project(request, project_id, "scan")
-    report = claimable_legacy_report(request, report_id)
-    try:
-        with store.platform_session() as db:
-            store.bind_project_context(db, ctx)
-            existing = db.execute(sa.select(store.legacy.c.legacy_id).where(
-                store.scope(store.legacy, ctx.org_id, ctx.project_id), store.legacy.c.legacy_id == report_id,
-            )).first()
-            if not existing:
-                db.execute(store.legacy.insert().values(legacy_id=report_id, org_id=ctx.org_id,
-                           project_id=ctx.project_id, user_id=ctx.user_id,
-                           report=report.model_dump(mode="json"), claimed_at=store.now(),
-                           report_index=history_item(report).model_dump(mode="json")))
-    except IntegrityError:
-        raise HTTPException(409, "تعذّر ربط التقرير بالمشروع.") from None
-    return {"id": report_id}
 
 
 @router.get("/memory")

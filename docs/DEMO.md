@@ -19,7 +19,7 @@ OpenRouter free tier: 50 requests per day without credit (measured on 27 Novembe
 
 | Step | Expected | If it fails |
 |---|---|---|
-| Start stack, open the app | page loads in seconds | restart; local lab needs PostgreSQL and Redis running |
+| Start stack, open the app | page loads in seconds | restart; the local stack needs PostgreSQL and Redis running |
 | Start the scan on the demo project | agent lanes fill in as stages finish | the deterministic path still completes with no model: say so, it is by design |
 | Open the report, switch Arabic and English | both languages render | open the pre-run report |
 | Export PDF and JSON | downloads | use the files saved in step 3 |

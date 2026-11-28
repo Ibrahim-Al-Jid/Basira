@@ -8,7 +8,7 @@ Related: [configuration](CONFIGURATION.md) for every environment variable, [API]
 
 | Mode | What works | Needs | Accounts, projects, GitHub |
 |---|---|---|---|
-| 1. Local lab | `POST /api/run` HTML review (the `/demo` page only redirects), reports in SQLite, taxonomy and catalog endpoints | Python 3.13, Node 22 | no |
+| 1. Development server | Backend suite, catalog and taxonomy endpoints, the built UI shell. No accounts or projects | Python 3.13, Node 22 | no |
 | 2. Windows local stack | Everything: accounts, projects, ZIP scans, GitHub App, PDF, dashboard | Mode 1 prerequisites, Docker Desktop, Git | yes |
 | 3. Docker Compose (manual) | Same as mode 2, any OS | Docker Engine or Desktop with Compose, Git | yes |
 
@@ -22,7 +22,7 @@ All three serve the app at `http://127.0.0.1:8765` by default. Use `127.0.0.1`, 
 - Docker Desktop (Windows, macOS) or Docker Engine with the Compose plugin (Linux) for modes 2 and 3.
 - Optional: Windows PowerShell 5.1 or PowerShell 7 for `ops/start-local.ps1`.
 
-## Mode 1: local lab
+## Mode 1: development server
 
 From the repository root. Use `.venv/bin/python` on macOS and Linux, `.\.venv\Scripts\python` on Windows.
 
@@ -34,24 +34,19 @@ npm run build
 npm start
 ```
 
-The `/demo` page is retired; it opens the workspace when signed in and the sign-in page when not. Run a review through the API instead:
-
-```bash
-curl -N -X POST http://127.0.0.1:8765/api/run -H 'content-type: application/json' -d '{"source":"<form action=\"/x\"><input name=p type=password></form>"}'
-```
+Accounts and projects need Mode 2 or 3.
 
 `PORT` changes the port. `npm test` runs the backend suite through the same launcher.
 
 Checks that should pass:
 
 ```bash
-.venv/bin/python -m pytest backend -q            # 581 passed, 22 skipped on 28 Nov 2026
+.venv/bin/python -m pytest backend -q            # 553 passed, 22 skipped on 28 Nov 2026
 node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs   # 8 pass
 ```
 
 `frontend/dist` must exist before the backend tests run: `backend/test_api.py` serves the built frontend. Build first, then test.
 
-Reports and lab sessions live in SQLite at `data/basira.sqlite3`; `BASIRA_DB_PATH` moves it. Accounts and projects are not available in this mode.
 
 ## Mode 2: Windows local stack (accounts, projects, Connect GitHub)
 
@@ -79,7 +74,7 @@ Script parameters:
 
 The script fills only empty lines, stops with a clear message when the credential key is malformed, and warns when the GitHub lines are incomplete. Without the GitHub lines the app still starts, but Connect GitHub is unavailable.
 
-Stop with `docker compose -p basira-local down`. Data is kept. Add `-v` only when you intend to delete the database and the lab reports.
+Stop with `docker compose -p basira-local down`. Data is kept. Add `-v` only when you intend to delete the database.
 
 ## Mode 3: Docker Compose (macOS, Linux, or Windows by hand)
 
@@ -103,9 +98,9 @@ docker compose -p basira-local ps -a
 
 `migrate` runs Alembic and exits; `app`, `dispatcher`, `worker`, `scanner`, `db` and `broker` stay up. Then open http://127.0.0.1:8765/signin and choose "Create account" on a fresh install.
 
-`.env.local` is read for every setting Compose forwards, including `BASIRA_LOG_LEVEL` and the two lab run limits `BASIRA_LAB_RUN_LIMIT` and `BASIRA_LAB_RUN_CONCURRENCY` (defaults `INFO`, `30` and `8`). Change a value there and re-run the `up -d` command; no image rebuild is needed for these three.
+`.env.local` is read for every setting Compose forwards, including `BASIRA_LOG_LEVEL` (default `INFO`). Change a value there and re-run the `up -d` command; no image rebuild is needed.
 
-Set `BASIRA_PERSONAL_PROJECTS=1`, `BASIRA_PASSWORD_AUTH_ENABLED=1` and `BASIRA_PASSWORD_SELF_SIGNUP=1` in `.env.local` before step 2: they turn on personal projects, local password accounts and self sign-up. Without them the email and password sign-in stays off. `ops/start-local.sh` and `ops/start-local.ps1` write all three for you. The anonymous lab database lives in the `anonymous` Compose volume.
+Set `BASIRA_PERSONAL_PROJECTS=1`, `BASIRA_PASSWORD_AUTH_ENABLED=1` and `BASIRA_PASSWORD_SELF_SIGNUP=1` in `.env.local` before step 2: they turn on personal projects, local password accounts and self sign-up. Without them the email and password sign-in stays off. `ops/start-local.sh` and `ops/start-local.ps1` write all three for you.
 
 ### One command on Linux and macOS
 
@@ -166,7 +161,6 @@ After the app is installed, open Settings, then GitHub, press "Connect GitHub" a
 
 | Data | Location |
 |---|---|
-| Lab reports and sessions (SQLite) | `./data/basira.sqlite3`, or `BASIRA_DB_PATH` |
 | Accounts, projects, scans, reports (PostgreSQL) | `database` volume |
 | Queue | `redis` volume |
 | Analysis spool | `spool` volume |

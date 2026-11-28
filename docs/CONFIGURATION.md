@@ -16,8 +16,7 @@ Related: [setup](SETUP.md) for the commands, [API](API.md) for the endpoints the
 | Variable | Default | Effect |
 |---|---|---|
 | `BASIRA_PORT` | `8765` | Host port Compose publishes on `127.0.0.1`. The container always listens on 8000. |
-| `PORT` | `8765` | Port for the local lab launcher (`npm start`). Not read by Compose. |
-| `BASIRA_DB_PATH` | `data/basira.sqlite3` | SQLite file for lab reports and sessions. |
+| `PORT` | `8765` | Port for the development launcher (`npm start`). Not read by Compose. |
 | `BASIRA_PLATFORM_DATABASE_URL` | none | Application connection string. Compose builds it from `BASIRA_DB_PASSWORD` with the `basira_app` role. |
 | `BASIRA_PLATFORM_MIGRATION_URL` | none | Migration connection string, used by `ops/migrate-platform.py` and `ops/review-project-ownership.py`. |
 | `BASIRA_REDIS_URL` | `redis://broker:6379/0` | Queue address. |
@@ -25,8 +24,6 @@ Related: [setup](SETUP.md) for the commands, [API](API.md) for the endpoints the
 | `BASIRA_SOURCE_ADAPTERS` | `gitleaks,osv-scanner` | Supplementary static adapters. Empty disables them; the report then shows the coverage they would have added as missing. |
 | `BASIRA_OSV_DB_DIRECTORY` | `/opt/basira-osv` | Offline OSV database shipped in the image. Do not point it at a downloaded copy at runtime. |
 | `BASIRA_ALLOW_INLINE_ANALYSIS` | unset | Development only. Runs analysis in the web process instead of the isolated worker. Never set this in a shared environment. |
-| `BASIRA_LAB_RUN_LIMIT` | `30` | Anonymous lab runs allowed per client IP in a fixed 15-minute window (`POST /api/run`). `0` or less disables the limit. Over the limit the endpoint answers 429 with `Retry-After`. |
-| `BASIRA_LAB_RUN_CONCURRENCY` | `8` | Anonymous lab runs allowed in flight at once in one process. `0` or less disables the limit. State is per process, so with several workers the real ceiling is the sum. |
 | `BASIRA_LOG_LEVEL` | `INFO` | Level of the request access log (`DEBUG`, `INFO`, `WARNING`, `ERROR`). The log writes one line per request with a request id, the method, the path without its query string, the status and the duration, and the response carries the same id as `X-Request-ID`. |
 
 ## Accounts and projects
@@ -134,7 +131,7 @@ docker compose -p basira-local -f compose.yaml --env-file .env.local config
 
 ## Compose and these settings
 
-`BASIRA_LOG_LEVEL`, `BASIRA_LAB_RUN_LIMIT` and `BASIRA_LAB_RUN_CONCURRENCY` are forwarded to the `app` service in `compose.yaml`, so setting them in `.env.local` changes the running container. The values in the table are the defaults Compose substitutes when a variable is unset.
+`BASIRA_LOG_LEVEL` is forwarded to the `app` service in `compose.yaml`, so setting it in `.env.local` changes the running container. The values in the table are the defaults Compose substitutes when a variable is unset.
 
 ## Limits the gateway enforces
 

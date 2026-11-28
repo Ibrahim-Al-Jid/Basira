@@ -1,64 +1,20 @@
 """Basira's same-origin HTTP API and React frontend."""
-import asyncio
-import base64
-from contextlib import closing, contextmanager
-from datetime import datetime, timezone
-from functools import lru_cache
-import hashlib
 import html
-import json
-import os
 from pathlib import Path
 import re
-import secrets
-import sqlite3
-import time
-from typing import Literal
-from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from .contracts import (
-    CompleteEvent, ErrorEvent, History, HistoryItem, Report, Run,
-    RunEvent, SourceInfo, StepEvent, history_item,
-)
-from .graph import GraphError, run_graph
-from .artifact_review import RULESET_VERSION, catalog as rule_catalog, redact_label
-from .offline_worker import scan_payload
-from . import run_guard
+from .artifact_review import catalog as rule_catalog
 from .taxonomy import public as taxonomy_public
 from .platform_db import personal_projects_enabled
 from .observability import install_observability
 
 ROOT = Path(__file__).resolve().parents[1]
-COOKIE = "basira_session"
-SESSION_SECONDS = 30 * 86400
-LEGACY_GRACE_SECONDS = 7 * 86400
 app = FastAPI(title="Basira Agent Lab", version="2.3")
-
-
-class RunStream(StreamingResponse):
-    media_type = "application/x-ndjson"
-
-
-fastapi_openapi = app.openapi
-
-
-def describe_ndjson():
-    schema = fastapi_openapi()
-    media = schema["paths"]["/api/run"]["post"]["responses"]["200"]["content"]["application/x-ndjson"]
-    if "x-itemSchema" not in media:
-        item = media["schema"]
-        item.pop("type", None)
-        media["x-itemSchema"] = item
-        media["schema"] = {"type": "string"}
-    return schema
-
-
-app.openapi = describe_ndjson
 
 
 @app.exception_handler(RequestValidationError)
@@ -105,11 +61,10 @@ def page_headers(response):
 async def protect_requests(request, call_next):
     path = request.url.path.rstrip("/")
     if personal_projects_enabled() and (
-        path in {"/demo", "/api/run", "/api/history", "/api/reports"}
-        or path.startswith(("/api/reports/", "/api/platform/organizations/", "/api/platform/invitations/"))
+        path == "/demo"
+        or path.startswith(("/api/platform/organizations/", "/api/platform/invitations/"))
         or path == "/api/platform/organizations"
         or re.match(r"^/api/platform/projects/[^/]+/(?:grants|github-source)(?:/|$)", path)
-        or re.fullmatch(r"/api/platform/projects/[^/]+/reports/[^/]+/claim", path)
     ):
         return JSONResponse({"detail": "المسار غير متاح."}, status_code=404,
                             headers={"Cache-Control": "no-store"})
@@ -130,86 +85,6 @@ async def protect_requests(request, call_next):
     return page_headers(response)
 
 
-REPORT_SCHEMA = """
-    CREATE TABLE IF NOT EXISTS sessions(owner TEXT PRIMARY KEY, expires_at INTEGER);
-    CREATE TABLE IF NOT EXISTS legacy_session_window(id INTEGER PRIMARY KEY CHECK(id = 1), ends_at INTEGER);
-    CREATE TABLE IF NOT EXISTS reports(
-        id TEXT PRIMARY KEY, owner TEXT NOT NULL, created_at TEXT NOT NULL,
-        model TEXT NOT NULL, finding_count INTEGER NOT NULL, report_json TEXT NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS owner_reports ON reports(owner,created_at DESC);
-    CREATE TABLE IF NOT EXISTS report_index(
-        id TEXT PRIMARY KEY REFERENCES reports(id) ON DELETE CASCADE, summary_json TEXT NOT NULL
-    );
-"""
-
-
-@lru_cache(maxsize=8)
-def prepared_database(path):
-    """Create the report schema, and upgrade a legacy sessions table, once per process and path."""
-    with closing(sqlite3.connect(path, timeout=5)) as db, db:
-        db.row_factory = sqlite3.Row
-        db.executescript(REPORT_SCHEMA)
-        if "expires_at" not in {row["name"] for row in db.execute("PRAGMA table_info(sessions)")}:
-            db.execute("BEGIN IMMEDIATE")
-            if "expires_at" not in {row["name"] for row in db.execute("PRAGMA table_info(sessions)")}:
-                db.execute("ALTER TABLE sessions ADD COLUMN expires_at INTEGER")
-                db.execute("INSERT INTO legacy_session_window VALUES (1,?)", (int(time.time()) + LEGACY_GRACE_SECONDS,))
-            db.commit()
-    return True
-
-
-@contextmanager
-def database():
-    path = Path(os.environ.get("BASIRA_DB_PATH", ROOT / "data" / "basira.sqlite3"))
-    path.parent.mkdir(parents=True, exist_ok=True)
-    prepared_database(str(path))
-    with closing(sqlite3.connect(path, timeout=5)) as db, db:
-        db.row_factory = sqlite3.Row
-        db.execute("PRAGMA foreign_keys = ON")
-        yield db
-
-
-def owner_key(token):
-    return hashlib.sha256(token.encode()).hexdigest()
-
-
-def active_owner(db, token, *, allow_legacy=True):
-    if len(token) != 43:
-        return None
-    owner = owner_key(token)
-    row = db.execute("SELECT expires_at FROM sessions WHERE owner=?", (owner,)).fetchone()
-    if not row:
-        return None
-    deadline = row["expires_at"]
-    if deadline is None and allow_legacy:
-        window = db.execute("SELECT ends_at FROM legacy_session_window WHERE id=1").fetchone()
-        deadline = window["ends_at"] if window else None
-    return owner if deadline is not None and deadline > int(time.time()) else None
-
-
-def session(request):
-    token = request.cookies.get(COOKIE, "")
-    with database() as db:
-        owner = active_owner(db, token)
-        if owner:
-            return owner, None
-        token = secrets.token_urlsafe(32)
-        owner = owner_key(token)
-        # Expired rows are never read again; drop them before adding one, so the table
-        # tracks live sessions instead of every browser that ever loaded a page.
-        db.execute("DELETE FROM sessions WHERE expires_at IS NOT NULL AND expires_at <= ?", (int(time.time()),))
-        db.execute("INSERT INTO sessions(owner, expires_at) VALUES(?,?)", (owner, int(time.time()) + SESSION_SECONDS))
-    return owner, token
-
-
-def set_session(response, token, request):
-    if token:
-        response.set_cookie(COOKIE, token, httponly=True, samesite="strict",
-                            secure=request.url.scheme == "https", max_age=SESSION_SECONDS)
-    return response
-
-
 @app.get("/api/catalog")
 def security_catalog():
     return rule_catalog()
@@ -218,145 +93,6 @@ def security_catalog():
 @app.get("/api/taxonomy")
 def vulnerability_taxonomy():
     return taxonomy_public()
-
-
-def summaries(owner):
-    with database() as db:
-        rows = db.execute("""
-            SELECT i.summary_json, CASE WHEN i.id IS NULL THEN r.report_json END AS legacy_json
-            FROM reports AS r LEFT JOIN report_index AS i ON i.id = r.id
-            WHERE r.owner = ? ORDER BY r.created_at DESC, r.id DESC LIMIT 100
-        """, (owner,)).fetchall()
-        reports = []
-        for row in rows:
-            if row["summary_json"] is not None:
-                reports.append(HistoryItem.model_validate_json(row["summary_json"]))
-                continue
-            item = history_item(Report.model_validate_json(row["legacy_json"]))
-            reports.append(item)
-            db.execute("INSERT OR IGNORE INTO report_index (id, summary_json) SELECT id, ? FROM reports WHERE id = ?",
-                       (item.model_dump_json(), item.id))
-    return History(reports=reports)
-
-
-@app.get("/api/history", response_model=History)
-def history(request: Request):
-    owner, token = session(request)
-    return set_session(JSONResponse(summaries(owner).model_dump(mode="json")), token, request)
-
-
-def save_report(owner, report):
-    item = history_item(Report.model_validate(report))
-    with database() as db:
-        db.execute("INSERT INTO reports VALUES(?,?,?,?,?,?)", (
-            report["id"], owner, report["created_at"], report["model"] or "", len(report["findings"]),
-            json.dumps(report, ensure_ascii=False),
-        ))
-        db.execute("INSERT INTO report_index (id, summary_json) VALUES (?, ?)", (item.id, item.model_dump_json()))
-        db.execute("DELETE FROM reports WHERE owner=? AND id NOT IN "
-                   "(SELECT id FROM reports WHERE owner=? ORDER BY created_at DESC, id DESC LIMIT 100)", (owner, owner))
-
-
-@app.post("/api/run", response_class=RunStream, responses={
-    200: {"model": RunEvent, "description": "One step, complete, or error JSON object per NDJSON line.",
-          "content": {"application/x-ndjson": {}}},
-})
-async def run(body: Run, request: Request):
-    run_guard.reserve_run(request)
-    owner, token = session(request)
-    scan_id = uuid4().hex
-    source_info = body.source_info
-    name = source_info.name if source_info else None
-    normalized = body.source.replace("\r\n", "\n").replace("\r", "\n")
-    source = SourceInfo(kind=source_info.kind if source_info else "paste", name=name,
-                        bytes=len(body.source.encode("utf-8")), lines=normalized.count("\n") + 1)
-
-    async def events():
-        queue = asyncio.Queue()
-        steps = []
-
-        async def emit(event):
-            step = StepEvent.model_validate({
-                **event, "role": event["node"].split(":")[0], "scan_id": scan_id,
-                "occurred_at": datetime.now(timezone.utc).isoformat(),
-            })
-            steps.append(step.model_dump(exclude={"type"}))
-            await queue.put(step)
-
-        async def fail(message):
-            await queue.put(ErrorEvent(scan_id=scan_id, message=message))
-
-        async def execute():
-            try:
-                async with asyncio.timeout(300):
-                    if body.profile == "extended":
-                        filename = redact_label(source.name) or ("basira-sample.html" if source.kind == "sample" else "source.html")
-                        payload = {"kind": "html", "name": filename, "policy": {},
-                                   "content": base64.b64encode(body.source.encode("utf-8")).decode("ascii")}
-                        answer = await asyncio.to_thread(scan_payload, payload)
-                        if "error" in answer:
-                            raise GraphError(answer["error"])
-                        result = answer["result"]
-                        for item in result.pop("steps"):
-                            await emit(item)
-                        result["ruleset_version"] = RULESET_VERSION
-                        result["status"] = "partial" if any(row["status"] == "error" for row in result["coverage"]) else "completed"
-                    else:
-                        result = await run_graph(body.source, None, None, emit)
-                report = Report.model_validate({
-                    **result, "id": scan_id, "schema_version": 2,
-                    "created_at": datetime.now(timezone.utc).isoformat(), "model": None,
-                    "steps": steps, "source": source,
-                    "enrichment": result.get("enrichment"),
-                })
-                save_report(owner, report.model_dump(mode="json"))
-                await queue.put(CompleteEvent(report=report))
-            except TimeoutError:
-                await fail("انتهت مهلة التشغيل. حاول تاني أو شغّل الفحص المحلي.")
-            except GraphError as exc:
-                await fail(str(exc))
-            except Exception:
-                await fail("تعذّر استكمال التشغيل. راجع المدخل وحاول تاني.")
-
-        task = asyncio.create_task(execute())
-        try:
-            while True:
-                event = await queue.get()
-                yield event.model_dump_json() + "\n"
-                if event.type != "step":
-                    break
-        finally:
-            task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
-
-    async def guarded():
-        try:
-            async for item in events():
-                yield item
-        finally:
-            run_guard.release_run()
-
-    response = RunStream(guarded(), headers={"X-Accel-Buffering": "no"})
-    return set_session(response, token, request)
-
-
-def load_report(request, report_id, *, allow_legacy=True):
-    token = request.cookies.get(COOKIE, "")
-    with database() as db:
-        owner = active_owner(db, token, allow_legacy=allow_legacy)
-        row = db.execute("SELECT report_json FROM reports WHERE id=? AND owner=?", (report_id, owner)).fetchone()
-    if not row:
-        raise HTTPException(404, "التقرير غير موجود في الجلسة دي.")
-    return Report.model_validate_json(row[0])
-
-
-def claimable_legacy_report(request, report_id):
-    return load_report(request, report_id, allow_legacy=False)
-
-
-@app.get("/api/reports/{report_id}", response_model=Report)
-def report_detail(report_id: str, request: Request):
-    return load_report(request, report_id)
 
 
 def report_html(report, lang):
@@ -445,23 +181,6 @@ def report_html(report, lang):
     return "".join(parts)
 
 
-@app.get("/api/reports/{report_id}/download")
-def download(report_id: str, request: Request, lang: Literal["en", "ar"] = "en",
-             format: Literal["html", "json", "pdf"] = "html"):
-    report = load_report(request, report_id)
-    if format == "pdf":
-        from .report_pdf import pdf_download
-        return pdf_download(report, lang)
-    if format == "json":
-        return JSONResponse(report.model_dump(mode="json"), headers={
-            "Content-Disposition": f'attachment; filename="basira-{report_id}.json"',
-        })
-    return HTMLResponse(report_html(report.model_dump(mode="json"), lang), headers={
-        "Content-Disposition": f'attachment; filename="basira-{report_id}-{lang}.html"',
-        "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
-    })
-
-
 @app.get("/api/product", include_in_schema=False)
 def product_mode():
     return {"personal_projects": personal_projects_enabled()}
@@ -482,7 +201,6 @@ def product_mode():
 @app.get("/settings", include_in_schema=False)
 @app.get("/new-scan", include_in_schema=False)
 def frontend_page(request: Request):
-    # A page view is not a session: the cookie is minted on the first API call that needs an owner.
     return FileResponse(ROOT / "frontend" / "dist" / "index.html", headers={"Cache-Control": "no-store"})
 
 

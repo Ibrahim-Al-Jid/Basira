@@ -20,7 +20,6 @@ AUTH = "/api/platform/auth"
 @pytest.fixture
 def accounts(monkeypatch, tmp_path):
     url = "sqlite:///" + (tmp_path / "password.sqlite3").as_posix()
-    monkeypatch.setenv("BASIRA_DB_PATH", str(tmp_path / "lab.sqlite3"))
     monkeypatch.setenv("BASIRA_PLATFORM_DATABASE_URL", url)
     monkeypatch.setenv("BASIRA_PASSWORD_AUTH_ENABLED", "1")
     monkeypatch.setenv("BASIRA_PASSWORD_SELF_SIGNUP", "1")

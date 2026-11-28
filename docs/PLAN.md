@@ -79,13 +79,13 @@ Verified on 28 November 2026 at commit `f434837`, Linux, Python 3.13.18, Node 22
 - Documentation set: [SETUP](SETUP.md), [CONFIGURATION](CONFIGURATION.md), [API](API.md) and [TROUBLESHOOTING](TROUBLESHOOTING.md) added, with the commands they contain checked in the same run.
 - Earlier records: the 27 November numbers (251 tests at that time), the real-stack browser acceptance and the P18 checklist are in `docs/RELEASE.md`. CI on main is the current record for every run after this entry.
 - Real stack without containers (PostgreSQL 17, Redis 7.2, API, dispatcher, Celery worker, Chromium): personal-projects browser acceptance passed in Arabic and English, covering ZIP scan, report, PDF export and cross-account isolation.
-- Local lab starts with `npm start`; UI, `/demo` and `/api/taxonomy` respond.
+- The development server starts with `npm start`; UI, `/demo` and `/api/taxonomy` respond.
 - Not run: Docker image build and Compose, `tests/container_smoke.py`, the other browser suites, real model provider calls, S3 intake. The P18 checklist results are in `docs/RELEASE.md` under "Release 1 checklist".
 
 Measured gaps:
 - Scan page shows one "Queued" entry, no per-agent view.
 - All 114 checks are passive. 31 of 75 taxonomy subdomains have no check ([taxonomy](taxonomy.md)). Source-code checks read one file at a time.
-- The anonymous lab API (`POST /api/run`) and organization compatibility keys still exist; the `/demo` page only redirects.
+- Organization compatibility keys still exist; the `/demo` page only redirects.
 - No accuracy number exists. No benchmark has been run.
 
 ## 3. Phases
@@ -295,7 +295,7 @@ Release 1 closes first (see Release 1 above): P10, P20, then the P18 release che
 | Detection | 114 checks, seven families (HTML, Web headers and cookies, Dependencies, Infrastructure, CI, App config, and 14 source-code checks added in P19) | `backend/checks/`, `backend/artifact_review.py`, [checks](checks/README.md) |
 | Taxonomy | 17 domains, 75 subdomains, 159 problems, mapped to CWE, OWASP Top 10:2025, OWASP API Top 10 2023, WSTG | `backend/taxonomy.py`, [taxonomy](taxonomy.md) |
 | Tools | Gitleaks 8.30.1 and OSV-Scanner 2.7.1 pinned, offline; saved ZAP and OpenAPI import | `backend/source_adapters.py`, `Dockerfile` |
-| Workflow | Five stages in LangGraph, parallel branches that merge before verification, deterministic fallback | `backend/graph.py`, `backend/offline_worker.py` |
+| Workflow | Five stages in LangGraph, parallel branches that merge before verification, deterministic fallback | `backend/offline_worker.py` |
 | Model | Optional OpenRouter through a separate gateway, strict schemas, invalid citations rejected | `backend/model_gateway.py`, `backend/model_connections.py` |
 | Memory | Six types, recovery checkpoints bound to owner, project, lease and digests | `backend/scan_memory.py`, [architecture](ARCHITECTURE.md) |
 | Platform | Accounts, OIDC, RLS, outbox, Celery, GitHub App | `backend/platform_*.py`, `backend/personal_*.py`, [platform](PLATFORM.md) |
@@ -463,11 +463,11 @@ The database is authoritative for work state and reports. The broker only transp
 |---|---|
 | Web | React, Vite, Arabic and English, RTL and LTR, dark and light |
 | API | Python 3.13, FastAPI, Pydantic; routes under `/api/platform` |
-| Data | PostgreSQL 17, SQLAlchemy, Alembic, row-level security; SQLite only for the anonymous lab until it is removed in P18 |
+| Data | PostgreSQL 17, SQLAlchemy, Alembic, row-level security |
 | Jobs | Redis, Celery, transactional outbox, leases, bounded retries |
 | Agents | LangGraph, five deterministic stages |
 | PDF | fpdf2, uharfbuzz, embedded Arabic font |
-| Deploy | Local lab, Docker Compose; pytest and Playwright |
+| Deploy | Development server, Docker Compose; pytest and Playwright |
 
 ZIP limits: 2,000,000 bytes per archive, 8,000,000 expanded, 1,000,000 per file, 200 entries. Details: [architecture](ARCHITECTURE.md), [data model](ERD.md), [operations](PLATFORM.md), [workspace](WORKSPACE.md).
 

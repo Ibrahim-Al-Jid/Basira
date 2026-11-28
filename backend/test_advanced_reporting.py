@@ -1,8 +1,9 @@
-import json
+import base64
 
 from . import platform_jobs as jobs
 from .advanced_reporting import compare
 from .contracts import Report
+from .offline_worker import scan_payload
 from .test_platform_identity import invite_member
 from .test_personal_intake import new_project, reported, zip_headers
 from .test_personal_projects import personal_clients  # noqa: F401
@@ -82,10 +83,10 @@ def test_extended_lab_records_rules_tools_and_subtasks(platform):
     catalog = client.get("/api/catalog").json()
     assert len(catalog["rules"]) == len({rule["id"] for rule in catalog["rules"]}) == 114
     assert all(rule["title_ar"] != rule["id"] for rule in catalog["rules"])
-    response = client.post("/api/run", json={
-        "profile": "extended", "source": '<form action="https://example.test"><input name="pw" type="password"></form>',
-    })
-    report = json.loads(response.text.splitlines()[-1])["report"]
+    source = '<form action="https://example.test"><input name="pw" type="password"></form>'
+    answer = scan_payload({"kind": "html", "name": "source.html", "policy": {},
+                           "content": base64.b64encode(source.encode()).decode("ascii")})
+    report = answer["result"]
     assert report["status"] == "completed"
     assert len(report["coverage"]) == 114
     assert "HTML-17" in {finding["rule"] for finding in report["findings"]}

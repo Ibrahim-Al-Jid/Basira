@@ -3,7 +3,6 @@ from datetime import timedelta
 import io
 import json
 import os
-import sqlite3
 import time
 from types import SimpleNamespace
 from zipfile import ZipFile, ZipInfo
@@ -16,7 +15,6 @@ import sqlalchemy as sa
 from . import main, model_gateway, platform_jobs as jobs, platform_runtime as store
 from .artifact_review import InputError, defensive_review, zip_texts
 from .identity import SESSION_COOKIE, token_digest
-from .legacy_backup import backup
 from .offline_worker import clear_expired
 from .platform_db import AuthSession, Base, User, database_engine, platform_session, utc_now
 
@@ -25,7 +23,6 @@ from .platform_db import AuthSession, Base, User, database_engine, platform_sess
 def platform(tmp_path, monkeypatch):
     url = f"sqlite:///{(tmp_path / 'platform.sqlite3').as_posix()}"
     monkeypatch.setenv("BASIRA_PLATFORM_DATABASE_URL", url)
-    monkeypatch.setenv("BASIRA_DB_PATH", str(tmp_path / "legacy.sqlite3"))
     monkeypatch.setenv("BASIRA_ALLOW_INLINE_ANALYSIS", "1")
     engine = database_engine(url)
     Base.metadata.create_all(engine)
@@ -146,52 +143,11 @@ def test_cancel_invalid_input_policy_and_six_memory_types(platform):
     assert owner.get(root + "/memory").json()["semantic"] == []
 
 
-def test_claim_proves_anonymous_cookie_and_preserves_id(platform):
-    owner, stranger, ctx = platform
-    lines = owner.post("/api/run", json={"source": "<p>legacy projection</p>"}).text.splitlines()
-    original = json.loads(lines[-1])["report"]
-    url = f"/api/platform/projects/{ctx.project_id}/reports/{original['id']}"
-    assert owner.post(url + "/claim", json={"confirm": False}).status_code == 422
-    token = owner.cookies.get(main.COOKIE)
-    owner.cookies.delete(main.COOKIE)
-    assert owner.post(url + "/claim", json={"confirm": True}).status_code == 404
-    owner.cookies.set(main.COOKIE, token)
-    assert owner.post(url + "/claim", json={"confirm": True}).status_code == 201
-    assert owner.post(url + "/claim", json={"confirm": True}).status_code == 201
-    assert owner.get(url).json()["id"] == original["id"]
-    assert stranger.get(url).status_code == 404
-    with main.database() as db:
-        db.execute("UPDATE sessions SET expires_at=1 WHERE owner=?", (main.owner_key(token),))
-    assert owner.get("/api/reports/" + original["id"]).status_code == 404
-
-
-def test_backup_and_restore_keeps_legacy_report_ids(platform, tmp_path, monkeypatch):
-    owner, _, _ = platform
-    old_database = tmp_path / "legacy.sqlite3"
-    token, report_id = "s" * 43, "c" * 32
-    data = {"id": report_id, "created_at": "2026-11-18T12:00:00+00:00", "model": "fixture",
-            "summary_ar": "تقرير", "summary_en": "Report", "metrics": {}, "findings": []}
-    with sqlite3.connect(old_database) as db:
-        db.executescript("""
-            CREATE TABLE sessions(owner TEXT PRIMARY KEY);
-            CREATE TABLE reports(id TEXT PRIMARY KEY, owner TEXT NOT NULL, created_at TEXT NOT NULL,
-                                 model TEXT NOT NULL, finding_count INTEGER NOT NULL, report_json TEXT NOT NULL);
-        """)
-        db.execute("INSERT INTO sessions VALUES (?)", (main.owner_key(token),))
-        db.execute("INSERT INTO reports VALUES (?,?,?,?,?,?)",
-                   (report_id, main.owner_key(token), data["created_at"], data["model"], 0, json.dumps(data)))
-    recovered = tmp_path / "recovered.sqlite3"
-    assert backup(old_database, recovered) == 1
-    monkeypatch.setenv("BASIRA_DB_PATH", str(recovered))
-    owner.cookies.set(main.COOKIE, token)
-    assert owner.get("/api/reports/" + report_id).json()["id"] == report_id
-    with main.database() as db:
-        assert not db.execute("SELECT expires_at FROM sessions").fetchone()[0]
-        assert main.active_owner(db, token, allow_legacy=False) is None
-        db.execute("UPDATE legacy_session_window SET ends_at=1")
-    assert owner.get("/api/reports/" + report_id).status_code == 404
-    with pytest.raises(FileExistsError):
-        backup(old_database, recovered)
+def test_the_anonymous_claim_route_is_gone(platform):
+    owner, _, ctx = platform
+    url = f"/api/platform/projects/{ctx.project_id}/reports/{'a' * 32}/claim"
+    assert owner.post(url, json={"confirm": True}).status_code in {404, 405}
+    assert not [path for path in owner.get("/openapi.json").json()["paths"] if path.endswith("/claim")]
 
 
 def test_spool_sweeps_files_left_by_dead_process(tmp_path):

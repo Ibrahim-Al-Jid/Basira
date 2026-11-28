@@ -1,15 +1,13 @@
 """Versioned review contracts shared by storage, streaming, and report downloads."""
-import re
 from datetime import date
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from .analysis_mode import AnalysisMode
 from .scan_contracts import ArtifactKind, CoverageStatus, Digest, GitHubSnapshotRef, Identifier, TargetProfile, ToolSelection
 
 MAX_SOURCE_BYTES = 1_000_000
-MAX_SOURCE_CHARS = 250_000
 SourceKind = Literal["sample", "paste", "file"]
 Severity = Literal["high", "medium", "low"]
 Enrichment = Literal["model", "fallback", "disabled"]
@@ -31,23 +29,6 @@ class SourceInput(BaseModel):
             raise ValueError("A file name requires a file source")
         return self
 
-
-class Run(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    source: str = Field(min_length=1, max_length=MAX_SOURCE_CHARS, description="Untrusted HTML text")
-    source_info: SourceInput | None = None
-    profile: Literal["baseline", "extended"] = "baseline"
-
-    @field_validator("source")
-    @classmethod
-    def validate_source(cls, value):
-        if (not value.strip() or re.search(r"[\x00-\x08\x0b\x0e-\x1f]", value) or
-                len(value.encode("utf-8")) > MAX_SOURCE_BYTES):
-            raise ValueError("Invalid source content or length")
-        if ">" not in value or not re.search(r"<[A-Za-z][^<>\s/]*(?:[\s/>])", value):
-            raise ValueError("Source must include an HTML element")
-        return value
 
 class SourceInfo(SourceInput):
     bytes: int = Field(ge=1, le=MAX_SOURCE_BYTES)
@@ -296,22 +277,3 @@ def history_item(report: Report):
                        {finding.domain for finding in report.findings if finding.domain}),
         severities=sorted({finding.severity for finding in report.findings}),
     )
-
-
-class StepEvent(Step):
-    type: Literal["step"] = "step"
-
-
-class CompleteEvent(BaseModel):
-    type: Literal["complete"] = "complete"
-    report: Report
-
-
-class ErrorEvent(BaseModel):
-    type: Literal["error"] = "error"
-    scan_id: str
-    status: Literal["failed"] = "failed"
-    message: str
-
-
-RunEvent = Annotated[StepEvent | CompleteEvent | ErrorEvent, Field(discriminator="type")]

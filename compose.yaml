@@ -94,8 +94,6 @@ services:
     environment:
       <<: [*platform, *model-client]
       BASIRA_LOG_LEVEL: ${BASIRA_LOG_LEVEL:-INFO}
-      BASIRA_LAB_RUN_LIMIT: ${BASIRA_LAB_RUN_LIMIT:-30}
-      BASIRA_LAB_RUN_CONCURRENCY: ${BASIRA_LAB_RUN_CONCURRENCY:-8}
       BASIRA_OIDC_ISSUER: ${BASIRA_OIDC_ISSUER:-}
       BASIRA_OIDC_CLIENT_ID: ${BASIRA_OIDC_CLIENT_ID:-}
       BASIRA_OIDC_CLIENT_SECRET: ${BASIRA_OIDC_CLIENT_SECRET:-}
@@ -117,7 +115,6 @@ services:
       AWS_SECRET_ACCESS_KEY: ${BASIRA_INTAKE_S3_SECRET_ACCESS_KEY:-}
       AWS_SESSION_TOKEN: ${BASIRA_INTAKE_S3_SESSION_TOKEN:-}
     ports: ["127.0.0.1:${BASIRA_PORT:-8765}:8000"]
-    volumes: [anonymous:/srv/basira/data]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/product', timeout=3)"]
       interval: 30s
@@ -252,7 +249,6 @@ networks:
   egress: {}
 volumes:
   database: {}
-  anonymous: {}
   redis: {}
   spool: {}
   model-secrets: {}

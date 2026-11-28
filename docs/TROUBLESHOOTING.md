@@ -11,7 +11,7 @@ Symptoms are grouped by where they appear. Each entry gives the cause and the ch
 | Sign-in works on one machine but the old account is rejected on another | Every install has its own PostgreSQL database | Create an account on the new machine, or move the PostgreSQL data |
 | Password rejected at 12 characters or more | The password has leading or trailing spaces, or the account is rate limited after repeated attempts | Wait for the attempt window to pass, then retry. Register and login limits are separate |
 | Session ends after 8 hours | By design (`SESSION_TTL`) | Sign in again. There is no refresh token |
-| `404` on `/api/run`, `/demo` or `/api/reports/...` while the stack is up | Personal projects are on, and the lab routes are deliberately closed in that mode | Use the project workspace. The lab is for `BASIRA_PERSONAL_PROJECTS=0` |
+| `404` on `/demo` or `/api/platform/organizations` while the stack is up | Personal projects are on, and those routes are deliberately closed in that mode | Use the project workspace |
 
 ## Docker and Compose
 
@@ -20,7 +20,7 @@ Symptoms are grouped by where they appear. Each entry gives the cause and the ch
 | `docker compose up` fails on a missing `BASIRA_*` variable | The `:?Set ...` guard in `compose.yaml` fired | Pass `--env-file .env.local` and fill the three passwords |
 | `db` keeps restarting | A password contains a character that breaks the connection string | Use letters and digits only, then `docker compose -p basira-local down` and up again. The database volume keeps the old password, so a changed password needs `down -v` on a fresh install |
 | The app container exits and `migrate` failed | Alembic ran before the database was healthy, or the migration role cannot connect | `docker compose -p basira-local logs migrate`, then `ps -a` to see the exit code |
-| Port 8765 already in use | The local lab or another stack is running | Stop the other process, or set `BASIRA_PORT` in `.env.local` (and re-run `start-local.ps1 -Port` once so the callback line matches) |
+| Port 8765 already in use | The development server or another stack is running | Stop the other process, or set `BASIRA_PORT` in `.env.local` (and re-run `start-local.ps1 -Port` once so the callback line matches) |
 | Connect GitHub missing after the stack starts | The GitHub lines in `.env.local` are empty or incomplete | `GET /api/platform/github/setup` returns the callback and install URL. If the install URL is null, `BASIRA_GITHUB_APP_SLUG` is missing |
 
 ## Scans and intake
@@ -32,7 +32,6 @@ Symptoms are grouped by where they appear. Each entry gives the cause and the ch
 | `415` on a ZIP upload | The request did not declare `application/zip`, `application/x-zip-compressed` or `application/octet-stream` | Send the file body with the right content type and `X-Artifact-Name` |
 | `408` on a ZIP upload | The upload stalled past the 30-second window | Retry on a better connection |
 | `429` on submit | The project has the maximum number of queued scans | Wait 60 seconds, or cancel a running scan |
-| `429` on `/api/run` (the lab) | The anonymous lab guard: more than `BASIRA_LAB_RUN_LIMIT` runs (default 30) from your IP in the current 15-minute window, or more than `BASIRA_LAB_RUN_CONCURRENCY` (default 8) already in flight in this process | Wait for the `Retry-After` seconds, or raise the limit. Both counters are per process and reset when it restarts |
 | A scan sits at queued and never moves | The dispatcher or worker is not running, or Redis is unreachable | `docker compose ps -a`, then logs for `dispatcher` and `worker` |
 | Coverage shows `adapter_output_limit` or `database_unavailable` | A static adapter hit its output limit or its offline database is missing | This is partial coverage, not a clean result. Check `BASIRA_SOURCE_ADAPTERS` and the image's `/opt/basira-osv` |
 | A cancelled scan still writes a report | It cannot: a stale lease holder cannot publish after cancellation | If it happens, it is a defect. Record the scan id and the report id |

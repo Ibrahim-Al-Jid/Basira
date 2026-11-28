@@ -33,8 +33,7 @@ COPY alembic.ini ./
 COPY --from=web /work/dist ./frontend/dist
 COPY --from=static-tools /tools/ /opt/basira-tools/
 COPY --from=static-tools /osv/ /opt/basira-osv/
-ENV BASIRA_DB_PATH=/srv/basira/data/basira.sqlite3 \
-    PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONDONTWRITEBYTECODE=1
 RUN groupadd --gid 10001 basira && useradd --uid 10001 --gid 10001 --no-create-home basira \
     && mkdir -p /srv/basira/data /srv/basira/spool /srv/basira/model-secrets \
     && chown -R basira:basira /srv/basira/data /srv/basira/spool /srv/basira/model-secrets \

@@ -22,7 +22,6 @@ API = "/api/platform"
 def personal_clients(tmp_path, monkeypatch):
     url = "sqlite:///" + (tmp_path / "personal.sqlite3").as_posix()
     monkeypatch.setenv("BASIRA_PLATFORM_DATABASE_URL", url)
-    monkeypatch.setenv("BASIRA_DB_PATH", str(tmp_path / "lab.sqlite3"))
     for flag in ("BASIRA_PERSONAL_PROJECTS", "BASIRA_PASSWORD_AUTH_ENABLED", "BASIRA_PASSWORD_SELF_SIGNUP"):
         monkeypatch.setenv(flag, "1")
     engine = database_engine(url)
@@ -90,12 +89,10 @@ def test_personal_mode_closes_legacy_routes_and_keeps_github_metadata_private(pe
     owner, other = personal_clients
     assert owner.get("/api/product").json() == {"personal_projects": True}
     project = owner.post(API + "/projects", json={"name": "Repository"}).json()["id"]
-    for path in ("/demo", "/demo/", "/api/history", "/api/reports/old", API + "/organizations",
+    for path in ("/demo", "/demo/", API + "/organizations",
                  API + f"/projects/{project}/grants", API + f"/projects/{project}/github-source"):
         assert owner.get(path).status_code == 404
-    assert owner.post("/api/run", json={}).status_code == 404
     assert owner.post(API + "/invitations/accept", json={}).status_code == 404
-    assert owner.post(API + f"/projects/{project}/reports/old/claim", json={}).status_code == 404
 
     with platform_session() as db:
         db.add(GitHubConnection(user_id=owner.get(API + "/auth/me").json()["id"], installation_id="1",

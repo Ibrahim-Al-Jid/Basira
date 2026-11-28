@@ -13,7 +13,6 @@ Pick a project and an evidence source, follow the scan as it runs, and open a re
 ![React](https://img.shields.io/badge/React-20232A?style=flat-square&logo=react&logoColor=61DAFB)
 ![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)
-![SQLite](https://img.shields.io/badge/SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white)
 
 </div>
 
@@ -22,7 +21,7 @@ Pick a project and an evidence source, follow the scan as it runs, and open a re
 ## Highlights
 
 - **Five LangGraph agent roles.** A coordinator routes the work, then planning, analysis, verification, and reporting roles run it, with parallel branches that merge before verification.
-- **114 defensive checks.** A documented catalog of rules. The lab runs the ones that apply to HTML; projects also accept ZIP archives, HAR captures, and JSON snapshots.
+- **114 defensive checks.** A documented catalog of rules. Projects accept HTML files, ZIP archives, HAR captures, and JSON snapshots.
 - **Reports people can use.** Findings come with redacted evidence, line numbers, severity, and a fix. Export to HTML (Arabic or English), JSON, and PDF.
 - **Model-optional by design.** Optional model enrichment is configured per account. If the provider fails, Basira completes the scan with local analysis instead of failing.
 - **Bilingual UI.** Arabic and English, RTL and LTR, dark and light themes.
@@ -38,13 +37,13 @@ Pick a project and an evidence source, follow the scan as it runs, and open a re
 | Auditor | All local evidence matches | Confirms findings from the rule catalog and keeps every matching location | Findings with redacted evidence, line number, severity, and fix |
 | Scribe | Confirmed findings, coverage, and fix guidance | Builds both summaries from a local template and accepts the model's priority order when it covers all matches | Saved report with HTML (both languages) and JSON export |
 
-Working memory is the LangGraph state. Completed reports persist in SQLite, tied to the browser session profile; a session keeps its last 100 reports for 30 days.
+Working memory is the LangGraph state. Completed reports persist in PostgreSQL, scoped to the owner and project.
 
 ## Run it
 
 Two ways. Both serve the app at http://127.0.0.1:8765. The full guide, including the Windows script, Docker Compose, the GitHub App and the model gateway, is [docs/SETUP.md](docs/SETUP.md); this section is the short version.
 
-### 1. Local lab (Python and Node, no Docker)
+### 1. Development server (Python and Node, no Docker)
 
 Needs Python 3.13 and Node 22. From the repo root (use `.venv/bin/python` on macOS and Linux, `.\.venv\Scripts\python` on Windows):
 
@@ -56,15 +55,11 @@ npm run build
 npm start
 ```
 
-The HTML review page at `/demo` is retired: it opens the workspace when you are signed in and the sign-in page when you are not. The lab API still works and streams one JSON line per step:
-
-```bash
-curl -N -X POST http://127.0.0.1:8765/api/run -H 'content-type: application/json' -d '{"source":"<form action=\"/x\"><input name=p type=password></form>"}'
-```
+Accounts and projects need option 2.
 
 Set `PORT` to change the port. Run the tests with `npm test`.
 
-Verified on 28 November 2026 on Linux with Python 3.13.18 and Node 22.23.5, following exactly the commands above at commit `f434837`: the build succeeds (Vite, 348 ms), the app starts, `/`, `/demo` (the redirect page), `/signin`, `/projects`, `GET /api/taxonomy` and `GET /api/product` return 200, `python -m pytest backend -q` gave 581 passed and 22 skipped, and `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs` gave 8 pass. The lab keeps reports in SQLite; accounts and projects need option 2. The Docker path and the Windows script were not run in that environment, and the [setup guide](docs/SETUP.md) says so per item.
+Verified on 28 November 2026 on Linux with Python 3.13.18 and Node 22.23.5, following exactly the commands above at commit `f434837`: the build succeeds (Vite, 348 ms), the app starts, `/`, `/demo` (the redirect page), `/signin`, `/projects`, `GET /api/taxonomy` and `GET /api/product` return 200, `python -m pytest backend -q` gave 581 passed and 22 skipped (553 passed and 22 skipped after the anonymous lab and its tests were removed), and `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs` gave 8 pass. The Docker path and the Windows script were not run in that environment, and the [setup guide](docs/SETUP.md) says so per item.
 
 ### Run locally on Windows (accounts, projects, Connect GitHub)
 
@@ -103,8 +98,8 @@ Verification status: the Docker image build and these Compose commands have not 
 
 ## Status
 
-- Five LangGraph roles are implemented. The server analyzes HTML locally in the lab and stores reports in SQLite under the browser session name.
-- The release catalog has 114 defensive checks. The extended lab runs the rules that apply to HTML. Projects also accept ZIP, HAR, and JSON snapshots, and add scan comparison, comments, finding statuses, and PDF (Arabic and English) export.
+- Five LangGraph roles are implemented. Reports are stored per owner and project in PostgreSQL.
+- The release catalog has 114 defensive checks. Projects accept ZIP, HAR, and JSON snapshots, and add scan comparison, comments, finding statuses, and PDF (Arabic and English) export.
 - Optional enrichment through Account → Model connection. The scan continues with local analysis if the provider is down.
 - Detection quality is measured against a reference sample, and the project states plainly that there is no real-world data yet to measure general accuracy or model cost.
 
