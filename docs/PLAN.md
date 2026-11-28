@@ -497,7 +497,7 @@ The database is authoritative for work state and reports. The broker only transp
 | PDF | fpdf2, uharfbuzz, embedded Arabic font |
 | Deploy | Development server, Docker Compose; pytest and Playwright |
 
-ZIP limits: 2,000,000 bytes per archive, 8,000,000 expanded, 1,000,000 per file, 200 entries. Details: [architecture](ARCHITECTURE.md), [data model](ERD.md), [operations](PLATFORM.md), [workspace](WORKSPACE.md).
+ZIP limits: 10 MiB (10,485,760 bytes) per archive, 50 MiB expanded, 1,000,000 per file, 1000 entries. Details: [architecture](ARCHITECTURE.md), [data model](ERD.md), [operations](PLATFORM.md), [workspace](WORKSPACE.md).
 
 ## 6. Agents, tools and memory
 

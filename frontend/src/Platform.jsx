@@ -443,8 +443,8 @@ function NewScan({ projects, project, navigate, lang, personal }) {
               value={commit} onChange={(event) => updateEvidence(() => setCommit(event.target.value))} />
           </label>
           {personal && <p className="project-hint">{t(
-            "بصيرة بتقرا ملفات الكود والإعدادات (py، js، ts، json، yaml، toml، xml، Dockerfile وأشباهها) لحد ٢٠٠ ملف و٨ ميجا بعد الفك. ملفات Markdown والصور مش بتتفحص، ومستودع من غيرها هيترفض.",
-            "Basira reads code and config files (py, js, ts, json, yaml, toml, xml, Dockerfile and similar), up to 200 files and 8 MB unpacked. Markdown and images are not scanned, and a repository with none of the supported files is rejected.")}</p>}
+            "بصيرة بتقرا ملفات الكود والإعدادات (py، js، ts، json، yaml، toml، xml، Dockerfile وأشباهها) لحد ١٠٠٠ ملف و٥٠ ميجا بعد الفك (الأرشيف نفسه لحد ١٠ ميجا). ملفات Markdown والصور مش بتتفحص، ومستودع من غيرها هيترفض.",
+            "Basira reads code and config files (py, js, ts, json, yaml, toml, xml, Dockerfile and similar), up to 1000 files and 50 MB unpacked (10 MB for the archive itself). Markdown and images are not scanned, and a repository with none of the supported files is rejected.")}</p>}
         </>}
       </> : useWebsite ? <label>{t("رابط الصفحة المعتمدة", "Approved page URL")}
         <input type="url" dir="ltr" value={targetReference} maxLength={250} required placeholder="https://example.com/"

@@ -111,9 +111,9 @@ def compare(current, baseline, current_policy, baseline_policy):
             if path in report.input_paths:
                 return True
             # A file missing from a complete archive listing did not exist in that snapshot, so it is new
-            # in the later one or removed from it. A full (200 entry) listing may be cut off, so it proves nothing.
+            # in the later one or removed from it. A full (1000 entry) listing may be cut off, so it proves nothing.
             listing = report.input_manifest
-            return listing is not None and len(listing) < 200 and path not in {row.path for row in listing}
+            return listing is not None and len(listing) < 1000 and path not in {row.path for row in listing}
         return report.input_artifact.kind == "html" and report.input_artifact.name == path
     for key in sorted(set(before) | set(after)):
         old, new = before.get(key), after.get(key)

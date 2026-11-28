@@ -76,7 +76,7 @@ def test_compression_bomb_and_expansion_limits_hold():
         zip_texts(build([("bomb.html", b"0" * 900_000)]))
     with pytest.raises(InputError):  # one file over the per-file limit
         zip_texts(build([("big.html", b"<p>" + b"x" * 1_000_001)], ZIP_STORED))
-    parts = [(f"f{i}.html", b"<p>" + b"%d" % i * 900_000) for i in range(9)]  # 9 stored files of 900 KB: each fits, the total does not
+    parts = [(f"f{i}.html", b"<p>" + b"%d" % i * 900_000) for i in range(60)]  # 60 stored files of 900 KB: each fits, the 50 MiB total does not
     with pytest.raises(InputError):
         zip_texts(build(parts, ZIP_STORED))
     with pytest.raises(InputError):

@@ -480,7 +480,7 @@ def claim(org_id, project_id, scan_id):
         detail = (ATTEMPT_RESUMED if checkpoint is not None else ATTEMPT_STARTED).format(number=number)
         cursor = record(db, row, "running", detail)
         db.execute(scans.update().where(scans.c.id == scan_id).values(
-            state="running", attempt=number, lease=lease, lease_until=clock + timedelta(seconds=90),
+            state="running", attempt=number, lease=lease, lease_until=clock + timedelta(seconds=300),
             analysis_checkpoint=row["analysis_checkpoint"] if checkpoint is not None else None,
             updated_at=clock, cursor=cursor,
         ))

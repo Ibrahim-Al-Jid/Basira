@@ -33,7 +33,7 @@ class Submission(BaseModel):
     })
     kind: ArtifactKind
     name: str = Field(min_length=1, max_length=240)
-    content: str = Field(min_length=4, max_length=2_666_668)
+    content: str = Field(min_length=4, max_length=14_000_000)
     enrich: bool = Field(False, json_schema_extra={"deprecated": True})
     scope_version: int | None = Field(default=None, ge=0)
     acknowledge_scope: bool = False

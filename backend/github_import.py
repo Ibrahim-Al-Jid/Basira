@@ -33,7 +33,7 @@ OWNER_REPO = r"[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9_.-]{1,100}"
 SHA = r"[a-fA-F0-9]{40}"
 MAX_INSTALLATION = 2**63 - 1
 MAX_KEY_BYTES = 16_384
-MAX_ARCHIVE_SECONDS = 20
+MAX_ARCHIVE_SECONDS = 45
 GITHUB_SOURCES = "project_github_sources"
 PROVIDER_SLOTS = BoundedSemaphore(4)
 provider_request = ContextVar("basira_github_provider_request", default=False)
@@ -82,7 +82,7 @@ class SnapshotSubmission(BaseModel):
     model_connection: ModelConnection | None = None
 
 
-SNAPSHOT_TOO_BIG = "لقطة GitHub أكبر من حد الرفع (٢ ميجابايت). اختار مستودعًا أصغر أو ارفع ZIP لمجلد الكود فقط."
+SNAPSHOT_TOO_BIG = "لقطة GitHub أكبر من حد الرفع (١٠ ميجابايت). اختار مستودعًا أصغر أو ارفع ZIP لمجلد الكود فقط."
 
 
 class GitHubFailure(Exception):

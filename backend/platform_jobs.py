@@ -19,8 +19,8 @@ broker = os.environ.get("BASIRA_REDIS_URL", "redis://127.0.0.1:6379/0")
 celery_app = Celery("basira", broker=broker)
 celery_app.conf.update(task_serializer="json", accept_content=["json"], worker_prefetch_multiplier=1,
                        task_acks_late=True, task_reject_on_worker_lost=True, task_ignore_result=True,
-                       broker_connection_retry_on_startup=True, task_time_limit=80,
-                       broker_transport_options={"visibility_timeout": 120, "socket_connect_timeout": 3,
+                       broker_connection_retry_on_startup=True, task_time_limit=330,
+                       broker_transport_options={"visibility_timeout": 700, "socket_connect_timeout": 3,
                                                  "socket_timeout": 3})
 
 
@@ -60,11 +60,11 @@ def analyzed(row, on_start=None):
         seen = len(lines)
     try:
         write_json(request, payload)
-        deadline = time.monotonic() + 50
+        deadline = time.monotonic() + 170
         while time.monotonic() < deadline:
             announce()
             if result.is_file():
-                if result.stat().st_size > 8_000_000:
+                if result.stat().st_size > 16_000_000:
                     raise ValueError("Result exceeds the protocol limit")
                 announce()
                 return json.loads(result.read_text(encoding="utf-8"))
