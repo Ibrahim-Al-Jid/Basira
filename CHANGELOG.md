@@ -2,6 +2,8 @@
 
 ## 2026-11-28
 
+### Fixed
+- Scan idempotency keys are scoped to one project. The unique constraint on `project_scans` spanned the whole organization while the API looked the key up per project, so reusing the same `Idempotency-Key` in a second project of the same organization returned 409 "the key is linked to a different request" instead of creating the scan. Migration `platform_idempotency_0017` replaces `uq_project_scans_request` with `uq_project_scans_project_request` on (org, project, user, key). Reproduced and re-checked on PostgreSQL 16 with the `basira_app` role: before, 409; after, 202 in both projects.
 ### Added
 - Container operations: every service and the database and broker log through the `json-file` driver capped at 10 MB times 3 files, the `app` service has a healthcheck and the image has a `HEALTHCHECK`, so a hung process is restarted or routed around instead of looking up. `app`, `worker`, `dispatcher` and `model-gateway` run with `cap_drop: [ALL]` and `no-new-privileges`, which they do not need (they already run as an unprivileged user); the scanner keeps its own isolation.
 - The image build runs `pip check` after installing the requirements and sets `PYTHONDONTWRITEBYTECODE=1`; `.dockerignore` keeps `tests/`, `docs/` and `backend/test_*.py` out of the build context and the runtime image.
@@ -15,9 +17,6 @@
 - PLAN status matches the merged state: P10 slices a to f and P20 are marked merged, with the automatic default project as the one open P10 item.
 
 ### Removed
-- Header bell icon: it was a link to Scan history (the sidebar already has it), not notifications. `frontend/src/SiteHeader.jsx`.
-- Colour palette picker (the "Workspace" / "Colors" pill, the 16 palettes and the "Mix with" option), its stored preferences and its code (`DesignPicker.jsx` and its styles). Owner decision: it only changed colours. The look is fixed to the current default palette, which keeps WCAG AA (accent on canvas 6.9:1 dark, 5.7:1 light, measured; the best of the 16 differed by about 0.5 and would have changed the look). The dark/light toggle and language switch stay.
-- Duplicate sidebar entries in the personal workspace: "New Project" (the Projects page and the dashboard have the same button) and the "Project security / Review agents" note card at the bottom of the sidebar (it was clipped on 900 px screens and linked to Overview). "Review agents" and "Remediation" stay, because they open their own views. `frontend/src/PersonalWorkspace.jsx`; the browser test now opens New project from the Projects page.
 - `frontend/src/design-pop.css` and `frontend/src/landing.css` (29 KB): not imported anywhere since the command-center frontend was merged. The build output is unchanged.
 - SARIF export, by owner decision: the download button, the `format=sarif` endpoint option, the generator in `backend/advanced_reporting.py`, its tests and every mention in the docs. Reports still export to HTML (Arabic and English), JSON and PDF.
 

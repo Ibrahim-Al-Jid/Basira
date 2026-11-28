@@ -52,7 +52,8 @@ scans = sa.Table(
     sa.Column("cursor", sa.Integer, nullable=False, default=0),
     sa.ForeignKeyConstraint(("org_id", "project_id"), ("projects.org_id", "projects.id")),
     sa.UniqueConstraint("org_id", "project_id", "id", name="uq_project_scans_scope"),
-    sa.UniqueConstraint("org_id", "user_id", "idempotency_key", name="uq_project_scans_request"),
+    sa.UniqueConstraint("org_id", "project_id", "user_id", "idempotency_key",
+                        name="uq_project_scans_project_request"),
     sa.Index("ix_project_scans_timeline", "org_id", "project_id", "created_at"),
     sa.Index("ix_project_scans_source_expiry", "source_expires_at"),
 )
