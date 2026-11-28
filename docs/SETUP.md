@@ -39,7 +39,7 @@ Open http://127.0.0.1:8765/demo, choose an HTML file or paste markup, and run th
 Checks that should pass:
 
 ```bash
-.venv/bin/python -m pytest backend -q            # 431 passed, 18 skipped on 28 Nov 2026
+.venv/bin/python -m pytest backend -q            # 434 passed, 18 skipped on 28 Nov 2026
 node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs   # 8 pass
 ```
 
@@ -171,7 +171,7 @@ After the app is installed, open Settings, then GitHub, press "Connect GitHub" a
 |---|---|---|
 | Install | `python -m venv .venv`, `pip install -r requirements-dev.txt` | ok, Python 3.13.18 |
 | Frontend | `npm --prefix frontend ci`, `npm run build` | ok, Vite build 444 ms |
-| Backend suite | `.venv/bin/python -m pytest backend -q` | 431 passed, 18 skipped, 8 subtests, 20.9 s |
+| Backend suite | `.venv/bin/python -m pytest backend -q` | 434 passed, 18 skipped, 8 subtests, 20.9 s |
 | Frontend unit tests | `node --test frontend/src/replay.test.mjs frontend/src/dashboard.test.mjs` | 8 pass |
 | App start | `python -m uvicorn backend.main:app --host 127.0.0.1 --port 8765` | `/`, `/demo`, `/signin`, `/projects`, `/api/taxonomy`, `/api/product` all 200 |
 
@@ -203,7 +203,7 @@ Two scripts, both plain standard library plus the PostgreSQL client binaries.
 BASIRA_PLATFORM_MIGRATION_URL=postgresql://postgres@host/basira python ops/backup-platform.py --output-dir backups
 
 # Dump, restore into a scratch database, then compare shape and posture between the two.
-bash ops/verify_restore.sh
+sh ops/verify_restore.sh
 ```
 
 `ops/verify_restore.sh` compares two things and fails on any difference: shape (public tables, policies, functions, tables with row level security, and the `alembic_version` row) and posture (whether `basira_app` can delete from `users`, whether it can read `password_attempt_limits`, whether it can execute `basira_login_identity`, and how many definer functions PUBLIC may execute). The security posture is part of the backup here: a restore that drops a policy hands one tenant another tenant's rows and nothing in the application would notice.
