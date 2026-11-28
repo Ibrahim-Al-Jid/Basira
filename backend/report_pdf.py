@@ -9,6 +9,8 @@ from fastapi.responses import Response
 from fontTools.ttLib import TTFont
 from fpdf import FPDF
 
+from .evidence_text import localized_evidence
+
 
 FONT = Path(__file__).with_name("report_fonts") / "NotoSansArabic.ttf"
 INK = "#182824"
@@ -161,7 +163,7 @@ def report_pdf(report, lang):
         location_str = f"{printable(rule, 60)}  /  {location + '  /  ' if location else ''}{suffix}"
         pdf.write_line(location_str, size=9, color=MUTED, direction="ltr")
         if finding.evidence:
-            pdf.write_line(printable(finding.evidence, 225), size=9, color=MUTED, direction="ltr")
+            pdf.write_line(printable(localized_evidence(finding.evidence, pdf.ar), 225), size=9, color=MUTED, direction=("rtl" if pdf.ar and localized_evidence(finding.evidence, True) != finding.evidence else "ltr"))
         advice = (finding.remediation_ar if pdf.ar else None) or finding.remediation
         pdf.write_line(t("الإصلاح: ", "Fix: ") + printable(advice))
         if finding.guidance:
