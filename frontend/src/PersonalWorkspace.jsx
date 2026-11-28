@@ -3,7 +3,7 @@ import { ArrowUpRight, Bug, CheckCircle2, ChevronLeft, ChevronRight, FileCheck2,
 import { post } from "./data";
 import { action, api, errorText, json, translate } from "./platformClient";
 import { DirectoryLink } from "./ProjectDirectory";
-import { WorkspaceBrand, WorkspaceSidebarNote } from "./SiteHeader";
+import { WorkspaceBrand } from "./SiteHeader";
 import "./personal-workspace.css";
 
 export function PersonalSidebar({ location, navigate, follow, lang, revision, onLogout }) {
@@ -59,10 +59,6 @@ export function PersonalSidebar({ location, navigate, follow, lang, revision, on
       <DirectoryLink to={"/dashboard" + projectQuery} navigate={navigate} aria-current={location.pathname === "/dashboard" ? "page" : undefined}>
         <Grid2X2 size={18} aria-hidden="true" />{t("نظرة عامة", "Overview")}
       </DirectoryLink>
-      <DirectoryLink className="personal-new-project" to="/projects?new=1" navigate={navigate}
-        aria-current={projectDirectory && params.has("new") ? "page" : undefined}>
-        <FolderPlus size={18} aria-hidden="true" />{t("مشروع جديد", "New Project")}
-      </DirectoryLink>
       <DirectoryLink to={"/new-scan" + projectQuery} navigate={navigate} aria-current={location.pathname === "/new-scan" ? "page" : undefined}>
         <ScanLine size={18} aria-hidden="true" />{t("فحص جديد", "New scan")}
       </DirectoryLink>
@@ -117,7 +113,6 @@ export function PersonalSidebar({ location, navigate, follow, lang, revision, on
         <button type="button" onClick={() => setRetry((count) => count + 1)}>{t("إعادة تحميل القائمة", "Reload menu")}</button>
       </p>}
     </div>
-    <WorkspaceSidebarNote href={"/dashboard" + projectQuery + "#agents"} follow={follow} lang={lang} />
   </nav>;
 }
 
